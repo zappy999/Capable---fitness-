@@ -27,6 +27,7 @@ type SetLog = {
 
 type ExerciseLog = {
   id: string;
+  exerciseId?: string;
   name: string;
   target: string;
   rest: string;
@@ -382,6 +383,7 @@ function resolveSource(
           const ex = library.find((e) => e.id === we.exerciseId);
           return {
             id: we.id,
+            exerciseId: we.exerciseId,
             name: ex?.name ?? 'Exercise',
             target: `${we.sets}x${we.reps}`,
             rest: `${we.restSeconds}s`,
@@ -462,10 +464,13 @@ export default function StartWorkoutScreen() {
           .filter((s) => s.completed)
           .map((s) => ({ weight: s.weight, reps: s.reps }));
         if (completedSets.length === 0) return null;
-        const match = libraryExercises.find(
-          (e) => e.name.toLowerCase() === ex.name.toLowerCase(),
-        );
-        const exerciseId = match ? match.id : addCustomExercise(ex.name, null).id;
+        let exerciseId = ex.exerciseId;
+        if (!exerciseId) {
+          const match = libraryExercises.find(
+            (e) => e.name.toLowerCase() === ex.name.toLowerCase(),
+          );
+          exerciseId = match ? match.id : addCustomExercise(ex.name, null).id;
+        }
         return {
           id: `se-${ex.id}`,
           exerciseId,
