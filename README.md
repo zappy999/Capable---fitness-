@@ -1,4 +1,4 @@
-# kineticas
+# capable ios/android
 
 This project was created with Shipper.
 
