@@ -1,0 +1,1 @@
+{"root":["./expo-env.d.ts","./nativewind-env.d.ts","./src/data/workouts.ts","./app/_layout.tsx","./app/start-workout.tsx","./app/(tabs)/_layout.tsx","./app/(tabs)/history.tsx","./app/(tabs)/index.tsx","./app/(tabs)/profile.tsx","./app/(tabs)/workouts.tsx","./app/workout/[id].tsx","./.expo/types/router.d.ts"],"version":"5.9.3"}
