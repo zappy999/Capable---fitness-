@@ -46,12 +46,23 @@ export default function ProgramDetailScreen() {
         >
           <Ionicons name="chevron-back" size={18} color="#ffffff" />
         </Pressable>
-        <Pressable
-          onPress={handleDelete}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="trash-outline" size={16} color="#F87171" />
-        </Pressable>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => router.push({ pathname: '/programs/new', params: { id: program.id } })}
+            className="px-4 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70 flex-row"
+          >
+            <Ionicons name="create-outline" size={14} color="#ffffff" />
+            <Text className="text-white font-bold ml-1.5" style={{ fontSize: 13 }}>
+              Edit
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleDelete}
+            className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          >
+            <Ionicons name="trash-outline" size={16} color="#F87171" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
