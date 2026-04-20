@@ -201,7 +201,12 @@ export default function WorkoutDetailScreen() {
 
       <View className="absolute bottom-0 left-0 right-0 bg-[#0D0D0D] border-t border-[#1A1A1A] px-5 pt-4 pb-8">
         <Pressable
-          onPress={() => router.push('/start-workout')}
+          onPress={() =>
+            router.push({
+              pathname: '/start-workout',
+              params: { id: (userWorkout?.id ?? demoWorkout?.id) as string },
+            })
+          }
           className="rounded-2xl py-4 flex-row items-center justify-center gap-2 active:opacity-90"
           style={{ backgroundColor: NEON }}
         >

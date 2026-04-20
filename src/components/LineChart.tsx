@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
@@ -18,30 +19,86 @@ export function LineChart({
   data,
   color,
   height = 200,
-  width = 320,
+  width,
   yLabel,
 }: LineChartProps) {
-  if (data.length === 0) {
-    return (
-      <View
-        style={{
-          height,
-          width,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={{ color: '#52525B', fontSize: 13, fontStyle: 'italic' }}>
-          No data yet
-        </Text>
-      </View>
-    );
-  }
+  const [measuredWidth, setMeasuredWidth] = useState(width ?? 0);
+  const actualWidth = width ?? measuredWidth;
 
   const padL = 40;
   const padR = 16;
   const padT = 16;
   const padB = 28;
+
+  return (
+    <View
+      onLayout={(e) => {
+        if (width) return;
+        const w = e.nativeEvent.layout.width;
+        if (w !== measuredWidth) setMeasuredWidth(w);
+      }}
+    >
+      {yLabel ? (
+        <Text
+          style={{
+            color: '#ffffff',
+            fontSize: 14,
+            fontWeight: '700',
+            marginBottom: 8,
+          }}
+        >
+          {yLabel}
+        </Text>
+      ) : null}
+      {data.length === 0 ? (
+        <View
+          style={{
+            height,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: '#52525B', fontSize: 13, fontStyle: 'italic' }}>
+            No data yet
+          </Text>
+        </View>
+      ) : actualWidth > 0 ? (
+        <ChartBody
+          data={data}
+          color={color}
+          width={actualWidth}
+          height={height}
+          padL={padL}
+          padR={padR}
+          padT={padT}
+          padB={padB}
+        />
+      ) : (
+        <View style={{ height }} />
+      )}
+    </View>
+  );
+}
+
+function ChartBody({
+  data,
+  color,
+  width,
+  height,
+  padL,
+  padR,
+  padT,
+  padB,
+}: {
+  data: ChartPoint[];
+  color: string;
+  width: number;
+  height: number;
+  padL: number;
+  padR: number;
+  padT: number;
+  padB: number;
+}) {
   const chartW = width - padL - padR;
   const chartH = height - padT - padB;
 
@@ -72,82 +129,64 @@ export function LineChart({
   const yTicks = [yMin, (yMin + yMax) / 2, yMax];
 
   return (
-    <View>
-      {yLabel ? (
-        <Text
-          style={{
-            color: '#ffffff',
-            fontSize: 14,
-            fontWeight: '700',
-            marginBottom: 8,
-          }}
+    <Svg width={width} height={height}>
+      {yTicks.map((tick, i) => (
+        <Line
+          key={`grid-${i}`}
+          x1={padL}
+          y1={toY(tick)}
+          x2={padL + chartW}
+          y2={toY(tick)}
+          stroke="#1F1F1F"
+          strokeWidth={1}
+        />
+      ))}
+      {yTicks.map((tick, i) => (
+        <SvgText
+          key={`yl-${i}`}
+          x={padL - 8}
+          y={toY(tick) + 4}
+          fill="#52525B"
+          fontSize={10}
+          textAnchor="end"
         >
-          {yLabel}
-        </Text>
+          {formatTick(tick)}
+        </SvgText>
+      ))}
+      {data.length > 1 ? (
+        <Path d={areaPath} fill={color} fillOpacity={0.15} />
       ) : null}
-      <Svg width={width} height={height}>
-        {yTicks.map((tick, i) => (
-          <Line
-            key={`grid-${i}`}
-            x1={padL}
-            y1={toY(tick)}
-            x2={padL + chartW}
-            y2={toY(tick)}
-            stroke="#1F1F1F"
-            strokeWidth={1}
-          />
-        ))}
-        {yTicks.map((tick, i) => (
-          <SvgText
-            key={`yl-${i}`}
-            x={padL - 8}
-            y={toY(tick) + 4}
-            fill="#52525B"
-            fontSize={10}
-            textAnchor="end"
-          >
-            {formatTick(tick)}
-          </SvgText>
-        ))}
-        {data.length > 1 ? (
-          <Path d={areaPath} fill={color} fillOpacity={0.15} />
-        ) : null}
-        {data.length > 1 ? (
-          <Path d={pointsPath} stroke={color} strokeWidth={2} fill="none" />
-        ) : null}
-        {data.map((d, i) => (
-          <Circle
-            key={`pt-${i}`}
-            cx={toX(i)}
-            cy={toY(d.value)}
-            r={3.5}
-            fill={color}
-          />
-        ))}
-        {data.length > 0 ? (
-          <>
-            <SvgText
-              x={padL}
-              y={height - 8}
-              fill="#52525B"
-              fontSize={10}
-              textAnchor="start"
-            >
-              {data[0].label}
-            </SvgText>
-            <SvgText
-              x={padL + chartW}
-              y={height - 8}
-              fill="#52525B"
-              fontSize={10}
-              textAnchor="end"
-            >
-              {data[data.length - 1].label}
-            </SvgText>
-          </>
-        ) : null}
-      </Svg>
-    </View>
+      {data.length > 1 ? (
+        <Path d={pointsPath} stroke={color} strokeWidth={2} fill="none" />
+      ) : null}
+      {data.map((d, i) => (
+        <Circle
+          key={`pt-${i}`}
+          cx={toX(i)}
+          cy={toY(d.value)}
+          r={3.5}
+          fill={color}
+        />
+      ))}
+      <SvgText
+        x={padL}
+        y={height - 8}
+        fill="#52525B"
+        fontSize={10}
+        textAnchor="start"
+      >
+        {data[0].label}
+      </SvgText>
+      <SvgText
+        x={padL + chartW}
+        y={height - 8}
+        fill="#52525B"
+        fontSize={10}
+        textAnchor="end"
+      >
+        {data[data.length - 1].label}
+      </SvgText>
+    </Svg>
   );
 }
 
@@ -156,3 +195,4 @@ function formatTick(v: number) {
   if (Number.isInteger(v)) return String(v);
   return v.toFixed(1).replace(/\.0$/, '');
 }
+

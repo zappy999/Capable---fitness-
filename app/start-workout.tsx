@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../src/store/WorkoutStore';
+import { WORKOUTS as DEMO_WORKOUTS } from '../src/data/workouts';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -363,13 +364,96 @@ function formatRest(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+type SourceKind = 'user' | 'demo' | 'fallback';
+
+function resolveSource(
+  id: string | undefined,
+  userWorkouts: { id: string; name: string; exercises: { id: string; exerciseId: string; sets: number; reps: string; restSeconds: number; tempo?: string; note?: string }[] }[],
+  library: { id: string; name: string }[],
+): { kind: SourceKind; name: string; workoutId?: string; exercises: ExerciseLog[] } {
+  if (id) {
+    const user = userWorkouts.find((w) => w.id === id);
+    if (user) {
+      return {
+        kind: 'user',
+        name: user.name,
+        workoutId: user.id,
+        exercises: user.exercises.map((we) => {
+          const ex = library.find((e) => e.id === we.exerciseId);
+          return {
+            id: we.id,
+            name: ex?.name ?? 'Exercise',
+            target: `${we.sets}x${we.reps}`,
+            rest: `${we.restSeconds}s`,
+            tempo: we.tempo ?? '',
+            note: we.note,
+            sets: Array.from({ length: Math.max(1, we.sets) }, () => ({
+              weight: 0,
+              reps: 0,
+              completed: false,
+            })),
+          };
+        }),
+      };
+    }
+    const demo = DEMO_WORKOUTS.find((w) => w.id === id);
+    if (demo) {
+      return {
+        kind: 'demo',
+        name: demo.name,
+        exercises: demo.exercises.map((ex) => ({
+          id: ex.id,
+          name: ex.name,
+          target: `${ex.sets}x${ex.reps}`,
+          rest: ex.rest,
+          tempo: '',
+          sets: Array.from({ length: Math.max(1, ex.sets) }, () => ({
+            weight: 0,
+            reps: 0,
+            completed: false,
+          })),
+        })),
+      };
+    }
+  }
+  return {
+    kind: 'fallback',
+    name: 'WD - Push + Pull',
+    exercises: INITIAL_EXERCISES.map((e) => ({
+      ...e,
+      sets: e.sets.map((s) => ({ ...s })),
+    })),
+  };
+}
+
 export default function StartWorkoutScreen() {
   const router = useRouter();
-  const { exercises: libraryExercises, addCustomExercise, logSession } = useStore();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const { workouts, exercises: libraryExercises, addCustomExercise, logSession } =
+    useStore();
+
+  const routeId = typeof params.id === 'string' ? params.id : undefined;
+
+  const source = useMemo(
+    () => resolveSource(routeId, workouts, libraryExercises),
+    [routeId, workouts, libraryExercises],
+  );
+
   const [elapsed, setElapsed] = useState(3);
-  const [exercises, setExercises] = useState<ExerciseLog[]>(INITIAL_EXERCISES);
+  const [exercises, setExercises] = useState<ExerciseLog[]>(source.exercises);
+  const [loadedFor, setLoadedFor] = useState<string>(
+    `${source.kind}:${source.workoutId ?? 'fallback'}`,
+  );
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    const key = `${source.kind}:${source.workoutId ?? 'fallback'}`;
+    if (key === loadedFor) return;
+    setExercises(source.exercises);
+    setActiveIdx(0);
+    setLoadedFor(key);
+  }, [source, loadedFor]);
 
   const handleFinish = () => {
     const loggedExercises = exercises
@@ -392,7 +476,8 @@ export default function StartWorkoutScreen() {
 
     if (loggedExercises.length > 0) {
       logSession({
-        workoutName: 'WD - Push + Pull',
+        workoutName: source.name,
+        workoutId: source.workoutId,
         durationSeconds: elapsed,
         exercises: loggedExercises,
       });
@@ -509,8 +594,9 @@ export default function StartWorkoutScreen() {
                 <Text
                   style={{ color: NEON, letterSpacing: 1.5 }}
                   className="text-[11px] font-bold"
+                  numberOfLines={1}
                 >
-                  LIVE · WD – PUSH + PULL
+                  LIVE · {source.name.toUpperCase()}
                 </Text>
               </View>
               <View className="flex-row items-baseline gap-2">
