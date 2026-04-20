@@ -3,8 +3,19 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
 const NEON = '#22C55E';
+const SWIPE_THRESHOLD = 110;
 
 type SetLog = {
   weight: number;
@@ -22,6 +33,237 @@ type ExerciseLog = {
   pr?: number;
   sets: SetLog[];
 };
+
+type SwipeableSetCardProps = {
+  set: SetLog;
+  setIdx: number;
+  isNext: boolean;
+  isDone: boolean;
+  onDecWeight: () => void;
+  onIncWeight: () => void;
+  onDecReps: () => void;
+  onIncReps: () => void;
+  onComplete: () => void;
+};
+
+function SwipeableSetCard({
+  set,
+  setIdx,
+  isNext,
+  isDone,
+  onDecWeight,
+  onIncWeight,
+  onDecReps,
+  onIncReps,
+  onComplete,
+}: SwipeableSetCardProps) {
+  const translateX = useSharedValue(0);
+
+  const pan = Gesture.Pan()
+    .enabled(!isDone)
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-12, 12])
+    .onUpdate((e) => {
+      translateX.value = Math.max(0, e.translationX);
+    })
+    .onEnd((e) => {
+      if (e.translationX > SWIPE_THRESHOLD) {
+        runOnJS(onComplete)();
+        translateX.value = withTiming(0, { duration: 220 });
+      } else {
+        translateX.value = withSpring(0, { damping: 15, stiffness: 180 });
+      }
+    });
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const fillStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      translateX.value,
+      [0, SWIPE_THRESHOLD],
+      [0, 1],
+      Extrapolation.CLAMP,
+    );
+    return { opacity: progress };
+  });
+
+  const iconStyle = useAnimatedStyle(() => {
+    const progress = interpolate(
+      translateX.value,
+      [0, SWIPE_THRESHOLD],
+      [0.6, 1],
+      Extrapolation.CLAMP,
+    );
+    return { transform: [{ scale: progress }] };
+  });
+
+  const hintStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateX.value,
+      [0, SWIPE_THRESHOLD * 0.6],
+      [1, 0],
+      Extrapolation.CLAMP,
+    );
+    return { opacity };
+  });
+
+  const borderColor = isNext
+    ? NEON
+    : isDone
+      ? 'rgba(198,242,78,0.3)'
+      : 'rgba(255,255,255,0.08)';
+  const cardBg = isDone ? 'rgba(198,242,78,0.05)' : '#101010';
+
+  return (
+    <View style={{ position: 'relative', borderRadius: 16, overflow: 'hidden' }}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(34,197,94,0.18)',
+            borderRadius: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingLeft: 24,
+          },
+          fillStyle,
+        ]}
+      >
+        <Animated.View style={iconStyle}>
+          <Ionicons name="checkmark-circle" size={32} color={NEON} />
+        </Animated.View>
+      </Animated.View>
+
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          style={[
+            {
+              borderRadius: 16,
+              padding: 16,
+              borderWidth: isNext ? 2 : 1,
+              borderColor,
+              backgroundColor: cardBg,
+            },
+            cardStyle,
+          ]}
+        >
+          <View className="flex-row items-center gap-2 mb-3">
+            <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+              Set {setIdx + 1}
+            </Text>
+            {isNext ? (
+              <View style={{ backgroundColor: NEON }} className="px-2.5 py-1 rounded-full">
+                <Text className="text-black font-bold" style={{ fontSize: 11, letterSpacing: 0.5 }}>
+                  NEXT
+                </Text>
+              </View>
+            ) : null}
+            {isDone ? (
+              <View
+                style={{ backgroundColor: 'rgba(198,242,78,0.2)' }}
+                className="px-2.5 py-1 rounded-full flex-row items-center gap-1"
+              >
+                <Ionicons name="checkmark" size={12} color={NEON} />
+                <Text style={{ color: NEON, fontSize: 11 }} className="font-bold">
+                  DONE
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View className="flex-row gap-4">
+            <View className="flex-1">
+              <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
+                Weight
+              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={onDecWeight}
+                  disabled={isDone}
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+                >
+                  <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                    −
+                  </Text>
+                </Pressable>
+                <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
+                  <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+                    {set.weight > 0 ? `${set.weight}kg` : 'kg'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onIncWeight}
+                  disabled={isDone}
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+                >
+                  <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                    +
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+            <View className="flex-1">
+              <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
+                Reps
+              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={onDecReps}
+                  disabled={isDone}
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+                >
+                  <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                    −
+                  </Text>
+                </Pressable>
+                <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
+                  <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+                    {set.reps > 0 ? `${set.reps}` : 'reps'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onIncReps}
+                  disabled={isDone}
+                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+                >
+                  <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                    +
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+
+          <View className="flex-row items-center justify-between mt-3">
+            {isDone ? (
+              <Text style={{ color: NEON, fontSize: 13 }} className="italic">
+                ✓ Completed
+              </Text>
+            ) : (
+              <Animated.Text
+                style={[{ color: '#9ca3af', fontSize: 13, fontStyle: 'italic' }, hintStyle]}
+              >
+                Swipe right to complete →
+              </Animated.Text>
+            )}
+            <Pressable className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70">
+              <Text className="text-white font-bold" style={{ fontSize: 13 }}>
+                More
+              </Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </GestureDetector>
+    </View>
+  );
+}
 
 const INITIAL_EXERCISES: ExerciseLog[] = [
   {
@@ -370,132 +612,22 @@ export default function StartWorkoutScreen() {
 
           {/* Set cards */}
           <View className="mt-4 gap-3">
-            {active.sets.map((set, i) => {
-              const isNext = i === nextSetIdx;
-              const isDone = set.completed;
-              return (
-                <View
-                  key={i}
-                  className="rounded-2xl p-4"
-                  style={{
-                    borderWidth: isNext ? 2 : 1,
-                    borderColor: isNext
-                      ? NEON
-                      : isDone
-                        ? 'rgba(198,242,78,0.3)'
-                        : 'rgba(255,255,255,0.08)',
-                    backgroundColor: isDone ? 'rgba(198,242,78,0.05)' : 'transparent',
-                  }}
-                >
-                  <View className="flex-row items-center gap-2 mb-3">
-                    <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                      Set {i + 1}
-                    </Text>
-                    {isNext ? (
-                      <View style={{ backgroundColor: NEON }} className="px-2.5 py-1 rounded-full">
-                        <Text className="text-black font-bold" style={{ fontSize: 11, letterSpacing: 0.5 }}>
-                          NEXT
-                        </Text>
-                      </View>
-                    ) : null}
-                    {isDone ? (
-                      <View style={{ backgroundColor: 'rgba(198,242,78,0.2)' }} className="px-2.5 py-1 rounded-full flex-row items-center gap-1">
-                        <Ionicons name="checkmark" size={12} color={NEON} />
-                        <Text style={{ color: NEON, fontSize: 11 }} className="font-bold">
-                          DONE
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <View className="flex-row gap-4">
-                    <View className="flex-1">
-                      <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
-                        Weight
-                      </Text>
-                      <View className="flex-row items-center gap-2">
-                        <Pressable
-                          onPress={() => updateSet(activeIdx, i, { weight: Math.max(0, set.weight - 2.5) })}
-                          disabled={isDone}
-                          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
-                        >
-                          <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                            −
-                          </Text>
-                        </Pressable>
-                        <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
-                          <Text className="text-white font-bold" style={{ fontSize: 14 }}>
-                            {set.weight > 0 ? `${set.weight}kg` : 'kg'}
-                          </Text>
-                        </View>
-                        <Pressable
-                          onPress={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
-                          disabled={isDone}
-                          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
-                        >
-                          <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                            +
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
-                        Reps
-                      </Text>
-                      <View className="flex-row items-center gap-2">
-                        <Pressable
-                          onPress={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
-                          disabled={isDone}
-                          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
-                        >
-                          <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                            −
-                          </Text>
-                        </Pressable>
-                        <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
-                          <Text className="text-white font-bold" style={{ fontSize: 14 }}>
-                            {set.reps > 0 ? `${set.reps}` : 'reps'}
-                          </Text>
-                        </View>
-                        <Pressable
-                          onPress={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
-                          disabled={isDone}
-                          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
-                        >
-                          <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                            +
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center justify-between mt-3">
-                    {isDone ? (
-                      <Text style={{ color: NEON, fontSize: 13 }} className="italic">
-                        ✓ Completed
-                      </Text>
-                    ) : (
-                      <Pressable
-                        onPress={() => completeSet(activeIdx, i)}
-                        className="flex-row items-center gap-1 active:opacity-60"
-                      >
-                        <Text className="text-gray-400 italic" style={{ fontSize: 13 }}>
-                          Tap to complete
-                        </Text>
-                        <Text style={{ color: NEON, fontSize: 13 }}>→</Text>
-                      </Pressable>
-                    )}
-                    <Pressable className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70">
-                      <Text className="text-white font-bold" style={{ fontSize: 13 }}>
-                        More
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
+            {active.sets.map((set, i) => (
+              <SwipeableSetCard
+                key={`${active.id}-${i}`}
+                set={set}
+                setIdx={i}
+                isNext={i === nextSetIdx}
+                isDone={set.completed}
+                onDecWeight={() =>
+                  updateSet(activeIdx, i, { weight: Math.max(0, set.weight - 2.5) })
+                }
+                onIncWeight={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
+                onDecReps={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
+                onIncReps={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
+                onComplete={() => completeSet(activeIdx, i)}
+              />
+            ))}
 
             <Pressable
               onPress={() => addSet(activeIdx)}
