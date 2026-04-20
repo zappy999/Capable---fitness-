@@ -1,0 +1,65 @@
+import type { Exercise } from '../store/types';
+
+export const EXERCISE_LIBRARY: Exercise[] = [
+  { id: 'ex-bench-press', name: 'Bench Press', category: 'Chest' },
+  { id: 'ex-incline-bench-press', name: 'Incline Bench Press', category: 'Chest' },
+  { id: 'ex-dumbbell-press', name: 'Dumbbell Press', category: 'Chest' },
+  { id: 'ex-incline-dumbbell-press', name: 'Incline Dumbbell Press', category: 'Chest' },
+  { id: 'ex-incline-cable-chest-press', name: 'Incline Cable Chest Press', category: 'Chest' },
+  { id: 'ex-pec-deck', name: 'Pec Deck', category: 'Chest' },
+  { id: 'ex-cable-fly', name: 'Cable Fly', category: 'Chest' },
+  { id: 'ex-push-ups', name: 'Push-Ups', category: 'Chest' },
+  { id: 'ex-dips', name: 'Dips', category: 'Chest' },
+
+  { id: 'ex-deadlift', name: 'Deadlift', category: 'Back' },
+  { id: 'ex-pull-ups', name: 'Pull-Ups', category: 'Back' },
+  { id: 'ex-lat-pulldown', name: 'Lat Pulldown', category: 'Back' },
+  { id: 'ex-barbell-row', name: 'Barbell Row', category: 'Back' },
+  { id: 'ex-t-bar-row', name: 'T Bar Row', category: 'Back' },
+  { id: 'ex-seated-cable-row', name: 'Seated Cable Row', category: 'Back' },
+  { id: 'ex-dumbbell-row', name: 'Dumbbell Row', category: 'Back' },
+  { id: 'ex-face-pulls', name: 'Face Pulls', category: 'Back' },
+  { id: 'ex-bb-shrugs', name: 'BB Shrugs', category: 'Back' },
+
+  { id: 'ex-overhead-press', name: 'Overhead Press', category: 'Shoulders' },
+  { id: 'ex-dumbbell-shoulder-press', name: 'Dumbbell Shoulder Press', category: 'Shoulders' },
+  { id: 'ex-lateral-raises', name: 'Lateral Raises', category: 'Shoulders' },
+  { id: 'ex-rear-delt-fly', name: 'Rear Delt Fly', category: 'Shoulders' },
+  { id: 'ex-front-raises', name: 'Front Raises', category: 'Shoulders' },
+  { id: 'ex-arnold-press', name: 'Arnold Press', category: 'Shoulders' },
+
+  { id: 'ex-tricep-pushdown', name: 'Tricep Pushdown', category: 'Triceps' },
+  { id: 'ex-overhead-tricep-ext', name: 'Overhead Tricep Extension', category: 'Triceps' },
+  { id: 'ex-skull-crushers', name: 'Skull Crushers', category: 'Triceps' },
+  { id: 'ex-close-grip-bench', name: 'Close-Grip Bench', category: 'Triceps' },
+
+  { id: 'ex-barbell-curl', name: 'Barbell Curl', category: 'Biceps' },
+  { id: 'ex-dumbbell-curl', name: 'Dumbbell Curl', category: 'Biceps' },
+  { id: 'ex-hammer-curl', name: 'Hammer Curl', category: 'Biceps' },
+  { id: 'ex-preacher-curl', name: 'Preacher Curl', category: 'Biceps' },
+  { id: 'ex-cable-curl', name: 'Cable Curl', category: 'Biceps' },
+
+  { id: 'ex-back-squat', name: 'Back Squat', category: 'Legs' },
+  { id: 'ex-front-squat', name: 'Front Squat', category: 'Legs' },
+  { id: 'ex-romanian-deadlift', name: 'Romanian Deadlift', category: 'Legs' },
+  { id: 'ex-bulgarian-split-squat', name: 'Bulgarian Split Squat', category: 'Legs' },
+  { id: 'ex-leg-press', name: 'Leg Press', category: 'Legs' },
+  { id: 'ex-leg-extension', name: 'Leg Extension', category: 'Legs' },
+  { id: 'ex-leg-curl', name: 'Leg Curl', category: 'Legs' },
+  { id: 'ex-walking-lunges', name: 'Walking Lunges', category: 'Legs' },
+  { id: 'ex-goblet-squat', name: 'Goblet Squat', category: 'Legs' },
+
+  { id: 'ex-hip-thrust', name: 'Hip Thrust', category: 'Glutes' },
+  { id: 'ex-glute-bridge', name: 'Glute Bridge', category: 'Glutes' },
+  { id: 'ex-cable-kickbacks', name: 'Cable Kickbacks', category: 'Glutes' },
+
+  { id: 'ex-standing-calf-raises', name: 'Standing Calf Raises', category: 'Calves' },
+  { id: 'ex-seated-calf-raises', name: 'Seated Calf Raises', category: 'Calves' },
+
+  { id: 'ex-plank', name: 'Plank', category: 'Core' },
+  { id: 'ex-decline-weighted-situps', name: 'Decline Weighted Sit-ups', category: 'Core' },
+  { id: 'ex-russian-twists', name: 'Russian Twists', category: 'Core' },
+  { id: 'ex-hanging-leg-raises', name: 'Hanging Leg Raises', category: 'Core' },
+  { id: 'ex-ab-wheel', name: 'Ab Wheel', category: 'Core' },
+  { id: 'ex-bicycle-crunches', name: 'Bicycle Crunches', category: 'Core' },
+];

@@ -30,29 +30,29 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workouts"
+        name="workout"
         options={{
-          title: 'Workouts',
+          title: 'Workout',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="health"
         options={{
-          title: 'History',
+          title: 'Health',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="stats-chart" size={size} color={color} />
+            <Ionicons name="heart" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="stats"
         options={{
-          title: 'Profile',
+          title: 'Stats',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+            <Ionicons name="stats-chart" size={size} color={color} />
           ),
         }}
       />

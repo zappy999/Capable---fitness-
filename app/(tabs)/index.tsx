@@ -94,7 +94,7 @@ export default function HomeScreen() {
           <Text className="text-zinc-500 text-xs mt-0.5">Ready to crush it?</Text>
         </View>
         <Pressable
-          onPress={() => router.push(`/workout/${todaysWorkout.id}`)}
+          onPress={() => router.push(`/workouts/${todaysWorkout.id}`)}
           className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 active:opacity-90"
         >
           <View className="flex-row items-start justify-between mb-3">
@@ -137,7 +137,7 @@ export default function HomeScreen() {
           {WORKOUTS.slice(1, 5).map((w) => (
             <Pressable
               key={w.id}
-              onPress={() => router.push(`/workout/${w.id}`)}
+              onPress={() => router.push(`/workouts/${w.id}`)}
               className="w-40 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] active:opacity-80"
             >
               <View
