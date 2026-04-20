@@ -4,8 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useStore } from '../../src/store/WorkoutStore';
-import { EXERCISE_CATEGORIES } from '../../src/store/types';
-import { WORKOUTS as DEMO_WORKOUTS, HISTORY } from '../../src/data/workouts';
+import {
+  EXERCISE_CATEGORIES,
+  MUSCLE_COLORS,
+  type ExerciseCategory,
+  type WorkoutSession,
+} from '../../src/store/types';
+import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
 
 const NEON = '#22C55E';
 const LIME = '#C6F24E';
@@ -25,9 +30,9 @@ const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }
     subtitle: 'Sessions you have logged.',
   },
   Exercises: {
-    eyebrow: 'WORKOUT',
-    title: 'Exercises',
-    subtitle: 'Your full exercise catalogue.',
+    eyebrow: 'EXERCISES',
+    title: 'Exercise History',
+    subtitle: 'All tracked movements, grouped by muscle.',
   },
   Discover: {
     eyebrow: 'WORKOUT',
@@ -226,126 +231,226 @@ function ProgramsTab() {
 }
 
 function HistoryTab() {
+  const { sessions } = useStore();
+  const sorted = useMemo(
+    () => [...sessions].sort((a, b) => b.date.localeCompare(a.date)),
+    [sessions],
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <EmptyState
+        icon="time-outline"
+        title="No sessions logged yet"
+        body="Finish a workout to see it here."
+      />
+    );
+  }
+
   return (
     <View className="px-5 gap-3">
-      {HISTORY.map((h) => (
-        <View
-          key={h.id}
-          className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4"
-        >
-          <View className="flex-row items-center justify-between">
-            <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-              {h.workoutName}
-            </Text>
-            <Text className="text-zinc-500 text-xs">{h.date}</Text>
+      {sorted.map((s) => {
+        const totalSets = s.exercises.reduce((a, e) => a + e.sets.length, 0);
+        const volume = s.exercises.reduce(
+          (a, e) => a + e.sets.reduce((sa, st) => sa + st.weight * st.reps, 0),
+          0,
+        );
+        return (
+          <View
+            key={s.id}
+            className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4"
+          >
+            <View className="flex-row items-center justify-between">
+              <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                {s.workoutName}
+              </Text>
+              <Text className="text-zinc-500 text-xs">{s.date}</Text>
+            </View>
+            <View className="flex-row gap-4 mt-2">
+              <Text className="text-zinc-400 text-xs">
+                {formatDuration(s.durationSeconds)}
+              </Text>
+              <Text className="text-zinc-400 text-xs">
+                {s.exercises.length} exercise{s.exercises.length === 1 ? '' : 's'}
+              </Text>
+              <Text className="text-zinc-400 text-xs">{totalSets} sets</Text>
+              {volume > 0 ? (
+                <Text className="text-zinc-400 text-xs">{Math.round(volume)}kg vol</Text>
+              ) : null}
+            </View>
           </View>
-          <View className="flex-row gap-4 mt-2">
-            <Text className="text-zinc-400 text-xs">{h.duration}m</Text>
-            <Text className="text-zinc-400 text-xs">{h.calories} kcal</Text>
-            <Text className="text-zinc-400 text-xs">{h.exercises} exercises</Text>
-            {h.volume > 0 ? (
-              <Text className="text-zinc-400 text-xs">{h.volume}kg vol</Text>
-            ) : null}
-          </View>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
 
+function formatDuration(seconds: number) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.round((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 function ExercisesTab() {
-  const { exercises, deleteExercise } = useStore();
+  const router = useRouter();
+  const { exercises, sessions } = useStore();
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<string>('All');
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
+
+  const sessionsByExerciseId = useMemo(() => {
+    const map = new Map<string, WorkoutSession[]>();
+    for (const s of sessions) {
+      for (const se of s.exercises) {
+        const list = map.get(se.exerciseId) ?? [];
+        list.push(s);
+        map.set(se.exerciseId, list);
+      }
+    }
+    return map;
+  }, [sessions]);
+
+  const trackedCount = sessionsByExerciseId.size;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return exercises.filter((e) => {
-      if (category !== 'All' && e.category !== category) return false;
+      if (!sessionsByExerciseId.has(e.id)) return false;
       if (q && !e.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [exercises, query, category]);
+  }, [exercises, query, sessionsByExerciseId]);
 
-  const categories = ['All', ...EXERCISE_CATEGORIES];
+  const grouped = useMemo(() => {
+    const groups = new Map<string, typeof exercises>();
+    for (const ex of filtered) {
+      const key = (ex.category as string) ?? 'Uncategorized';
+      const arr = groups.get(key) ?? [];
+      arr.push(ex);
+      groups.set(key, arr);
+    }
+    const order = [...EXERCISE_CATEGORIES, 'Uncategorized'];
+    return order
+      .map((cat) => ({ cat, items: groups.get(cat) ?? [] }))
+      .filter((g) => g.items.length > 0);
+  }, [filtered]);
+
+  const toggle = (key: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   return (
     <View className="px-5">
-      <View className="flex-row items-center bg-[#141414] border border-[#1F1F1F] rounded-2xl px-4 mb-3">
-        <Ionicons name="search" size={16} color="#52525B" />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search exercises"
-          placeholderTextColor="#52525B"
-          className="flex-1 text-white ml-2"
-          style={{ paddingVertical: 12, fontSize: 15 }}
-        />
+      <View className="bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 mb-4">
+        <Text
+          className="text-zinc-500 font-bold"
+          style={{ fontSize: 11, letterSpacing: 1.5 }}
+        >
+          EXERCISES
+        </Text>
+        <Text className="text-white font-bold mt-2" style={{ fontSize: 28 }}>
+          Exercise History
+        </Text>
+        <Text className="text-zinc-500 text-sm mt-1 mb-4">
+          {trackedCount} tracked · grouped by muscle group
+        </Text>
+        <View className="flex-row items-center bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4">
+          <Ionicons name="search" size={16} color="#52525B" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search exercises"
+            placeholderTextColor="#52525B"
+            className="flex-1 text-white ml-2"
+            style={{ paddingVertical: 12, fontSize: 15 }}
+          />
+        </View>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8, paddingRight: 16 }}
-        className="mb-4 flex-grow-0"
-      >
-        {categories.map((c) => {
-          const active = c === category;
-          return (
-            <Pressable
-              key={c}
-              onPress={() => setCategory(c)}
-              className="px-4 py-2 rounded-full"
-              style={{
-                backgroundColor: active ? LIME : '#141414',
-                borderWidth: 1,
-                borderColor: active ? LIME : '#1F1F1F',
-              }}
-            >
-              <Text
-                className="text-sm font-semibold"
-                style={{ color: active ? '#0A0A0A' : '#A1A1AA' }}
-              >
-                {c}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {filtered.length === 0 ? (
+      {grouped.length === 0 ? (
         <EmptyState
-          icon="search-outline"
-          title="No exercises found"
-          body="Try a different search or clear the category filter."
+          icon="pulse-outline"
+          title={trackedCount === 0 ? 'No tracked exercises yet' : 'No matches'}
+          body={
+            trackedCount === 0
+              ? 'Log a workout to see it here.'
+              : 'Try a different search term.'
+          }
           inline
         />
       ) : (
-        <View className="gap-2">
-          {filtered.map((e) => (
-            <View
-              key={e.id}
-              className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center"
-            >
-              <View className="flex-1">
-                <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-                  {e.name}
-                </Text>
-                <Text className="text-zinc-500 text-xs mt-0.5">
-                  {e.category ?? 'Uncategorized'}
-                  {e.isCustom ? ' · Custom' : ''}
-                </Text>
-              </View>
-              {e.isCustom ? (
+        <View className="gap-3">
+          {grouped.map((group) => {
+            const color =
+              MUSCLE_COLORS[group.cat as ExerciseCategory] ?? '#71717A';
+            const open = openGroups.has(group.cat) || query.trim().length > 0;
+            return (
+              <View
+                key={group.cat}
+                className="bg-[#141414] rounded-3xl border border-[#1F1F1F] overflow-hidden"
+              >
                 <Pressable
-                  onPress={() => deleteExercise(e.id)}
-                  className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+                  onPress={() => toggle(group.cat)}
+                  className="px-5 py-4 flex-row items-center active:opacity-80"
                 >
-                  <Ionicons name="trash-outline" size={14} color="#F87171" />
+                  <View
+                    style={{ backgroundColor: color }}
+                    className="w-2.5 h-2.5 rounded-full mr-3"
+                  />
+                  <Text
+                    className="text-white font-bold flex-1"
+                    style={{ fontSize: 17 }}
+                  >
+                    {group.cat}
+                  </Text>
+                  <Text className="text-zinc-500 text-sm mr-3">
+                    {group.items.length}
+                  </Text>
+                  <Ionicons
+                    name={open ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color="#71717A"
+                  />
                 </Pressable>
-              ) : null}
-            </View>
-          ))}
+                {open ? (
+                  <View>
+                    {group.items.map((ex, i) => {
+                      const isLast = i === group.items.length - 1;
+                      return (
+                        <Pressable
+                          key={ex.id}
+                          onPress={() => router.push(`/exercises/${ex.id}`)}
+                          className="px-5 py-4 flex-row items-center active:opacity-70"
+                          style={{
+                            borderTopWidth: 1,
+                            borderTopColor: '#1F1F1F',
+                            borderBottomLeftRadius: isLast ? 24 : 0,
+                            borderBottomRightRadius: isLast ? 24 : 0,
+                          }}
+                        >
+                          <Text
+                            className="text-white flex-1"
+                            style={{ fontSize: 15 }}
+                          >
+                            {ex.name}
+                          </Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={16}
+                            color="#3F3F46"
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       )}
     </View>

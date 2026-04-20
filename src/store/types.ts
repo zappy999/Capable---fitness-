@@ -46,3 +46,35 @@ export type Program = {
   isCustom: boolean;
   createdAt: number;
 };
+
+export type SessionSet = {
+  weight: number;
+  reps: number;
+};
+
+export type SessionExercise = {
+  id: string;
+  exerciseId: string;
+  sets: SessionSet[];
+};
+
+export type WorkoutSession = {
+  id: string;
+  workoutName: string;
+  workoutId?: string;
+  date: string;
+  durationSeconds: number;
+  exercises: SessionExercise[];
+};
+
+export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
+  Chest: '#F87171',
+  Back: '#60A5FA',
+  Shoulders: '#F97316',
+  Triceps: '#A78BFA',
+  Biceps: '#FBBF24',
+  Legs: '#34D399',
+  Glutes: '#EC4899',
+  Calves: '#8B5CF6',
+  Core: '#10B981',
+};

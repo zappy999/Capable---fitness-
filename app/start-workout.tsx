@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useStore } from '../src/store/WorkoutStore';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -364,10 +365,40 @@ function formatRest(seconds: number) {
 
 export default function StartWorkoutScreen() {
   const router = useRouter();
+  const { exercises: libraryExercises, addCustomExercise, logSession } = useStore();
   const [elapsed, setElapsed] = useState(3);
   const [exercises, setExercises] = useState<ExerciseLog[]>(INITIAL_EXERCISES);
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
+
+  const handleFinish = () => {
+    const loggedExercises = exercises
+      .map((ex) => {
+        const completedSets = ex.sets
+          .filter((s) => s.completed)
+          .map((s) => ({ weight: s.weight, reps: s.reps }));
+        if (completedSets.length === 0) return null;
+        const match = libraryExercises.find(
+          (e) => e.name.toLowerCase() === ex.name.toLowerCase(),
+        );
+        const exerciseId = match ? match.id : addCustomExercise(ex.name, null).id;
+        return {
+          id: `se-${ex.id}`,
+          exerciseId,
+          sets: completedSets,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+    if (loggedExercises.length > 0) {
+      logSession({
+        workoutName: 'WD - Push + Pull',
+        durationSeconds: elapsed,
+        exercises: loggedExercises,
+      });
+    }
+    router.back();
+  };
 
   useEffect(() => {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -495,7 +526,7 @@ export default function StartWorkoutScreen() {
               </View>
             </View>
             <Pressable
-              onPress={() => router.back()}
+              onPress={handleFinish}
               style={{ backgroundColor: NEON }}
               className="px-5 py-2.5 rounded-2xl active:opacity-80"
             >
@@ -764,7 +795,7 @@ export default function StartWorkoutScreen() {
             </Text>
           </Pressable>
           <Pressable
-            onPress={() => router.back()}
+            onPress={handleFinish}
             style={{ backgroundColor: NEON }}
             className="flex-1 rounded-2xl py-4 items-center active:opacity-90"
           >
