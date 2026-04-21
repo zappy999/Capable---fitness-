@@ -20,7 +20,12 @@ import {
   type Workout,
   type WorkoutSession,
 } from './types';
-import { buildImportPayload, type ImportPayload, type ImportReport } from '../lib/importBackup';
+import {
+  buildCoachProgramPayload,
+  buildImportPayload,
+  type ImportPayload,
+  type ImportReport,
+} from '../lib/importBackup';
 import {
   diffNewlyUnlocked,
   type AchievementDef,
@@ -180,6 +185,7 @@ function reducer(state: State, action: Action): State {
         customExercises,
         workouts: importedWorkouts,
         sessions: importedSessions,
+        programs: importedPrograms,
         settings: importedSettings,
       } = action.payload;
 
@@ -197,6 +203,12 @@ function reducer(state: State, action: Action): State {
         ...importedSessions,
       ];
 
+      const pIds = new Set((importedPrograms ?? []).map((p) => p.id));
+      const mergedPrograms = [
+        ...state.programs.filter((p) => !pIds.has(p.id)),
+        ...(importedPrograms ?? []),
+      ];
+
       const chronological = [...mergedSessions].sort((a, b) =>
         a.date.localeCompare(b.date),
       );
@@ -212,6 +224,7 @@ function reducer(state: State, action: Action): State {
         exercises: mergedExercises,
         workouts: mergedWorkouts,
         sessions: mergedSessions,
+        programs: mergedPrograms,
         personalRecords: recomputedPRs,
         settings: {
           ...state.settings,
@@ -266,6 +279,7 @@ type StoreValue = State & {
   deleteSession: (id: string) => void;
   updateSettings: (patch: Partial<UserSettings>) => void;
   previewImport: (raw: unknown) => ImportPayload;
+  previewCoachImport: (raw: unknown) => ImportPayload;
   commitImport: (payload: ImportPayload) => ImportReport;
 };
 
@@ -538,6 +552,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           raw,
           stateRef.current.exercises.filter((e) => e.isCustom),
           stateRef.current.settings.defaultRestSeconds,
+        ),
+      previewCoachImport: (raw) =>
+        buildCoachProgramPayload(
+          raw,
+          stateRef.current.exercises.filter((e) => e.isCustom),
         ),
       commitImport: (payload) => {
         dispatch({ type: 'BULK_IMPORT', payload });

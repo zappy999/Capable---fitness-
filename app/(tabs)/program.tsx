@@ -126,6 +126,11 @@ function ProgramsTab() {
         title="Your programs"
         subtitle="Tap a program to see its workouts."
         action={{ label: '+ Create', onPress: () => router.push('/programs/new') }}
+        secondaryAction={{
+          label: 'Import',
+          icon: 'cloud-upload-outline',
+          onPress: () => router.push('/programs/import'),
+        }}
       />
       {programs.length === 0 ? (
         <EmptyState
@@ -401,11 +406,13 @@ function SectionHeader({
   title,
   subtitle,
   action,
+  secondaryAction,
   topPad,
 }: {
   title: string;
   subtitle?: string;
   action?: { label: string; onPress: () => void };
+  secondaryAction?: { label: string; onPress: () => void; icon?: React.ComponentProps<typeof Ionicons>['name'] };
   topPad?: boolean;
 }) {
   return (
@@ -421,17 +428,37 @@ function SectionHeader({
           <Text className="text-zinc-500 text-sm mt-0.5">{subtitle}</Text>
         ) : null}
       </View>
-      {action ? (
-        <Pressable
-          onPress={action.onPress}
-          className="px-5 py-3 rounded-2xl active:opacity-90"
-          style={{ backgroundColor: LIME }}
-        >
-          <Text className="text-black font-bold" style={{ fontSize: 14 }}>
-            {action.label}
-          </Text>
-        </Pressable>
-      ) : null}
+      <View className="flex-row gap-2">
+        {secondaryAction ? (
+          <Pressable
+            onPress={secondaryAction.onPress}
+            className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 active:opacity-80 flex-row items-center"
+          >
+            {secondaryAction.icon ? (
+              <Ionicons
+                name={secondaryAction.icon}
+                size={14}
+                color="#ffffff"
+                style={{ marginRight: 6 }}
+              />
+            ) : null}
+            <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+              {secondaryAction.label}
+            </Text>
+          </Pressable>
+        ) : null}
+        {action ? (
+          <Pressable
+            onPress={action.onPress}
+            className="px-5 py-3 rounded-2xl active:opacity-90"
+            style={{ backgroundColor: LIME }}
+          >
+            <Text className="text-black font-bold" style={{ fontSize: 14 }}>
+              {action.label}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

@@ -99,7 +99,11 @@ export default function SettingsScreen() {
     }
     const r = preview.report;
     const noop =
-      r.workoutsImported + r.sessionsImported + r.customExercisesCreated === 0;
+      r.workoutsImported +
+        r.sessionsImported +
+        r.customExercisesCreated +
+        r.programsImported ===
+      0;
     if (noop) {
       Alert.alert(
         'Nothing to import',
@@ -108,6 +112,7 @@ export default function SettingsScreen() {
       return;
     }
     const lines = [
+      r.programsImported > 0 ? `${r.programsImported} programs` : '',
       `${r.workoutsImported} workouts`,
       `${r.sessionsImported} sessions`,
       `${r.customExercisesCreated} new exercises`,
