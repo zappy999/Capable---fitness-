@@ -43,7 +43,7 @@ function ensureHandler() {
       importance: Notifications.AndroidImportance.DEFAULT,
       vibrationPattern: [0, 250, 250, 250],
       sound: 'default',
-      lightColor: '#C6F24E',
+      lightColor: '#22C55E',
     }).catch(() => {});
   }
 }

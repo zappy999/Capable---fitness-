@@ -88,7 +88,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: 'First PR',
     description: 'Set a new personal record.',
     icon: 'trophy-outline',
-    color: '#C6F24E',
+    color: '#22C55E',
     target: 1,
   },
   {

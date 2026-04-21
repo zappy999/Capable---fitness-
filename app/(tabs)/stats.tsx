@@ -10,7 +10,7 @@ import {
   type AchievementStatus,
 } from '../../src/lib/achievements';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 const NEON = '#22C55E';
 
 function mondayISO(iso: string) {

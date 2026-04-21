@@ -5,7 +5,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 function toISODate(d: Date) {
   const y = d.getFullYear();

@@ -108,7 +108,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   weightIncrementKg: 2.5,
   defaultRestSeconds: 90,
   weekStartDay: 'monday',
-  accentColor: '#C6F24E',
+  accentColor: '#22C55E',
 };
 
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {

@@ -26,7 +26,7 @@ import {
 } from '../../src/store/types';
 import { isSafeHttpUrl } from '../../src/lib/platform';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 type Draft = WorkoutExercise;
 
@@ -548,7 +548,7 @@ function AdvancedSection({
               className="flex-1 flex-row items-center px-3 rounded-xl"
               style={{
                 paddingVertical: 10,
-                backgroundColor: item.isDropSet ? 'rgba(198,242,78,0.15)' : '#141414',
+                backgroundColor: item.isDropSet ? 'rgba(34,197,94,0.15)' : '#141414',
                 borderWidth: 1,
                 borderColor: item.isDropSet ? LIME : '#1F1F1F',
               }}

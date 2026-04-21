@@ -151,9 +151,9 @@ function SwipeableSetCard({
   const borderColor = isNext
     ? NEON
     : isDone
-      ? 'rgba(198,242,78,0.3)'
+      ? 'rgba(34,197,94,0.3)'
       : 'rgba(255,255,255,0.08)';
-  const cardBg = isDone ? 'rgba(198,242,78,0.05)' : '#101010';
+  const cardBg = isDone ? 'rgba(34,197,94,0.05)' : '#101010';
 
   return (
     <View style={{ position: 'relative', borderRadius: 16, overflow: 'hidden' }}>
@@ -206,7 +206,7 @@ function SwipeableSetCard({
             ) : null}
             {isDone ? (
               <View
-                style={{ backgroundColor: 'rgba(198,242,78,0.2)' }}
+                style={{ backgroundColor: 'rgba(34,197,94,0.2)' }}
                 className="px-2.5 py-1 rounded-full flex-row items-center gap-1"
               >
                 <Ionicons name="checkmark" size={12} color={NEON} />
@@ -900,7 +900,7 @@ export default function StartWorkoutScreen() {
             </View>
             <View
               className="ml-3 px-3 py-2 rounded-xl items-center justify-center"
-              style={{ backgroundColor: 'rgba(198,242,78,0.12)' }}
+              style={{ backgroundColor: 'rgba(34,197,94,0.12)' }}
             >
               <Text style={{ color: NEON, fontSize: 14 }} className="font-bold">
                 {stats.pct}%
@@ -961,11 +961,11 @@ export default function StartWorkoutScreen() {
                   {active.groupType ? (
                     <View
                       className="px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: 'rgba(198,242,78,0.15)' }}
+                      style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
                     >
                       <Text
                         className="text-xs font-bold"
-                        style={{ color: '#C6F24E', letterSpacing: 0.5 }}
+                        style={{ color: '#22C55E', letterSpacing: 0.5 }}
                       >
                         {active.groupType === 'emom'
                           ? `EMOM ${active.emomSeconds ?? ''}s`.trim()
@@ -1097,7 +1097,7 @@ export default function StartWorkoutScreen() {
                   <View
                     key={ex.id}
                     className="rounded-2xl bg-[#101010] p-4 flex-row items-center gap-3"
-                    style={{ borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)' }}
+                    style={{ borderWidth: 1, borderColor: 'rgba(34,197,94,0.35)' }}
                   >
                     <View
                       className="w-10 h-10 rounded-xl items-center justify-center"

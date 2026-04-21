@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../../src/store/WorkoutStore';
 import { MUSCLE_COLORS } from '../../src/store/types';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 function formatDuration(seconds: number) {
   if (seconds <= 0) return '—';
@@ -211,7 +211,7 @@ export default function SessionDetailScreen() {
                         {exPRs.length > 0 ? (
                           <View
                             className="px-1.5 py-0.5 rounded-full flex-row items-center"
-                            style={{ backgroundColor: 'rgba(198,242,78,0.15)' }}
+                            style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
                           >
                             <Ionicons name="trophy" size={10} color={LIME} />
                             <Text

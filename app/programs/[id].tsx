@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../../src/store/WorkoutStore';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 const NEON = '#22C55E';
 
 export default function ProgramDetailScreen() {

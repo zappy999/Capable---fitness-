@@ -6,7 +6,7 @@ import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
 import { useStore } from '../../src/store/WorkoutStore';
 import { isSafeHttpUrl, openExternalUrl } from '../../src/lib/platform';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 const NEON = '#22C55E';
 
 export default function WorkoutDetailScreen() {
@@ -198,7 +198,7 @@ export default function WorkoutDetailScreen() {
                         {we.groupType ? (
                           <View
                             className="px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: 'rgba(198,242,78,0.15)' }}
+                            style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
                           >
                             <Text
                               className="text-xs font-bold"

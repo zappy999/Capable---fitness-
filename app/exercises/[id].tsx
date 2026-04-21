@@ -19,7 +19,7 @@ import {
 } from '../../src/store/types';
 import { LineChart, type ChartPoint } from '../../src/components/LineChart';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 type ChartMode = 'Best Weight' | 'Volume' | 'Est. 1RM';
 const CHART_MODES: ChartMode[] = ['Best Weight', 'Volume', 'Est. 1RM'];

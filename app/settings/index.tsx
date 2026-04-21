@@ -15,17 +15,17 @@ import { useStore } from '../../src/store/WorkoutStore';
 import type { UserSettings } from '../../src/store/types';
 import { shareJsonAsFile } from '../../src/lib/platform';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 const ACCENT_OPTIONS = [
-  '#C6F24E',
   '#22C55E',
+  '#10B981',
   '#60A5FA',
   '#F87171',
   '#FBBF24',
   '#A78BFA',
   '#EC4899',
-  '#10B981',
+  '#C6F24E',
 ];
 
 export default function SettingsScreen() {

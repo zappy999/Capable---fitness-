@@ -18,7 +18,7 @@ import DraggableFlatList, {
 import { useStore } from '../../src/store/WorkoutStore';
 import { DateField } from '../../src/components/DateField';
 
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 export default function NewProgramScreen() {
   const router = useRouter();

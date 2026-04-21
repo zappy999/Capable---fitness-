@@ -13,7 +13,7 @@ import {
 import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
 
 const NEON = '#22C55E';
-const LIME = '#C6F24E';
+const LIME = '#22C55E';
 
 type Tab = 'Programs' | 'History' | 'Exercises' | 'Discover';
 const TABS: Tab[] = ['Programs', 'History', 'Exercises', 'Discover'];
