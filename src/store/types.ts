@@ -199,6 +199,30 @@ export type MealLog = {
   mealId: string;
 };
 
+export type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom';
+
+export type Habit = {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  frequency: HabitFrequency;
+  customDays?: number[];
+  targetValue?: number;
+  unit?: string;
+  sortOrder: number;
+  archived?: boolean;
+  createdAt: number;
+};
+
+export type HabitLog = {
+  id: string;
+  habitId: string;
+  date: string;
+  value?: number;
+  notes?: string;
+};
+
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
   Chest: '#F87171',
   Back: '#60A5FA',

@@ -18,6 +18,8 @@ import type {
   Exercise,
   ExerciseCategory,
   Food,
+  Habit,
+  HabitLog,
   Meal,
   MealLog,
   MealPlan,
@@ -48,6 +50,8 @@ type State = {
   foods: Food[];
   mealPlans: MealPlan[];
   mealLogs: MealLog[];
+  habits: Habit[];
+  habitLogs: HabitLog[];
 };
 
 const initialState: State = {
@@ -66,6 +70,8 @@ const initialState: State = {
   foods: FOOD_LIBRARY,
   mealPlans: [],
   mealLogs: [],
+  habits: [],
+  habitLogs: [],
 };
 
 type Action =
@@ -98,7 +104,11 @@ type Action =
   | { type: 'UPSERT_MEAL_PLAN'; plan: MealPlan }
   | { type: 'DELETE_MEAL_PLAN'; id: string }
   | { type: 'SET_ACTIVE_MEAL_PLAN'; id: string | null }
-  | { type: 'TOGGLE_MEAL_LOG'; date: string; mealId: string };
+  | { type: 'TOGGLE_MEAL_LOG'; date: string; mealId: string }
+  | { type: 'UPSERT_HABIT'; habit: Habit }
+  | { type: 'DELETE_HABIT'; id: string }
+  | { type: 'UPSERT_HABIT_LOG'; log: HabitLog }
+  | { type: 'DELETE_HABIT_LOG'; id: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -318,6 +328,34 @@ function reducer(state: State, action: Action): State {
         mealLogs: [...state.mealLogs, { date: action.date, mealId: action.mealId }],
       };
     }
+    case 'UPSERT_HABIT': {
+      const exists = state.habits.some((h) => h.id === action.habit.id);
+      return {
+        ...state,
+        habits: exists
+          ? state.habits.map((h) => (h.id === action.habit.id ? action.habit : h))
+          : [...state.habits, action.habit],
+      };
+    }
+    case 'DELETE_HABIT':
+      return {
+        ...state,
+        habits: state.habits.filter((h) => h.id !== action.id),
+        habitLogs: state.habitLogs.filter((l) => l.habitId !== action.id),
+      };
+    case 'UPSERT_HABIT_LOG': {
+      const others = state.habitLogs.filter(
+        (l) =>
+          !(l.habitId === action.log.habitId && l.date === action.log.date) &&
+          l.id !== action.log.id,
+      );
+      return { ...state, habitLogs: [...others, action.log] };
+    }
+    case 'DELETE_HABIT_LOG':
+      return {
+        ...state,
+        habitLogs: state.habitLogs.filter((l) => l.id !== action.id),
+      };
   }
 }
 
@@ -376,6 +414,11 @@ type StoreValue = State & {
   deleteMealPlan: (id: string) => void;
   setActiveMealPlan: (id: string | null) => void;
   toggleMealLog: (date: string, mealId: string) => void;
+  saveHabit: (input: Omit<Habit, 'id' | 'createdAt' | 'sortOrder'> & { id?: string; sortOrder?: number }) => Habit;
+  deleteHabit: (id: string) => void;
+  archiveHabit: (id: string, archived: boolean) => void;
+  upsertHabitLog: (habitId: string, date: string, patch: { value?: number; notes?: string }) => HabitLog;
+  deleteHabitLog: (id: string) => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -481,6 +524,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               foods: FOOD_LIBRARY,
               mealPlans: [],
               mealLogs: [],
+              habits: [],
+              habitLogs: [],
             },
           });
           return;
@@ -522,6 +567,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               })(),
               mealPlans: parsed.mealPlans ?? [],
               mealLogs: parsed.mealLogs ?? [],
+              habits: parsed.habits ?? [],
+              habitLogs: parsed.habitLogs ?? [],
             },
           });
         } catch {
@@ -542,6 +589,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               foods: FOOD_LIBRARY,
               mealPlans: [],
               mealLogs: [],
+              habits: [],
+              habitLogs: [],
             },
           });
         }
@@ -565,6 +614,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               foods: FOOD_LIBRARY,
               mealPlans: [],
               mealLogs: [],
+              habits: [],
+              habitLogs: [],
             },
           });
         }
@@ -598,6 +649,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       foods: state.foods.filter((f) => f.isCustom),
       mealPlans: state.mealPlans,
       mealLogs: state.mealLogs,
+      habits: state.habits,
+      habitLogs: state.habitLogs,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -786,6 +839,48 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_ACTIVE_MEAL_PLAN', id }),
       toggleMealLog: (date, mealId) =>
         dispatch({ type: 'TOGGLE_MEAL_LOG', date, mealId }),
+      saveHabit: (input) => {
+        const existing = input.id
+          ? stateRef.current.habits.find((h) => h.id === input.id)
+          : undefined;
+        const habit: Habit = {
+          id: input.id ?? genId('hb'),
+          name: input.name.trim(),
+          icon: input.icon,
+          color: input.color,
+          frequency: input.frequency,
+          customDays: input.customDays,
+          targetValue: input.targetValue,
+          unit: input.unit,
+          sortOrder:
+            input.sortOrder ?? existing?.sortOrder ?? stateRef.current.habits.length,
+          archived: input.archived ?? existing?.archived ?? false,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        dispatch({ type: 'UPSERT_HABIT', habit });
+        return habit;
+      },
+      deleteHabit: (id) => dispatch({ type: 'DELETE_HABIT', id }),
+      archiveHabit: (id, archived) => {
+        const habit = stateRef.current.habits.find((h) => h.id === id);
+        if (!habit) return;
+        dispatch({ type: 'UPSERT_HABIT', habit: { ...habit, archived } });
+      },
+      upsertHabitLog: (habitId, date, patch) => {
+        const existing = stateRef.current.habitLogs.find(
+          (l) => l.habitId === habitId && l.date === date,
+        );
+        const log: HabitLog = {
+          id: existing?.id ?? genId('hl'),
+          habitId,
+          date,
+          value: patch.value ?? existing?.value,
+          notes: patch.notes ?? existing?.notes,
+        };
+        dispatch({ type: 'UPSERT_HABIT_LOG', log });
+        return log;
+      },
+      deleteHabitLog: (id) => dispatch({ type: 'DELETE_HABIT_LOG', id }),
     }),
     [state],
   );

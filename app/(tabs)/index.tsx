@@ -8,6 +8,17 @@ import { useStore } from '../../src/store/WorkoutStore';
 
 const GREEN = '#22C55E';
 
+function isDueToday(
+  frequency: 'daily' | 'weekdays' | 'weekends' | 'custom',
+  customDays: number[] | undefined,
+  weekday: number,
+): boolean {
+  if (frequency === 'daily') return true;
+  if (frequency === 'weekdays') return weekday >= 1 && weekday <= 5;
+  if (frequency === 'weekends') return weekday === 0 || weekday === 6;
+  return customDays ? customDays.includes(weekday) : false;
+}
+
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
@@ -17,7 +28,17 @@ function todayISO() {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { bodyweight, mealPlans, foods, mealLogs, toggleMealLog } = useStore();
+  const {
+    bodyweight,
+    mealPlans,
+    foods,
+    mealLogs,
+    toggleMealLog,
+    habits,
+    habitLogs,
+    upsertHabitLog,
+    deleteHabitLog,
+  } = useStore();
   const todaysWorkout = WORKOUTS[0];
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
@@ -74,6 +95,23 @@ export default function HomeScreen() {
       loggedSet,
     };
   }, [activePlan, foods, mealLogs, today]);
+
+  const weekday = new Date().getDay();
+  const todaysHabits = useMemo(
+    () =>
+      habits
+        .filter((h) => !h.archived)
+        .filter((h) => isDueToday(h.frequency, h.customDays, weekday))
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [habits, weekday],
+  );
+  const todayHabitLogSet = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of habitLogs) {
+      if (l.date === today) map.set(l.habitId, l.id);
+    }
+    return map;
+  }, [habitLogs, today]);
 
   const weightStats = useMemo(() => {
     const sorted = [...bodyweight].sort((a, b) => a.date.localeCompare(b.date));
@@ -249,6 +287,86 @@ export default function HomeScreen() {
             <Text className="text-zinc-500 text-sm">
               Create a meal plan and mark it active to see today's macros here.
             </Text>
+          )}
+        </View>
+
+        {/* Today's habits */}
+        <View className="mx-5 mb-5 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
+          <View className="flex-row items-center justify-between mb-3">
+            <View>
+              <Text
+                className="text-zinc-500 font-bold"
+                style={{ fontSize: 11, letterSpacing: 1 }}
+              >
+                TODAY'S HABITS
+              </Text>
+              <Text className="text-white font-bold mt-1" style={{ fontSize: 16 }}>
+                {todaysHabits.length > 0
+                  ? `${todayHabitLogSet.size}/${todaysHabits.length} done`
+                  : 'Nothing scheduled'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/habits')}
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+            >
+              <Text className="text-white text-xs font-bold">Manage</Text>
+            </Pressable>
+          </View>
+          {todaysHabits.length === 0 ? (
+            <Text className="text-zinc-500 text-sm">
+              No habits scheduled for today. Add one from Manage.
+            </Text>
+          ) : (
+            <View className="gap-2">
+              {todaysHabits.map((h) => {
+                const logId = todayHabitLogSet.get(h.id);
+                const checked = logId !== undefined;
+                const color = h.color ?? GREEN;
+                return (
+                  <Pressable
+                    key={h.id}
+                    onPress={() => {
+                      if (checked && logId) deleteHabitLog(logId);
+                      else
+                        upsertHabitLog(h.id, today, {
+                          value: h.targetValue,
+                        });
+                    }}
+                    className="flex-row items-center py-1 active:opacity-70"
+                  >
+                    <View
+                      className="w-6 h-6 rounded-md items-center justify-center mr-3"
+                      style={{
+                        backgroundColor: checked ? color : 'transparent',
+                        borderWidth: 1.5,
+                        borderColor: checked ? color : '#3F3F46',
+                      }}
+                    >
+                      {checked ? (
+                        <Ionicons name="checkmark" size={14} color="#0A0A0A" />
+                      ) : null}
+                    </View>
+                    <Text
+                      className="flex-1 font-semibold"
+                      style={{
+                        color: checked ? '#71717A' : '#ffffff',
+                        fontSize: 14,
+                        textDecorationLine: checked ? 'line-through' : 'none',
+                      }}
+                    >
+                      {h.name}
+                    </Text>
+                    {h.targetValue ? (
+                      <Text className="text-zinc-500 text-xs">
+                        {h.targetValue}
+                        {h.unit ? ` ${h.unit}` : ''}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
           )}
         </View>
 

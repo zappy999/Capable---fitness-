@@ -52,6 +52,10 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen
+              name="habits/index"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
               name="start-workout"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
