@@ -1,6 +1,8 @@
 import { Keyboard, Linking, Platform, Share, type ShareContent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 export function isSafeHttpUrl(url: string | undefined | null): boolean {
   if (!url) return false;
@@ -142,5 +144,38 @@ export async function shareContent(content: ShareContent): Promise<boolean> {
     return result.action !== Share.dismissedAction;
   } catch {
     return false;
+  }
+}
+
+export async function shareJsonAsFile(
+  payload: unknown,
+  filenameBase: string,
+): Promise<boolean> {
+  const json = JSON.stringify(payload, null, 2);
+  if (Platform.OS === 'web') {
+    return shareContent({ title: filenameBase, message: json });
+  }
+  const cacheDir = FileSystem.cacheDirectory;
+  if (!cacheDir) {
+    return shareContent({ title: filenameBase, message: json });
+  }
+  const safe = filenameBase.replace(/[^a-z0-9-_]/gi, '-');
+  const today = new Date().toISOString().slice(0, 10);
+  const uri = `${cacheDir}${safe}-${today}.json`;
+  try {
+    await FileSystem.writeAsStringAsync(uri, json, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/json',
+        UTI: 'public.json',
+        dialogTitle: filenameBase,
+      });
+      return true;
+    }
+    return shareContent({ title: filenameBase, message: json });
+  } catch {
+    return shareContent({ title: filenameBase, message: json });
   }
 }

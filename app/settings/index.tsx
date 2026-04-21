@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useStore } from '../../src/store/WorkoutStore';
 import type { SyncCategory, UserSettings } from '../../src/store/types';
-import { shareContent } from '../../src/lib/platform';
+import { shareJsonAsFile } from '../../src/lib/platform';
 
 const LIME = '#C6F24E';
 
@@ -71,11 +71,7 @@ export default function SettingsScreen() {
       habitLogs: store.habitLogs,
       settings: store.settings,
     };
-    const json = JSON.stringify(dump, null, 2);
-    const ok = await shareContent({
-      title: 'Capable backup',
-      message: json,
-    });
+    const ok = await shareJsonAsFile(dump, 'capable-backup');
     if (!ok) {
       Alert.alert('Export failed', 'Could not share the backup file.');
     }

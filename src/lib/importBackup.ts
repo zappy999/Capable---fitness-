@@ -95,6 +95,19 @@ export function buildImportPayload(
   defaultRestSeconds: number,
 ): ImportPayload {
   const backup = (raw ?? {}) as Record<string, unknown>;
+  const version = typeof backup.version === 'string' ? backup.version : '';
+  const looksNative =
+    version.startsWith('capable.store') ||
+    (Array.isArray(backup.workouts) && Array.isArray(backup.sessions));
+  if (looksNative) return buildFromNative(backup, currentCustomExercises);
+  return buildFromWeb(backup, currentCustomExercises, defaultRestSeconds);
+}
+
+function buildFromWeb(
+  backup: Record<string, unknown>,
+  currentCustomExercises: Exercise[],
+  defaultRestSeconds: number,
+): ImportPayload {
   const warnings: string[] = [];
 
   const libByName = new Map<string, string>();
@@ -309,6 +322,146 @@ export function buildImportPayload(
   }
   if (typeof backup.timezone === 'string') {
     settings.timezone = backup.timezone;
+  }
+
+  return {
+    customExercises: newCustom,
+    workouts,
+    sessions,
+    bodyweight,
+    dailyMetrics,
+    medications,
+    settings,
+    report: {
+      customExercisesCreated: newCustom.length,
+      workoutsImported: workouts.length,
+      sessionsImported: sessions.length,
+      bodyweightImported: bodyweight.length,
+      dailyMetricsImported: dailyMetrics.length,
+      medicationsImported: medications.length,
+      warnings,
+    },
+  };
+}
+
+function buildFromNative(
+  backup: Record<string, unknown>,
+  currentCustomExercises: Exercise[],
+): ImportPayload {
+  const warnings: string[] = [];
+  const libIds = new Set(EXERCISE_LIBRARY.map((e) => e.id));
+  const existingCustomIds = new Set(currentCustomExercises.map((e) => e.id));
+
+  const newCustom: Exercise[] = [];
+  for (const e of (backup.exercises ?? []) as Record<string, unknown>[]) {
+    if (typeof e?.id !== 'string' || typeof e?.name !== 'string') continue;
+    if (libIds.has(e.id) || existingCustomIds.has(e.id)) continue;
+    newCustom.push({
+      id: e.id,
+      name: e.name,
+      category: typeof e.category === 'string' ? (e.category as Exercise['category']) : null,
+      isCustom: true,
+    });
+  }
+
+  const workouts: Workout[] = [];
+  for (const w of (backup.workouts ?? []) as Record<string, unknown>[]) {
+    if (typeof w?.id !== 'string' || typeof w?.name !== 'string') continue;
+    if (!Array.isArray(w?.exercises)) continue;
+    workouts.push({
+      id: w.id,
+      name: w.name,
+      exercises: w.exercises as WorkoutExercise[],
+      createdAt: typeof w.createdAt === 'number' ? w.createdAt : Date.now(),
+    });
+  }
+
+  const sessions: WorkoutSession[] = [];
+  for (const s of (backup.sessions ?? []) as Record<string, unknown>[]) {
+    if (typeof s?.id !== 'string' || typeof s?.workoutName !== 'string') continue;
+    if (typeof s?.date !== 'string') {
+      warnings.push(`Session ${s?.id ?? '?'} skipped: missing date`);
+      continue;
+    }
+    if (!Array.isArray(s?.exercises)) continue;
+    sessions.push({
+      id: s.id,
+      workoutName: s.workoutName,
+      workoutId: typeof s.workoutId === 'string' ? s.workoutId : undefined,
+      date: s.date,
+      durationSeconds:
+        typeof s.durationSeconds === 'number' ? s.durationSeconds : 0,
+      exercises: s.exercises as SessionExercise[],
+      notes: typeof s.notes === 'string' ? s.notes : undefined,
+    });
+  }
+
+  const bodyweight: BodyweightEntry[] = [];
+  for (const b of (backup.bodyweight ?? []) as Record<string, unknown>[]) {
+    if (typeof b?.id !== 'string' || typeof b?.date !== 'string') continue;
+    if (typeof b?.weightKg !== 'number') continue;
+    bodyweight.push({
+      id: b.id,
+      date: b.date,
+      weightKg: b.weightKg,
+      note: typeof b.note === 'string' ? b.note : undefined,
+    });
+  }
+
+  const dailyMetrics: DailyHealthMetric[] = [];
+  for (const m of (backup.dailyMetrics ?? []) as Record<string, unknown>[]) {
+    if (typeof m?.id !== 'string' || typeof m?.date !== 'string') continue;
+    dailyMetrics.push({
+      id: m.id,
+      date: m.date,
+      sleepHours: parseOptNum(m.sleepHours),
+      steps: parseOptNum(m.steps),
+      waterLiters: parseOptNum(m.waterLiters),
+      mood: parseOptNum(m.mood),
+      stress: parseOptNum(m.stress),
+      recovery: parseOptNum(m.recovery),
+      soreness: parseOptNum(m.soreness),
+      calories: parseOptNum(m.calories),
+      proteinG: parseOptNum(m.proteinG),
+      carbsG: parseOptNum(m.carbsG),
+      fatG: parseOptNum(m.fatG),
+      fiberG: parseOptNum(m.fiberG),
+    });
+  }
+
+  const medications: Medication[] = [];
+  for (const m of (backup.medications ?? []) as Record<string, unknown>[]) {
+    if (typeof m?.id !== 'string' || typeof m?.name !== 'string') continue;
+    medications.push({
+      id: m.id,
+      name: m.name,
+      dose: typeof m.dose === 'string' ? m.dose : undefined,
+      unit: typeof m.unit === 'string' ? m.unit : undefined,
+      frequency: isMedFrequency(m.frequency) ? m.frequency : undefined,
+      startDate: typeof m.startDate === 'string' ? m.startDate : undefined,
+      weekdays: Array.isArray(m.weekdays)
+        ? (m.weekdays.filter((x) => typeof x === 'number') as number[])
+        : undefined,
+      notes: typeof m.notes === 'string' ? m.notes : undefined,
+      createdAt: typeof m.createdAt === 'number' ? m.createdAt : Date.now(),
+    });
+  }
+
+  const settings: Partial<UserSettings> = {};
+  const importedSettings = backup.settings as Record<string, unknown> | undefined;
+  if (importedSettings) {
+    if (typeof importedSettings.weightIncrementKg === 'number') {
+      settings.weightIncrementKg = importedSettings.weightIncrementKg;
+    }
+    if (typeof importedSettings.defaultRestSeconds === 'number') {
+      settings.defaultRestSeconds = importedSettings.defaultRestSeconds;
+    }
+    if (typeof importedSettings.timezone === 'string') {
+      settings.timezone = importedSettings.timezone;
+    }
+    if (typeof importedSettings.accentColor === 'string') {
+      settings.accentColor = importedSettings.accentColor;
+    }
   }
 
   return {
