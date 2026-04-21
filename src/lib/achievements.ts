@@ -1,11 +1,6 @@
 import type { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
-import type {
-  MealLog,
-  MealPlan,
-  PersonalRecord,
-  WorkoutSession,
-} from '../store/types';
+import type { PersonalRecord, WorkoutSession } from '../store/types';
 
 export type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -17,9 +12,7 @@ export type AchievementId =
   | 'streak_7'
   | 'streak_30'
   | 'first_pr'
-  | 'prs_10'
-  | 'first_plan'
-  | 'plan_complete';
+  | 'prs_10';
 
 export type AchievementDef = {
   id: AchievementId;
@@ -33,8 +26,6 @@ export type AchievementDef = {
 export type AchievementInputState = {
   sessions: WorkoutSession[];
   prs: PersonalRecord[];
-  mealPlans: MealPlan[];
-  mealLogs: MealLog[];
 };
 
 export type AchievementStatus = {
@@ -108,22 +99,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     color: '#10B981',
     target: 10,
   },
-  {
-    id: 'first_plan',
-    title: 'First meal plan',
-    description: 'Create your first plan.',
-    icon: 'nutrition-outline',
-    color: '#60A5FA',
-    target: 1,
-  },
-  {
-    id: 'plan_complete',
-    title: 'Plan complete',
-    description: 'Check off every meal for a day.',
-    icon: 'checkmark-done-outline',
-    color: '#22C55E',
-    target: 1,
-  },
 ];
 
 function addDaysISO(iso: string, days: number): string {
@@ -151,26 +126,6 @@ export function longestStreak(dates: string[]): number {
   return best;
 }
 
-function planCompleteDayCount(
-  plans: MealPlan[],
-  logs: MealLog[],
-): number {
-  const byDate = new Map<string, Set<string>>();
-  for (const l of logs) {
-    if (!byDate.has(l.date)) byDate.set(l.date, new Set());
-    byDate.get(l.date)!.add(l.mealId);
-  }
-  let days = 0;
-  for (const plan of plans) {
-    const ids = plan.meals.map((m) => m.id);
-    if (ids.length === 0) continue;
-    for (const [, set] of byDate) {
-      if (ids.every((id) => set.has(id))) days += 1;
-    }
-  }
-  return days;
-}
-
 function progressFor(
   id: AchievementId,
   state: AchievementInputState,
@@ -187,10 +142,6 @@ function progressFor(
     case 'first_pr':
     case 'prs_10':
       return state.prs.length;
-    case 'first_plan':
-      return state.mealPlans.length;
-    case 'plan_complete':
-      return planCompleteDayCount(state.mealPlans, state.mealLogs);
   }
 }
 

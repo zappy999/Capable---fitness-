@@ -854,14 +854,10 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           {
             sessions: before.sessions,
             prs: before.personalRecords,
-            mealPlans: before.mealPlans,
-            mealLogs: before.mealLogs,
           },
           {
             sessions: [...before.sessions, session],
             prs: [...before.personalRecords, ...newPRs],
-            mealPlans: before.mealPlans,
-            mealLogs: before.mealLogs,
           },
         );
         dispatch({ type: 'LOG_SESSION', session, newPRs });

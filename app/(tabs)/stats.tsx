@@ -3,8 +3,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../src/store/WorkoutStore';
-import type { BodyweightEntry, WorkoutSession } from '../../src/store/types';
-import { LineChart, type ChartPoint } from '../../src/components/LineChart';
+import type { WorkoutSession } from '../../src/store/types';
 import {
   computeAchievementStatus,
   longestStreak,
@@ -63,34 +62,13 @@ function buildWeeks(sessions: WorkoutSession[], weeks: number): WeekBucket[] {
 }
 
 export default function StatsScreen() {
-  const {
-    programs,
-    workouts,
-    exercises,
-    sessions,
-    personalRecords,
-    bodyweight,
-    mealPlans,
-    mealLogs,
-  } = useStore();
+  const { programs, workouts, exercises, sessions, personalRecords } = useStore();
 
   const customExercises = exercises.filter((e) => e.isCustom).length;
 
   const weeks = useMemo(() => buildWeeks(sessions, 8), [sessions]);
   const maxVolume = Math.max(...weeks.map((w) => w.volume), 1);
   const maxCount = Math.max(...weeks.map((w) => w.count), 1);
-
-  const weightPoints = useMemo<ChartPoint[]>(
-    () =>
-      [...bodyweight]
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(-14)
-        .map((b: BodyweightEntry) => ({
-          label: b.date.slice(5),
-          value: b.weightKg,
-        })),
-    [bodyweight],
-  );
 
   const streak = useMemo(
     () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
@@ -102,10 +80,8 @@ export default function StatsScreen() {
       computeAchievementStatus({
         sessions,
         prs: personalRecords,
-        mealPlans,
-        mealLogs,
       }),
-    [sessions, personalRecords, mealPlans, mealLogs],
+    [sessions, personalRecords],
   );
 
   return (
@@ -171,11 +147,7 @@ export default function StatsScreen() {
             value={`${streak}d`}
             icon="flame-outline"
           />
-          <StatCard
-            label="Meal plans"
-            value={String(mealPlans.length)}
-            icon="nutrition-outline"
-          />
+          <View className="flex-1" />
         </View>
 
         <View className="mx-5 mt-6 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
@@ -200,13 +172,6 @@ export default function StatsScreen() {
             color={NEON}
             integer
           />
-        </View>
-
-        <View className="mx-5 mt-4 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
-          <Text className="text-white text-base font-bold mb-3">
-            Bodyweight trend
-          </Text>
-          <LineChart data={weightPoints} color={LIME} height={180} />
         </View>
 
         <View className="mx-5 mt-6 mb-2 flex-row items-center justify-between">
