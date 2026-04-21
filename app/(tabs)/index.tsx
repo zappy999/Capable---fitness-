@@ -1,17 +1,31 @@
+import { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
+import { useStore } from '../../src/store/WorkoutStore';
 
 const GREEN = '#22C55E';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { bodyweight } = useStore();
   const todaysWorkout = WORKOUTS[0];
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
   const maxMinutes = Math.max(...WEEKLY_ACTIVITY.map((d) => d.minutes), 1);
+
+  const weightStats = useMemo(() => {
+    const sorted = [...bodyweight].sort((a, b) => a.date.localeCompare(b.date));
+    if (sorted.length === 0) return null;
+    const recent = sorted.slice(-7);
+    const avg = recent.reduce((a, b) => a + b.weightKg, 0) / recent.length;
+    return {
+      latest: sorted[sorted.length - 1].weightKg,
+      avg7: Math.round(avg * 10) / 10,
+    };
+  }, [bodyweight]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
@@ -60,11 +74,18 @@ export default function HomeScreen() {
             <Text className="text-white text-xl font-bold mt-2">{activeDays}/7</Text>
             <Text className="text-zinc-500 text-xs">Active days</Text>
           </View>
-          <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-            <Ionicons name="trending-up-outline" size={20} color={GREEN} />
-            <Text className="text-white text-xl font-bold mt-2">2,350</Text>
-            <Text className="text-zinc-500 text-xs">Calories</Text>
-          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/health')}
+            className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] active:opacity-80"
+          >
+            <Ionicons name="scale-outline" size={20} color={GREEN} />
+            <Text className="text-white text-xl font-bold mt-2">
+              {weightStats ? `${weightStats.latest}kg` : '—'}
+            </Text>
+            <Text className="text-zinc-500 text-xs">
+              {weightStats ? `7d avg ${weightStats.avg7}kg` : 'Log weight'}
+            </Text>
+          </Pressable>
         </View>
 
         {/* Weekly activity */}
