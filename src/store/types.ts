@@ -94,6 +94,72 @@ export type PersonalRecord = {
   achievedAt: string;
 };
 
+export type BodyweightEntry = {
+  id: string;
+  date: string;
+  weightKg: number;
+  note?: string;
+};
+
+export type DailyHealthMetric = {
+  id: string;
+  date: string;
+  sleepHours?: number;
+  steps?: number;
+  waterLiters?: number;
+  mood?: number;
+  stress?: number;
+  recovery?: number;
+  soreness?: number;
+  calories?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  fiberG?: number;
+};
+
+export type CardioSession = {
+  id: string;
+  date: string;
+  activityType: string;
+  durationMin: number;
+  distanceKm?: number;
+  avgHr?: number;
+  calories?: number;
+  notes?: string;
+};
+
+export type Supplement = {
+  id: string;
+  name: string;
+  dose?: string;
+  notes?: string;
+  createdAt: number;
+};
+
+export type MedicationFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom';
+
+export type Medication = {
+  id: string;
+  name: string;
+  dose?: string;
+  unit?: string;
+  frequency?: MedicationFrequency;
+  startDate?: string;
+  weekdays?: number[];
+  notes?: string;
+  createdAt: number;
+};
+
+export type WeeklyCheckin = {
+  id: string;
+  weekDate: string;
+  measurements?: Record<string, number>;
+  notes?: string;
+  goals?: string;
+  createdAt: number;
+};
+
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
   Chest: '#F87171',
   Back: '#60A5FA',

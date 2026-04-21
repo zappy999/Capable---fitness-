@@ -11,10 +11,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { DEMO_SESSIONS } from '../data/demoSessions';
 import type {
+  BodyweightEntry,
+  CardioSession,
+  DailyHealthMetric,
   Exercise,
   ExerciseCategory,
+  Medication,
   PersonalRecord,
   Program,
+  Supplement,
+  WeeklyCheckin,
   Workout,
   WorkoutSession,
 } from './types';
@@ -28,6 +34,12 @@ type State = {
   programs: Program[];
   sessions: WorkoutSession[];
   personalRecords: PersonalRecord[];
+  bodyweight: BodyweightEntry[];
+  dailyMetrics: DailyHealthMetric[];
+  cardio: CardioSession[];
+  supplements: Supplement[];
+  medications: Medication[];
+  weeklyCheckins: WeeklyCheckin[];
 };
 
 const initialState: State = {
@@ -37,6 +49,12 @@ const initialState: State = {
   programs: [],
   sessions: [],
   personalRecords: [],
+  bodyweight: [],
+  dailyMetrics: [],
+  cardio: [],
+  supplements: [],
+  medications: [],
+  weeklyCheckins: [],
 };
 
 type Action =
@@ -51,7 +69,19 @@ type Action =
   | { type: 'DELETE_PROGRAM'; id: string }
   | { type: 'SET_ACTIVE_PROGRAM'; id: string | null }
   | { type: 'LOG_SESSION'; session: WorkoutSession; newPRs: PersonalRecord[] }
-  | { type: 'DELETE_SESSION'; id: string };
+  | { type: 'DELETE_SESSION'; id: string }
+  | { type: 'UPSERT_BODYWEIGHT'; entry: BodyweightEntry }
+  | { type: 'DELETE_BODYWEIGHT'; id: string }
+  | { type: 'UPSERT_DAILY_METRIC'; metric: DailyHealthMetric }
+  | { type: 'DELETE_DAILY_METRIC'; id: string }
+  | { type: 'UPSERT_CARDIO'; session: CardioSession }
+  | { type: 'DELETE_CARDIO'; id: string }
+  | { type: 'UPSERT_SUPPLEMENT'; supplement: Supplement }
+  | { type: 'DELETE_SUPPLEMENT'; id: string }
+  | { type: 'UPSERT_MEDICATION'; medication: Medication }
+  | { type: 'DELETE_MEDICATION'; id: string }
+  | { type: 'UPSERT_CHECKIN'; checkin: WeeklyCheckin }
+  | { type: 'DELETE_CHECKIN'; id: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -148,6 +178,82 @@ function reducer(state: State, action: Action): State {
           (p) => p.sessionId !== action.id,
         ),
       };
+    case 'UPSERT_BODYWEIGHT': {
+      const others = state.bodyweight.filter(
+        (b) => b.date !== action.entry.date && b.id !== action.entry.id,
+      );
+      return { ...state, bodyweight: [...others, action.entry] };
+    }
+    case 'DELETE_BODYWEIGHT':
+      return {
+        ...state,
+        bodyweight: state.bodyweight.filter((b) => b.id !== action.id),
+      };
+    case 'UPSERT_DAILY_METRIC': {
+      const others = state.dailyMetrics.filter(
+        (m) => m.date !== action.metric.date && m.id !== action.metric.id,
+      );
+      return { ...state, dailyMetrics: [...others, action.metric] };
+    }
+    case 'DELETE_DAILY_METRIC':
+      return {
+        ...state,
+        dailyMetrics: state.dailyMetrics.filter((m) => m.id !== action.id),
+      };
+    case 'UPSERT_CARDIO': {
+      const exists = state.cardio.some((c) => c.id === action.session.id);
+      return {
+        ...state,
+        cardio: exists
+          ? state.cardio.map((c) => (c.id === action.session.id ? action.session : c))
+          : [...state.cardio, action.session],
+      };
+    }
+    case 'DELETE_CARDIO':
+      return { ...state, cardio: state.cardio.filter((c) => c.id !== action.id) };
+    case 'UPSERT_SUPPLEMENT': {
+      const exists = state.supplements.some((s) => s.id === action.supplement.id);
+      return {
+        ...state,
+        supplements: exists
+          ? state.supplements.map((s) =>
+              s.id === action.supplement.id ? action.supplement : s,
+            )
+          : [...state.supplements, action.supplement],
+      };
+    }
+    case 'DELETE_SUPPLEMENT':
+      return {
+        ...state,
+        supplements: state.supplements.filter((s) => s.id !== action.id),
+      };
+    case 'UPSERT_MEDICATION': {
+      const exists = state.medications.some((m) => m.id === action.medication.id);
+      return {
+        ...state,
+        medications: exists
+          ? state.medications.map((m) =>
+              m.id === action.medication.id ? action.medication : m,
+            )
+          : [...state.medications, action.medication],
+      };
+    }
+    case 'DELETE_MEDICATION':
+      return {
+        ...state,
+        medications: state.medications.filter((m) => m.id !== action.id),
+      };
+    case 'UPSERT_CHECKIN': {
+      const others = state.weeklyCheckins.filter(
+        (c) => c.weekDate !== action.checkin.weekDate && c.id !== action.checkin.id,
+      );
+      return { ...state, weeklyCheckins: [...others, action.checkin] };
+    }
+    case 'DELETE_CHECKIN':
+      return {
+        ...state,
+        weeklyCheckins: state.weeklyCheckins.filter((c) => c.id !== action.id),
+      };
   }
 }
 
@@ -188,6 +294,18 @@ type StoreValue = State & {
   setActiveProgram: (id: string | null) => void;
   logSession: (input: SessionInput) => { session: WorkoutSession; newPRs: PersonalRecord[] };
   deleteSession: (id: string) => void;
+  upsertBodyweight: (input: { id?: string; date: string; weightKg: number; note?: string }) => BodyweightEntry;
+  deleteBodyweight: (id: string) => void;
+  upsertDailyMetric: (date: string, patch: Partial<DailyHealthMetric>) => DailyHealthMetric;
+  deleteDailyMetric: (id: string) => void;
+  upsertCardio: (input: Omit<CardioSession, 'id'> & { id?: string }) => CardioSession;
+  deleteCardio: (id: string) => void;
+  upsertSupplement: (input: Omit<Supplement, 'id' | 'createdAt'> & { id?: string }) => Supplement;
+  deleteSupplement: (id: string) => void;
+  upsertMedication: (input: Omit<Medication, 'id' | 'createdAt'> & { id?: string }) => Medication;
+  deleteMedication: (id: string) => void;
+  upsertCheckin: (weekDate: string, patch: Partial<WeeklyCheckin>) => WeeklyCheckin;
+  deleteCheckin: (id: string) => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -284,6 +402,12 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
+              bodyweight: [],
+              dailyMetrics: [],
+              cardio: [],
+              supplements: [],
+              medications: [],
+              weeklyCheckins: [],
             },
           });
           return;
@@ -310,6 +434,12 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: parsed.programs ?? [],
               sessions: parsed.sessions ?? [],
               personalRecords: parsed.personalRecords ?? [],
+              bodyweight: parsed.bodyweight ?? [],
+              dailyMetrics: parsed.dailyMetrics ?? [],
+              cardio: parsed.cardio ?? [],
+              supplements: parsed.supplements ?? [],
+              medications: parsed.medications ?? [],
+              weeklyCheckins: parsed.weeklyCheckins ?? [],
             },
           });
         } catch {
@@ -321,6 +451,12 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
+              bodyweight: [],
+              dailyMetrics: [],
+              cardio: [],
+              supplements: [],
+              medications: [],
+              weeklyCheckins: [],
             },
           });
         }
@@ -335,6 +471,12 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
+              bodyweight: [],
+              dailyMetrics: [],
+              cardio: [],
+              supplements: [],
+              medications: [],
+              weeklyCheckins: [],
             },
           });
         }
@@ -359,6 +501,12 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       programs: state.programs,
       sessions: state.sessions,
       personalRecords: state.personalRecords,
+      bodyweight: state.bodyweight,
+      dailyMetrics: state.dailyMetrics,
+      cardio: state.cardio,
+      supplements: state.supplements,
+      medications: state.medications,
+      weeklyCheckins: state.weeklyCheckins,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -432,6 +580,96 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
         return { session, newPRs };
       },
       deleteSession: (id) => dispatch({ type: 'DELETE_SESSION', id }),
+      upsertBodyweight: (input) => {
+        const existing = input.id
+          ? stateRef.current.bodyweight.find((b) => b.id === input.id)
+          : stateRef.current.bodyweight.find((b) => b.date === input.date);
+        const entry: BodyweightEntry = {
+          id: existing?.id ?? genId('bw'),
+          date: input.date,
+          weightKg: input.weightKg,
+          note: input.note,
+        };
+        dispatch({ type: 'UPSERT_BODYWEIGHT', entry });
+        return entry;
+      },
+      deleteBodyweight: (id) => dispatch({ type: 'DELETE_BODYWEIGHT', id }),
+      upsertDailyMetric: (date, patch) => {
+        const existing = stateRef.current.dailyMetrics.find((m) => m.date === date);
+        const metric: DailyHealthMetric = {
+          id: existing?.id ?? genId('dm'),
+          date,
+          ...existing,
+          ...patch,
+        };
+        dispatch({ type: 'UPSERT_DAILY_METRIC', metric });
+        return metric;
+      },
+      deleteDailyMetric: (id) => dispatch({ type: 'DELETE_DAILY_METRIC', id }),
+      upsertCardio: (input) => {
+        const session: CardioSession = {
+          id: input.id ?? genId('cardio'),
+          date: input.date,
+          activityType: input.activityType,
+          durationMin: input.durationMin,
+          distanceKm: input.distanceKm,
+          avgHr: input.avgHr,
+          calories: input.calories,
+          notes: input.notes,
+        };
+        dispatch({ type: 'UPSERT_CARDIO', session });
+        return session;
+      },
+      deleteCardio: (id) => dispatch({ type: 'DELETE_CARDIO', id }),
+      upsertSupplement: (input) => {
+        const existing = input.id
+          ? stateRef.current.supplements.find((s) => s.id === input.id)
+          : undefined;
+        const supplement: Supplement = {
+          id: input.id ?? genId('sup'),
+          name: input.name,
+          dose: input.dose,
+          notes: input.notes,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        dispatch({ type: 'UPSERT_SUPPLEMENT', supplement });
+        return supplement;
+      },
+      deleteSupplement: (id) => dispatch({ type: 'DELETE_SUPPLEMENT', id }),
+      upsertMedication: (input) => {
+        const existing = input.id
+          ? stateRef.current.medications.find((m) => m.id === input.id)
+          : undefined;
+        const medication: Medication = {
+          id: input.id ?? genId('med'),
+          name: input.name,
+          dose: input.dose,
+          unit: input.unit,
+          frequency: input.frequency,
+          startDate: input.startDate,
+          weekdays: input.weekdays,
+          notes: input.notes,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        dispatch({ type: 'UPSERT_MEDICATION', medication });
+        return medication;
+      },
+      deleteMedication: (id) => dispatch({ type: 'DELETE_MEDICATION', id }),
+      upsertCheckin: (weekDate, patch) => {
+        const existing = stateRef.current.weeklyCheckins.find(
+          (c) => c.weekDate === weekDate,
+        );
+        const checkin: WeeklyCheckin = {
+          id: existing?.id ?? genId('ck'),
+          weekDate,
+          ...existing,
+          ...patch,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        dispatch({ type: 'UPSERT_CHECKIN', checkin });
+        return checkin;
+      },
+      deleteCheckin: (id) => dispatch({ type: 'DELETE_CHECKIN', id }),
     }),
     [state],
   );
