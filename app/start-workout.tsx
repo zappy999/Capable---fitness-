@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../src/store/WorkoutStore';
+import type { Workout } from '../src/store/types';
 import { WORKOUTS as DEMO_WORKOUTS } from '../src/data/workouts';
 import {
   cancelNotification,
@@ -47,6 +48,8 @@ const SWIPE_THRESHOLD = 110;
 type SetLog = {
   weight: number;
   reps: number;
+  rpe?: number;
+  rir?: number;
   completed: boolean;
 };
 
@@ -60,6 +63,10 @@ type ExerciseLog = {
   note?: string;
   pr?: number;
   sets: SetLog[];
+  isDropSet?: boolean;
+  supersetGroup?: string;
+  groupType?: 'superset' | 'circuit' | 'emom';
+  emomSeconds?: number;
 };
 
 type SwipeableSetCardProps = {
@@ -71,6 +78,8 @@ type SwipeableSetCardProps = {
   onIncWeight: () => void;
   onDecReps: () => void;
   onIncReps: () => void;
+  onSetRpe: (rpe: number | undefined) => void;
+  onSetRir: (rir: number | undefined) => void;
   onComplete: () => void;
 };
 
@@ -83,6 +92,8 @@ function SwipeableSetCard({
   onIncWeight,
   onDecReps,
   onIncReps,
+  onSetRpe,
+  onSetRir,
   onComplete,
 }: SwipeableSetCardProps) {
   const translateX = useSharedValue(0);
@@ -269,6 +280,23 @@ function SwipeableSetCard({
             </View>
           </View>
 
+          <View className="flex-row gap-4 mt-3">
+            <RpeRirField
+              label="RPE"
+              value={set.rpe}
+              onChange={onSetRpe}
+              options={[6, 7, 8, 9, 10]}
+              disabled={isDone}
+            />
+            <RpeRirField
+              label="RIR"
+              value={set.rir}
+              onChange={onSetRir}
+              options={[0, 1, 2, 3, 4]}
+              disabled={isDone}
+            />
+          </View>
+
           <View className="flex-row items-center justify-between mt-3">
             {isDone ? (
               <Text style={{ color: NEON, fontSize: 13 }} className="italic">
@@ -289,6 +317,59 @@ function SwipeableSetCard({
           </View>
         </Animated.View>
       </GestureDetector>
+    </View>
+  );
+}
+
+function RpeRirField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  options: number[];
+  disabled?: boolean;
+}) {
+  return (
+    <View className="flex-1">
+      <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
+        {label}
+      </Text>
+      <View className="flex-row gap-1">
+        {options.map((n) => {
+          const active = value === n;
+          return (
+            <Pressable
+              key={n}
+              onPress={() => {
+                if (disabled) return;
+                onChange(active ? undefined : n);
+              }}
+              disabled={disabled}
+              className="flex-1 h-8 rounded-lg items-center justify-center"
+              style={{
+                backgroundColor: active ? NEON : 'rgba(255,255,255,0.05)',
+                borderWidth: 1,
+                borderColor: active ? NEON : 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <Text
+                className="font-bold"
+                style={{
+                  color: active ? '#0A0A0A' : '#A1A1AA',
+                  fontSize: 12,
+                }}
+              >
+                {n}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -394,7 +475,7 @@ type SourceKind = 'user' | 'demo' | 'fallback';
 
 function resolveSource(
   id: string | undefined,
-  userWorkouts: { id: string; name: string; exercises: { id: string; exerciseId: string; sets: number; reps: string; restSeconds: number; tempo?: string; note?: string }[] }[],
+  userWorkouts: Workout[],
   library: { id: string; name: string }[],
 ): { kind: SourceKind; name: string; workoutId?: string; exercises: ExerciseLog[] } {
   if (id) {
@@ -414,6 +495,10 @@ function resolveSource(
             rest: `${we.restSeconds}s`,
             tempo: we.tempo ?? '',
             note: we.note,
+            isDropSet: we.isDropSet,
+            supersetGroup: we.supersetGroup,
+            groupType: we.groupType,
+            emomSeconds: we.emomSeconds,
             sets: Array.from({ length: Math.max(1, we.sets) }, () => ({
               weight: 0,
               reps: 0,
@@ -540,7 +625,12 @@ export default function StartWorkoutScreen() {
       .map((ex) => {
         const completedSets = ex.sets
           .filter((s) => s.completed)
-          .map((s) => ({ weight: s.weight, reps: s.reps }));
+          .map((s) => ({
+            weight: s.weight,
+            reps: s.reps,
+            rpe: s.rpe,
+            rir: s.rir,
+          }));
         if (completedSets.length === 0) return null;
         let exerciseId = ex.exerciseId;
         if (!exerciseId) {
@@ -805,6 +895,39 @@ export default function StartWorkoutScreen() {
               <Text className="text-gray-500 mt-0.5" style={{ fontSize: 13 }}>
                 Rest: {active.rest}   Tempo: {active.tempo}
               </Text>
+              {active.isDropSet || active.groupType ? (
+                <View className="flex-row flex-wrap gap-1.5 mt-2">
+                  {active.isDropSet ? (
+                    <View
+                      className="px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: 'rgba(251,191,36,0.15)' }}
+                    >
+                      <Text
+                        className="text-xs font-bold"
+                        style={{ color: '#FBBF24', letterSpacing: 0.5 }}
+                      >
+                        DROP SET
+                      </Text>
+                    </View>
+                  ) : null}
+                  {active.groupType ? (
+                    <View
+                      className="px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: 'rgba(198,242,78,0.15)' }}
+                    >
+                      <Text
+                        className="text-xs font-bold"
+                        style={{ color: '#C6F24E', letterSpacing: 0.5 }}
+                      >
+                        {active.groupType === 'emom'
+                          ? `EMOM ${active.emomSeconds ?? ''}s`.trim()
+                          : active.groupType.toUpperCase()}
+                        {active.supersetGroup ? ` · ${active.supersetGroup}` : ''}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
               {active.note ? (
                 <Text className="text-gray-400 italic mt-2" style={{ fontSize: 13 }}>
                   {active.note}
@@ -845,6 +968,8 @@ export default function StartWorkoutScreen() {
                 onIncWeight={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
                 onDecReps={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
                 onIncReps={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
+                onSetRpe={(rpe) => updateSet(activeIdx, i, { rpe })}
+                onSetRir={(rir) => updateSet(activeIdx, i, { rir })}
                 onComplete={() => completeSet(activeIdx, i)}
               />
             ))}
