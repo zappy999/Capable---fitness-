@@ -150,6 +150,10 @@ type ProgramInput = {
   workoutIds: string[];
   startDate?: string;
   endDate?: string;
+  phase?: string;
+  durationWeeks?: number;
+  restDays?: number;
+  intensityCycle?: number[];
 };
 
 type SessionInput = {
@@ -321,6 +325,10 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           workoutIds: input.workoutIds,
           startDate: input.startDate,
           endDate: input.endDate,
+          phase: input.phase,
+          durationWeeks: input.durationWeeks,
+          restDays: input.restDays,
+          intensityCycle: input.intensityCycle,
           isActive: existing?.isActive ?? false,
           isCustom: existing?.isCustom ?? true,
           createdAt: existing?.createdAt ?? Date.now(),

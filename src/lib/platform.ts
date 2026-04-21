@@ -1,6 +1,26 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+
+export function isSafeHttpUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export async function openExternalUrl(url: string): Promise<boolean> {
+  if (!isSafeHttpUrl(url)) return false;
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 let handlerSet = false;
 function ensureHandler() {

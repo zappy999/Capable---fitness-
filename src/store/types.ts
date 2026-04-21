@@ -19,6 +19,9 @@ export type Exercise = {
   isCustom?: boolean;
 };
 
+export const GROUP_TYPES = ['superset', 'circuit', 'emom'] as const;
+export type GroupType = (typeof GROUP_TYPES)[number];
+
 export type WorkoutExercise = {
   id: string;
   exerciseId: string;
@@ -27,6 +30,11 @@ export type WorkoutExercise = {
   restSeconds: number;
   tempo?: string;
   note?: string;
+  isDropSet?: boolean;
+  supersetGroup?: string;
+  groupType?: GroupType;
+  emomSeconds?: number;
+  demoUrl?: string;
 };
 
 export type Workout = {
@@ -45,11 +53,17 @@ export type Program = {
   isActive: boolean;
   isCustom: boolean;
   createdAt: number;
+  phase?: string;
+  durationWeeks?: number;
+  restDays?: number;
+  intensityCycle?: number[];
 };
 
 export type SessionSet = {
   weight: number;
   reps: number;
+  rpe?: number;
+  rir?: number;
 };
 
 export type SessionExercise = {
