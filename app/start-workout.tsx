@@ -5,6 +5,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useStore } from '../src/store/WorkoutStore';
 import { WORKOUTS as DEMO_WORKOUTS } from '../src/data/workouts';
+import {
+  cancelNotification,
+  haptic,
+  scheduleRestNotification,
+} from '../src/lib/platform';
+
+function parseRestSeconds(rest: string): number {
+  const s = rest.match(/(\d+)\s*s/i);
+  if (s) return Number(s[1]);
+  const m = rest.match(/(\d+)\s*min/i);
+  if (m) return Number(m[1]) * 60;
+  const n = Number(rest);
+  return Number.isFinite(n) && n > 0 ? n : 90;
+}
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
@@ -448,6 +462,7 @@ export default function StartWorkoutScreen() {
   );
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
 
   useEffect(() => {
     const key = `${source.kind}:${source.workoutId ?? 'fallback'}`;
@@ -487,6 +502,8 @@ export default function StartWorkoutScreen() {
         exercises: loggedExercises,
       });
     }
+    cancelNotification(restNotificationId);
+    haptic('success');
     router.back();
   };
 
@@ -498,12 +515,20 @@ export default function StartWorkoutScreen() {
   useEffect(() => {
     if (restRemaining === null) return;
     if (restRemaining <= 0) {
+      haptic('success');
       setRestRemaining(null);
+      setRestNotificationId(null);
       return;
     }
     const t = setTimeout(() => setRestRemaining((r) => (r === null ? null : r - 1)), 1000);
     return () => clearTimeout(t);
   }, [restRemaining]);
+
+  useEffect(() => {
+    return () => {
+      cancelNotification(restNotificationId);
+    };
+  }, [restNotificationId]);
 
   const stats = useMemo(() => {
     const totalSets = exercises.reduce((acc, e) => acc + e.sets.length, 0);
@@ -553,7 +578,14 @@ export default function StartWorkoutScreen() {
 
   const completeSet = (exIdx: number, setIdx: number) => {
     updateSet(exIdx, setIdx, { completed: true });
-    setRestRemaining(115);
+    haptic('light');
+    const restSeconds = parseRestSeconds(exercises[exIdx]?.rest ?? '90s');
+    setRestRemaining(restSeconds);
+    cancelNotification(restNotificationId);
+    setRestNotificationId(null);
+    scheduleRestNotification(restSeconds, 'Ready for your next set').then((id) => {
+      if (id) setRestNotificationId(id);
+    });
     // advance to next exercise if all sets complete
     setTimeout(() => {
       setExercises((curr) => {
@@ -867,7 +899,11 @@ export default function StartWorkoutScreen() {
               Rest: {formatRest(restRemaining)}
             </Text>
             <Pressable
-              onPress={() => setRestRemaining(null)}
+              onPress={() => {
+                setRestRemaining(null);
+                cancelNotification(restNotificationId);
+                setRestNotificationId(null);
+              }}
               className="px-4 py-1.5 rounded-full border border-green-400 active:opacity-70"
             >
               <Text className="text-green-400 font-bold" style={{ fontSize: 13 }}>
