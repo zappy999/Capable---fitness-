@@ -194,6 +194,7 @@ export function buildImportPayload(
       continue;
     }
     const sessionObj = (h.session ?? {}) as Record<string, unknown>;
+    const exerciseNotes = (h.exerciseNotes ?? {}) as Record<string, unknown>;
     const sessionExercises: SessionExercise[] = [];
     for (const [exName, rawSets] of Object.entries(sessionObj)) {
       if (!Array.isArray(rawSets)) continue;
@@ -213,22 +214,31 @@ export function buildImportPayload(
         });
       }
       if (mapped.length === 0) continue;
+      const rawNote = exerciseNotes[exName];
+      const note =
+        typeof rawNote === 'string' && rawNote.trim() ? rawNote.trim() : undefined;
       sessionExercises.push({
         id: genId('se'),
         exerciseId,
         sets: mapped,
+        note,
       });
     }
     if (sessionExercises.length === 0) {
       warnings.push(`Session ${date} (${name}): no completed sets, skipped`);
       continue;
     }
+    const sessionNote =
+      typeof h.sessionNote === 'string' && h.sessionNote.trim()
+        ? h.sessionNote.trim()
+        : undefined;
     sessions.push({
       id,
       workoutName: name,
       date,
       durationSeconds: parseNumOr(h.durationSeconds, 0),
       exercises: sessionExercises,
+      notes: sessionNote,
     });
   }
 

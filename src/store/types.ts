@@ -70,6 +70,7 @@ export type SessionExercise = {
   id: string;
   exerciseId: string;
   sets: SessionSet[];
+  note?: string;
 };
 
 export type WorkoutSession = {
@@ -79,6 +80,7 @@ export type WorkoutSession = {
   date: string;
   durationSeconds: number;
   exercises: SessionExercise[];
+  notes?: string;
 };
 
 export type PersonalRecordKind = 'heaviest_weight' | 'best_volume';

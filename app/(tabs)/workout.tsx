@@ -231,6 +231,7 @@ function ProgramsTab() {
 }
 
 function HistoryTab() {
+  const router = useRouter();
   const { sessions } = useStore();
   const sorted = useMemo(
     () => [...sessions].sort((a, b) => b.date.localeCompare(a.date)),
@@ -256,9 +257,10 @@ function HistoryTab() {
           0,
         );
         return (
-          <View
+          <Pressable
             key={s.id}
-            className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4"
+            onPress={() => router.push(`/sessions/${s.id}`)}
+            className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 active:opacity-80"
           >
             <View className="flex-row items-center justify-between">
               <Text className="text-white font-bold" style={{ fontSize: 16 }}>
@@ -278,7 +280,12 @@ function HistoryTab() {
                 <Text className="text-zinc-400 text-xs">{Math.round(volume)}kg vol</Text>
               ) : null}
             </View>
-          </View>
+            {s.notes ? (
+              <Text className="text-zinc-500 text-xs italic mt-2" numberOfLines={1}>
+                {s.notes}
+              </Text>
+            ) : null}
+          </Pressable>
         );
       })}
     </View>
