@@ -652,7 +652,9 @@ export default function StartWorkoutScreen() {
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
-    let newPRs: ReturnType<typeof logSession>['newPRs'] = [];
+    type LogResult = ReturnType<typeof logSession>;
+    let newPRs: LogResult['newPRs'] = [];
+    let newlyUnlocked: LogResult['newlyUnlocked'] = [];
     if (loggedExercises.length > 0) {
       const result = logSession({
         workoutName: source.name,
@@ -661,22 +663,42 @@ export default function StartWorkoutScreen() {
         exercises: loggedExercises,
       });
       newPRs = result.newPRs;
+      newlyUnlocked = result.newlyUnlocked;
     }
     cancelNotification(restNotificationId);
     clearDraft();
     haptic('success');
-    if (newPRs.length > 0) {
-      const lines = newPRs.map((pr) => {
-        const ex = libraryExercises.find((e) => e.id === pr.exerciseId);
-        const name = ex?.name ?? 'Exercise';
-        if (pr.kind === 'heaviest_weight') {
-          return `• ${name} — ${pr.weight}kg heaviest`;
-        }
-        return `• ${name} — ${pr.weight}×${pr.reps} best set`;
-      });
+    if (newPRs.length > 0 || newlyUnlocked.length > 0) {
+      const sections: string[] = [];
+      if (newPRs.length > 0) {
+        const lines = newPRs.map((pr) => {
+          const ex = libraryExercises.find((e) => e.id === pr.exerciseId);
+          const name = ex?.name ?? 'Exercise';
+          if (pr.kind === 'heaviest_weight') {
+            return `🏆 ${name} — ${pr.weight}kg heaviest`;
+          }
+          return `🏆 ${name} — ${pr.weight}×${pr.reps} best set`;
+        });
+        sections.push(lines.join('\n'));
+      }
+      if (newlyUnlocked.length > 0) {
+        const lines = newlyUnlocked.map((a) => `⭐ ${a.title} — ${a.description}`);
+        sections.push(lines.join('\n'));
+      }
+      const titleParts: string[] = [];
+      if (newPRs.length > 0) {
+        titleParts.push(newPRs.length === 1 ? 'New PR' : `${newPRs.length} new PRs`);
+      }
+      if (newlyUnlocked.length > 0) {
+        titleParts.push(
+          newlyUnlocked.length === 1
+            ? '1 achievement'
+            : `${newlyUnlocked.length} achievements`,
+        );
+      }
       Alert.alert(
-        newPRs.length === 1 ? 'New PR!' : `${newPRs.length} new PRs!`,
-        lines.join('\n'),
+        `${titleParts.join(' · ')}!`,
+        sections.join('\n\n'),
         [{ text: 'Nice', onPress: () => router.back() }],
       );
       return;

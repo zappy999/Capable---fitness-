@@ -3,14 +3,13 @@ import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../../src/store/WorkoutStore';
-import type {
-  BodyweightEntry,
-  MealLog,
-  MealPlan,
-  PersonalRecord,
-  WorkoutSession,
-} from '../../src/store/types';
+import type { BodyweightEntry, WorkoutSession } from '../../src/store/types';
 import { LineChart, type ChartPoint } from '../../src/components/LineChart';
+import {
+  computeAchievementStatus,
+  longestStreak,
+  type AchievementStatus,
+} from '../../src/lib/achievements';
 
 const LIME = '#C6F24E';
 const NEON = '#22C55E';
@@ -38,23 +37,6 @@ function sessionVolume(s: WorkoutSession) {
     for (const st of e.sets) v += st.weight * st.reps;
   }
   return v;
-}
-
-function longestStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
-  const set = new Set(dates);
-  let best = 0;
-  for (const d of set) {
-    if (set.has(addDaysISO(d, -1))) continue;
-    let len = 1;
-    let cur = d;
-    while (set.has(addDaysISO(cur, 1))) {
-      len += 1;
-      cur = addDaysISO(cur, 1);
-    }
-    if (len > best) best = len;
-  }
-  return best;
 }
 
 type WeekBucket = { weekStart: string; volume: number; count: number };
@@ -116,8 +98,14 @@ export default function StatsScreen() {
   );
 
   const achievements = useMemo(
-    () => computeAchievements(sessions, personalRecords, mealPlans, mealLogs, streak),
-    [sessions, personalRecords, mealPlans, mealLogs, streak],
+    () =>
+      computeAchievementStatus({
+        sessions,
+        prs: personalRecords,
+        mealPlans,
+        mealLogs,
+      }),
+    [sessions, personalRecords, mealPlans, mealLogs],
   );
 
   return (
@@ -230,7 +218,7 @@ export default function StatsScreen() {
         </View>
         <View className="px-5 gap-3">
           {achievements.map((a) => (
-            <AchievementCard key={a.id} achievement={a} />
+            <AchievementCard key={a.def.id} achievement={a} />
           ))}
         </View>
       </ScrollView>
@@ -309,125 +297,48 @@ function WeekBars({
   );
 }
 
-type Achievement = {
-  id: string;
-  title: string;
-  description: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  color: string;
-  progress: number;
-  target: number;
-  unlocked: boolean;
-};
-
-function computeAchievements(
-  sessions: WorkoutSession[],
-  prs: PersonalRecord[],
-  mealPlans: MealPlan[],
-  mealLogs: MealLog[],
-  streak: number,
-): Achievement[] {
-  const planCompleteDays = (() => {
-    const byDate = new Map<string, Set<string>>();
-    for (const l of mealLogs) {
-      if (!byDate.has(l.date)) byDate.set(l.date, new Set());
-      byDate.get(l.date)!.add(l.mealId);
-    }
-    let days = 0;
-    for (const plan of mealPlans) {
-      const ids = plan.meals.map((m) => m.id);
-      if (ids.length === 0) continue;
-      for (const [, set] of byDate) {
-        if (ids.every((id) => set.has(id))) days += 1;
-      }
-    }
-    return days;
-  })();
-
-  return [
-    make('first_workout', 'First workout', 'Log your first session.', 'flag-outline', NEON, sessions.length, 1),
-    make('workouts_10', '10 workouts', 'Build the habit.', 'barbell-outline', '#60A5FA', sessions.length, 10),
-    make('workouts_50', '50 workouts', 'Consistency pays off.', 'barbell-outline', '#A78BFA', sessions.length, 50),
-    make('workouts_100', '100 workouts', 'Triple digits.', 'barbell-outline', '#FBBF24', sessions.length, 100),
-    make('streak_7', '7-day streak', 'Train every day for a week.', 'flame-outline', '#F87171', streak, 7),
-    make('streak_30', '30-day streak', 'A full month.', 'flame-outline', '#EC4899', streak, 30),
-    make('first_pr', 'First PR', 'Set a new personal record.', 'trophy-outline', LIME, prs.length, 1),
-    make('prs_10', '10 PRs', 'Stacking records.', 'trophy-outline', '#10B981', prs.length, 10),
-    make('first_plan', 'First meal plan', 'Create your first plan.', 'nutrition-outline', '#60A5FA', mealPlans.length, 1),
-    make('plan_complete', 'Plan complete', 'Check off every meal for a day.', 'checkmark-done-outline', NEON, planCompleteDays, 1),
-  ];
-}
-
-function make(
-  id: string,
-  title: string,
-  description: string,
-  icon: Achievement['icon'],
-  color: string,
-  progress: number,
-  target: number,
-): Achievement {
-  return {
-    id,
-    title,
-    description,
-    icon,
-    color,
-    progress,
-    target,
-    unlocked: progress >= target,
-  };
-}
-
-function AchievementCard({ achievement }: { achievement: Achievement }) {
-  const pct = Math.min(1, achievement.progress / achievement.target);
+function AchievementCard({ achievement }: { achievement: AchievementStatus }) {
+  const { def, progress, unlocked } = achievement;
+  const pct = Math.min(1, progress / def.target);
   return (
     <View
       className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center"
-      style={{ opacity: achievement.unlocked ? 1 : 0.7 }}
+      style={{ opacity: unlocked ? 1 : 0.7 }}
     >
       <View
         className="w-12 h-12 rounded-2xl items-center justify-center"
         style={{
-          backgroundColor: achievement.unlocked
-            ? achievement.color + '25'
-            : '#1F1F1F',
+          backgroundColor: unlocked ? def.color + '25' : '#1F1F1F',
         }}
       >
         <Ionicons
-          name={achievement.icon}
+          name={def.icon}
           size={22}
-          color={achievement.unlocked ? achievement.color : '#71717A'}
+          color={unlocked ? def.color : '#71717A'}
         />
       </View>
       <View className="flex-1 ml-4">
         <View className="flex-row items-center gap-2">
           <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-            {achievement.title}
+            {def.title}
           </Text>
-          {achievement.unlocked ? (
-            <Ionicons
-              name="checkmark-circle"
-              size={14}
-              color={achievement.color}
-            />
+          {unlocked ? (
+            <Ionicons name="checkmark-circle" size={14} color={def.color} />
           ) : null}
         </View>
-        <Text className="text-zinc-500 text-xs mt-0.5">
-          {achievement.description}
-        </Text>
+        <Text className="text-zinc-500 text-xs mt-0.5">{def.description}</Text>
         <View className="h-1.5 bg-[#1F1F1F] rounded-full overflow-hidden mt-2">
           <View
             style={{
               height: '100%',
               width: `${pct * 100}%`,
-              backgroundColor: achievement.color,
+              backgroundColor: def.color,
               borderRadius: 9999,
             }}
           />
         </View>
         <Text className="text-zinc-500 text-xs mt-1">
-          {Math.min(achievement.progress, achievement.target)} / {achievement.target}
+          {Math.min(progress, def.target)} / {def.target}
         </Text>
       </View>
     </View>

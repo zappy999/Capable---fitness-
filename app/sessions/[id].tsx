@@ -33,6 +33,7 @@ export default function SessionDetailScreen() {
     exercises,
     personalRecords,
     deleteSession,
+    updateSession,
   } = useStore();
 
   const session = sessions.find((s) => s.id === id);
@@ -153,14 +154,20 @@ export default function SessionDetailScreen() {
               value={displayNote}
               onChangeText={setNoteDraft}
               onBlur={() => {
-                // Note editing is local preview; persisting deferred to a store
-                // action in a follow-up. Leaving as-is preserves import data.
+                if (noteDraft === null) return;
+                const trimmed = noteDraft.trim();
+                if ((session.notes ?? '') === trimmed) {
+                  setNoteDraft(null);
+                  return;
+                }
+                updateSession(session.id, {
+                  notes: trimmed.length > 0 ? trimmed : undefined,
+                });
                 setNoteDraft(null);
               }}
-              placeholder={session.notes ? session.notes : 'No note'}
+              placeholder="Tap to add a note"
               placeholderTextColor="#52525B"
               multiline
-              editable={false}
               className="mt-2 text-white"
               style={{ fontSize: 14, minHeight: 40 }}
             />

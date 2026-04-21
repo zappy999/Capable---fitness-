@@ -34,6 +34,10 @@ import type {
 } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import { buildImportPayload, type ImportPayload, type ImportReport } from '../lib/importBackup';
+import {
+  diffNewlyUnlocked,
+  type AchievementDef,
+} from '../lib/achievements';
 
 const STORAGE_KEY = 'capable.store.v2';
 
@@ -91,6 +95,7 @@ type Action =
   | { type: 'DELETE_PROGRAM'; id: string }
   | { type: 'SET_ACTIVE_PROGRAM'; id: string | null }
   | { type: 'LOG_SESSION'; session: WorkoutSession; newPRs: PersonalRecord[] }
+  | { type: 'UPDATE_SESSION'; id: string; patch: Partial<WorkoutSession> }
   | { type: 'DELETE_SESSION'; id: string }
   | { type: 'UPSERT_BODYWEIGHT'; entry: BodyweightEntry }
   | { type: 'DELETE_BODYWEIGHT'; id: string }
@@ -203,6 +208,13 @@ function reducer(state: State, action: Action): State {
         ...state,
         sessions: [...state.sessions, action.session],
         personalRecords: [...state.personalRecords, ...action.newPRs],
+      };
+    case 'UPDATE_SESSION':
+      return {
+        ...state,
+        sessions: state.sessions.map((s) =>
+          s.id === action.id ? { ...s, ...action.patch } : s,
+        ),
       };
     case 'DELETE_SESSION':
       return {
@@ -483,7 +495,12 @@ type StoreValue = State & {
   saveProgram: (input: ProgramInput) => Program;
   deleteProgram: (id: string) => void;
   setActiveProgram: (id: string | null) => void;
-  logSession: (input: SessionInput) => { session: WorkoutSession; newPRs: PersonalRecord[] };
+  logSession: (input: SessionInput) => {
+    session: WorkoutSession;
+    newPRs: PersonalRecord[];
+    newlyUnlocked: AchievementDef[];
+  };
+  updateSession: (id: string, patch: Partial<WorkoutSession>) => void;
   deleteSession: (id: string) => void;
   upsertBodyweight: (input: { id?: string; date: string; weightKg: number; note?: string }) => BodyweightEntry;
   deleteBodyweight: (id: string) => void;
@@ -823,6 +840,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       deleteProgram: (id) => dispatch({ type: 'DELETE_PROGRAM', id }),
       setActiveProgram: (id) => dispatch({ type: 'SET_ACTIVE_PROGRAM', id }),
       logSession: (input) => {
+        const before = stateRef.current;
         const session: WorkoutSession = {
           id: genId('sess'),
           workoutName: input.workoutName,
@@ -831,10 +849,26 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           durationSeconds: input.durationSeconds,
           exercises: input.exercises,
         };
-        const newPRs = detectPRs(session, stateRef.current.sessions);
+        const newPRs = detectPRs(session, before.sessions);
+        const newlyUnlocked = diffNewlyUnlocked(
+          {
+            sessions: before.sessions,
+            prs: before.personalRecords,
+            mealPlans: before.mealPlans,
+            mealLogs: before.mealLogs,
+          },
+          {
+            sessions: [...before.sessions, session],
+            prs: [...before.personalRecords, ...newPRs],
+            mealPlans: before.mealPlans,
+            mealLogs: before.mealLogs,
+          },
+        );
         dispatch({ type: 'LOG_SESSION', session, newPRs });
-        return { session, newPRs };
+        return { session, newPRs, newlyUnlocked };
       },
+      updateSession: (id, patch) =>
+        dispatch({ type: 'UPDATE_SESSION', id, patch }),
       deleteSession: (id) => dispatch({ type: 'DELETE_SESSION', id }),
       upsertBodyweight: (input) => {
         const existing = input.id
