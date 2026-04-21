@@ -13,6 +13,7 @@ import { DEMO_SESSIONS } from '../data/demoSessions';
 import type {
   Exercise,
   ExerciseCategory,
+  PersonalRecord,
   Program,
   Workout,
   WorkoutSession,
@@ -26,6 +27,7 @@ type State = {
   workouts: Workout[];
   programs: Program[];
   sessions: WorkoutSession[];
+  personalRecords: PersonalRecord[];
 };
 
 const initialState: State = {
@@ -34,6 +36,7 @@ const initialState: State = {
   workouts: [],
   programs: [],
   sessions: [],
+  personalRecords: [],
 };
 
 type Action =
@@ -47,7 +50,7 @@ type Action =
   | { type: 'UPSERT_PROGRAM'; program: Program }
   | { type: 'DELETE_PROGRAM'; id: string }
   | { type: 'SET_ACTIVE_PROGRAM'; id: string | null }
-  | { type: 'LOG_SESSION'; session: WorkoutSession }
+  | { type: 'LOG_SESSION'; session: WorkoutSession; newPRs: PersonalRecord[] }
   | { type: 'DELETE_SESSION'; id: string };
 
 function reducer(state: State, action: Action): State {
@@ -132,9 +135,19 @@ function reducer(state: State, action: Action): State {
         programs: state.programs.map((p) => ({ ...p, isActive: p.id === action.id })),
       };
     case 'LOG_SESSION':
-      return { ...state, sessions: [...state.sessions, action.session] };
+      return {
+        ...state,
+        sessions: [...state.sessions, action.session],
+        personalRecords: [...state.personalRecords, ...action.newPRs],
+      };
     case 'DELETE_SESSION':
-      return { ...state, sessions: state.sessions.filter((s) => s.id !== action.id) };
+      return {
+        ...state,
+        sessions: state.sessions.filter((s) => s.id !== action.id),
+        personalRecords: state.personalRecords.filter(
+          (p) => p.sessionId !== action.id,
+        ),
+      };
   }
 }
 
@@ -173,7 +186,7 @@ type StoreValue = State & {
   saveProgram: (input: ProgramInput) => Program;
   deleteProgram: (id: string) => void;
   setActiveProgram: (id: string | null) => void;
-  logSession: (input: SessionInput) => WorkoutSession;
+  logSession: (input: SessionInput) => { session: WorkoutSession; newPRs: PersonalRecord[] };
   deleteSession: (id: string) => void;
 };
 
@@ -188,6 +201,68 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
     d.getDate(),
   ).padStart(2, '0')}`;
+}
+
+function detectPRs(
+  session: WorkoutSession,
+  priorSessions: WorkoutSession[],
+): PersonalRecord[] {
+  const records: PersonalRecord[] = [];
+  for (const se of session.exercises) {
+    const priorSets: { weight: number; reps: number }[] = [];
+    for (const ps of priorSessions) {
+      for (const pse of ps.exercises) {
+        if (pse.exerciseId !== se.exerciseId) continue;
+        for (const st of pse.sets) priorSets.push(st);
+      }
+    }
+    const priorMaxWeight = priorSets.reduce(
+      (m, s) => (s.weight > m ? s.weight : m),
+      0,
+    );
+    const priorMaxVolume = priorSets.reduce(
+      (m, s) => (s.weight * s.reps > m ? s.weight * s.reps : m),
+      0,
+    );
+
+    let bestWeightSet = se.sets[0];
+    let bestVolumeSet = se.sets[0];
+    for (const s of se.sets) {
+      if (!bestWeightSet || s.weight > bestWeightSet.weight) bestWeightSet = s;
+      if (!bestVolumeSet || s.weight * s.reps > bestVolumeSet.weight * bestVolumeSet.reps)
+        bestVolumeSet = s;
+    }
+
+    if (bestWeightSet && bestWeightSet.weight > priorMaxWeight && bestWeightSet.weight > 0) {
+      records.push({
+        id: genId('pr'),
+        exerciseId: se.exerciseId,
+        kind: 'heaviest_weight',
+        value: bestWeightSet.weight,
+        weight: bestWeightSet.weight,
+        reps: bestWeightSet.reps,
+        sessionId: session.id,
+        achievedAt: session.date,
+      });
+    }
+    if (
+      bestVolumeSet &&
+      bestVolumeSet.weight * bestVolumeSet.reps > priorMaxVolume &&
+      bestVolumeSet.weight * bestVolumeSet.reps > 0
+    ) {
+      records.push({
+        id: genId('pr'),
+        exerciseId: se.exerciseId,
+        kind: 'best_volume',
+        value: bestVolumeSet.weight * bestVolumeSet.reps,
+        weight: bestVolumeSet.weight,
+        reps: bestVolumeSet.reps,
+        sessionId: session.id,
+        achievedAt: session.date,
+      });
+    }
+  }
+  return records;
 }
 
 export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
@@ -208,6 +283,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               workouts: [],
               programs: [],
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
             },
           });
           return;
@@ -233,6 +309,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               workouts: parsed.workouts ?? [],
               programs: parsed.programs ?? [],
               sessions: parsed.sessions ?? [],
+              personalRecords: parsed.personalRecords ?? [],
             },
           });
         } catch {
@@ -243,6 +320,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               workouts: [],
               programs: [],
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
             },
           });
         }
@@ -256,6 +334,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               workouts: [],
               programs: [],
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
             },
           });
         }
@@ -279,6 +358,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       workouts: state.workouts,
       programs: state.programs,
       sessions: state.sessions,
+      personalRecords: state.personalRecords,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -347,8 +427,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           durationSeconds: input.durationSeconds,
           exercises: input.exercises,
         };
-        dispatch({ type: 'LOG_SESSION', session });
-        return session;
+        const newPRs = detectPRs(session, stateRef.current.sessions);
+        dispatch({ type: 'LOG_SESSION', session, newPRs });
+        return { session, newPRs };
       },
       deleteSession: (id) => dispatch({ type: 'DELETE_SESSION', id }),
     }),

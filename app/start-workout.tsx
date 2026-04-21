@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -647,17 +647,35 @@ export default function StartWorkoutScreen() {
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
+    let newPRs: ReturnType<typeof logSession>['newPRs'] = [];
     if (loggedExercises.length > 0) {
-      logSession({
+      const result = logSession({
         workoutName: source.name,
         workoutId: source.workoutId,
         durationSeconds: elapsed,
         exercises: loggedExercises,
       });
+      newPRs = result.newPRs;
     }
     cancelNotification(restNotificationId);
     clearDraft();
     haptic('success');
+    if (newPRs.length > 0) {
+      const lines = newPRs.map((pr) => {
+        const ex = libraryExercises.find((e) => e.id === pr.exerciseId);
+        const name = ex?.name ?? 'Exercise';
+        if (pr.kind === 'heaviest_weight') {
+          return `• ${name} — ${pr.weight}kg heaviest`;
+        }
+        return `• ${name} — ${pr.weight}×${pr.reps} best set`;
+      });
+      Alert.alert(
+        newPRs.length === 1 ? 'New PR!' : `${newPRs.length} new PRs!`,
+        lines.join('\n'),
+        [{ text: 'Nice', onPress: () => router.back() }],
+      );
+      return;
+    }
     router.back();
   };
 

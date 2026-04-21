@@ -81,6 +81,19 @@ export type WorkoutSession = {
   exercises: SessionExercise[];
 };
 
+export type PersonalRecordKind = 'heaviest_weight' | 'best_volume';
+
+export type PersonalRecord = {
+  id: string;
+  exerciseId: string;
+  kind: PersonalRecordKind;
+  value: number;
+  weight: number;
+  reps: number;
+  sessionId: string;
+  achievedAt: string;
+};
+
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
   Chest: '#F87171',
   Back: '#60A5FA',
