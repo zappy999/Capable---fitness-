@@ -31,6 +31,16 @@ export default function NewProgramScreen() {
   const [name, setName] = useState(editing?.name ?? '');
   const [startDate, setStartDate] = useState<string | undefined>(editing?.startDate);
   const [endDate, setEndDate] = useState<string | undefined>(editing?.endDate);
+  const [phase, setPhase] = useState<string>(editing?.phase ?? '');
+  const [durationWeeks, setDurationWeeks] = useState<string>(
+    editing?.durationWeeks ? String(editing.durationWeeks) : '',
+  );
+  const [restDays, setRestDays] = useState<string>(
+    editing?.restDays != null ? String(editing.restDays) : '',
+  );
+  const [intensityCycle, setIntensityCycle] = useState<string>(
+    editing?.intensityCycle?.join(', ') ?? '',
+  );
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<string[]>(editing?.workoutIds ?? []);
 
@@ -39,9 +49,24 @@ export default function NewProgramScreen() {
       setName(editing.name);
       setStartDate(editing.startDate);
       setEndDate(editing.endDate);
+      setPhase(editing.phase ?? '');
+      setDurationWeeks(
+        editing.durationWeeks ? String(editing.durationWeeks) : '',
+      );
+      setRestDays(editing.restDays != null ? String(editing.restDays) : '');
+      setIntensityCycle(editing.intensityCycle?.join(', ') ?? '');
       setPicked(editing.workoutIds);
     }
   }, [editing?.id]);
+
+  const parsedIntensityCycle = useMemo(() => {
+    if (!intensityCycle.trim()) return undefined;
+    const parts = intensityCycle
+      .split(',')
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return parts.length > 0 ? parts : undefined;
+  }, [intensityCycle]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,12 +88,20 @@ export default function NewProgramScreen() {
 
   const handleSave = () => {
     if (!canSave) return;
+    const durationNum = Number(durationWeeks);
+    const restNum = Number(restDays);
     saveProgram({
       id: editing?.id,
       name: name.trim(),
       workoutIds: picked,
       startDate,
       endDate,
+      phase: phase.trim() || undefined,
+      durationWeeks:
+        Number.isFinite(durationNum) && durationNum > 0 ? durationNum : undefined,
+      restDays:
+        Number.isFinite(restNum) && restNum >= 0 ? restNum : undefined,
+      intensityCycle: parsedIntensityCycle,
     });
     router.back();
   };
@@ -159,6 +192,65 @@ export default function NewProgramScreen() {
           <DateField label="Start date" value={startDate} onChange={setStartDate} />
           <DateField label="End date" value={endDate} onChange={setEndDate} />
         </View>
+
+        <Text className="text-white font-bold mt-5 mb-3" style={{ fontSize: 14 }}>
+          Phase
+        </Text>
+        <TextInput
+          value={phase}
+          onChangeText={setPhase}
+          placeholder="e.g. Accumulation"
+          placeholderTextColor="#52525B"
+          className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
+          style={{ paddingVertical: 14, fontSize: 15 }}
+        />
+
+        <View className="flex-row gap-3 mt-4">
+          <View className="flex-1">
+            <Text className="text-white font-bold mb-2" style={{ fontSize: 14 }}>
+              Duration (weeks)
+            </Text>
+            <TextInput
+              value={durationWeeks}
+              onChangeText={setDurationWeeks}
+              placeholder="8"
+              placeholderTextColor="#52525B"
+              keyboardType="number-pad"
+              className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
+              style={{ paddingVertical: 14, fontSize: 14 }}
+            />
+          </View>
+          <View className="flex-1">
+            <Text className="text-white font-bold mb-2" style={{ fontSize: 14 }}>
+              Rest days / week
+            </Text>
+            <TextInput
+              value={restDays}
+              onChangeText={setRestDays}
+              placeholder="2"
+              placeholderTextColor="#52525B"
+              keyboardType="number-pad"
+              className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
+              style={{ paddingVertical: 14, fontSize: 14 }}
+            />
+          </View>
+        </View>
+
+        <Text className="text-white font-bold mt-4 mb-2" style={{ fontSize: 14 }}>
+          Intensity cycle
+        </Text>
+        <Text className="text-zinc-500 text-xs mb-2">
+          Comma-separated percentages per week (e.g. 70, 75, 80, 85, 90).
+        </Text>
+        <TextInput
+          value={intensityCycle}
+          onChangeText={setIntensityCycle}
+          placeholder="70, 75, 80, 85"
+          placeholderTextColor="#52525B"
+          keyboardType="numbers-and-punctuation"
+          className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
+          style={{ paddingVertical: 14, fontSize: 14 }}
+        />
       </View>
 
       <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">

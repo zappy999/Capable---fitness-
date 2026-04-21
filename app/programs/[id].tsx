@@ -92,6 +92,41 @@ export default function ProgramDetailScreen() {
               <Text className="text-black/70 text-sm">· to {program.endDate}</Text>
             ) : null}
           </View>
+          {program.phase ||
+          program.durationWeeks ||
+          program.restDays != null ||
+          (program.intensityCycle && program.intensityCycle.length > 0) ? (
+            <View className="flex-row flex-wrap gap-2 mt-3">
+              {program.phase ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.phase}
+                  </Text>
+                </View>
+              ) : null}
+              {program.durationWeeks ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.durationWeeks}w
+                  </Text>
+                </View>
+              ) : null}
+              {program.restDays != null ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.restDays} rest/wk
+                  </Text>
+                </View>
+              ) : null}
+              {program.intensityCycle && program.intensityCycle.length > 0 ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.intensityCycle.join('·')}%
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           <View className="flex-row gap-2 mt-4">
             {program.isActive ? (
               <Pressable
