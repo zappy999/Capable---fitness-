@@ -1,4 +1,4 @@
-import { Linking, Platform } from 'react-native';
+import { Keyboard, Linking, Platform, Share, type ShareContent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 
@@ -35,6 +35,15 @@ function ensureHandler() {
       shouldShowAlert: true,
     }),
   });
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('rest-timer', {
+      name: 'Rest timer',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'default',
+      lightColor: '#C6F24E',
+    }).catch(() => {});
+  }
 }
 
 let permissionStatus: 'granted' | 'denied' | 'undetermined' | 'unsupported' =
@@ -104,6 +113,7 @@ export async function scheduleRestNotification(
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: Math.max(1, Math.round(secondsFromNow)),
+        channelId: 'rest-timer',
       },
     });
     return id;
@@ -119,5 +129,18 @@ export async function cancelNotification(id: string | null | undefined) {
     await Notifications.cancelScheduledNotificationAsync(id);
   } catch {
     // ignore
+  }
+}
+
+export function dismissKeyboard() {
+  Keyboard.dismiss();
+}
+
+export async function shareContent(content: ShareContent): Promise<boolean> {
+  try {
+    const result = await Share.share(content);
+    return result.action !== Share.dismissedAction;
+  } catch {
+    return false;
   }
 }
