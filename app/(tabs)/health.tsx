@@ -269,31 +269,119 @@ function BodyweightLogModal({
   );
 }
 
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+}
+
 function DailyMetricsSection() {
   const { dailyMetrics, upsertDailyMetric } = useStore();
   const today = todayISO();
+  const [selectedDate, setSelectedDate] = useState(today);
+
   const metric = useMemo(
-    () => dailyMetrics.find((m) => m.date === today),
-    [dailyMetrics, today],
+    () => dailyMetrics.find((m) => m.date === selectedDate),
+    [dailyMetrics, selectedDate],
   );
 
-  const patch = (p: Partial<DailyHealthMetric>) => upsertDailyMetric(today, p);
+  const recentDates = useMemo(
+    () =>
+      [...dailyMetrics]
+        .map((m) => m.date)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, 14),
+    [dailyMetrics],
+  );
+
+  const isToday = selectedDate === today;
+  const isFuture = selectedDate > today;
+
+  const patch = (p: Partial<DailyHealthMetric>) =>
+    upsertDailyMetric(selectedDate, p);
 
   return (
     <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
-      <View className="flex-row items-start justify-between mb-4">
+      <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1">
           <Text
             className="text-zinc-500 font-bold"
             style={{ fontSize: 11, letterSpacing: 1 }}
           >
-            TODAY · {today}
+            {isToday ? `TODAY · ${today}` : selectedDate.toUpperCase()}
           </Text>
           <Text className="text-white font-bold mt-1" style={{ fontSize: 20 }}>
             Daily metrics
           </Text>
         </View>
+        {!isToday ? (
+          <Pressable
+            onPress={() => setSelectedDate(today)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+          >
+            <Text className="text-white text-xs font-bold">Today</Text>
+          </Pressable>
+        ) : null}
       </View>
+
+      <View className="flex-row items-center gap-2 mb-4">
+        <Pressable
+          onPress={() => setSelectedDate((d) => addDaysISO(d, -1))}
+          className="w-9 h-9 rounded-xl bg-[#0D0D0D] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+        >
+          <Ionicons name="chevron-back" size={16} color="#ffffff" />
+        </Pressable>
+        <View className="flex-1 h-9 rounded-xl bg-[#0D0D0D] border border-[#1F1F1F] items-center justify-center">
+          <Text className="text-white text-sm font-semibold">
+            {selectedDate}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            if (isFuture || isToday) return;
+            setSelectedDate((d) => addDaysISO(d, 1));
+          }}
+          disabled={isToday}
+          className="w-9 h-9 rounded-xl bg-[#0D0D0D] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          style={{ opacity: isToday ? 0.4 : 1 }}
+        >
+          <Ionicons name="chevron-forward" size={16} color="#ffffff" />
+        </Pressable>
+      </View>
+
+      {recentDates.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6, paddingRight: 16 }}
+          className="mb-4 flex-grow-0"
+        >
+          {recentDates.map((d) => {
+            const active = d === selectedDate;
+            return (
+              <Pressable
+                key={d}
+                onPress={() => setSelectedDate(d)}
+                className="px-3 py-1.5 rounded-full"
+                style={{
+                  backgroundColor: active ? LIME : '#0D0D0D',
+                  borderWidth: 1,
+                  borderColor: active ? LIME : '#1F1F1F',
+                }}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: active ? '#0A0A0A' : '#A1A1AA' }}
+                >
+                  {d.slice(5)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       <View className="flex-row gap-3 mb-3">
         <NumField
