@@ -23,13 +23,13 @@ function draftKey(kind: SourceKind, workoutId?: string) {
   return `capable-draft-${kind}-${workoutId ?? 'fallback'}`;
 }
 
-function parseRestSeconds(rest: string): number {
+function parseRestSeconds(rest: string, fallback = 90): number {
   const s = rest.match(/(\d+)\s*s/i);
   if (s) return Number(s[1]);
   const m = rest.match(/(\d+)\s*min/i);
   if (m) return Number(m[1]) * 60;
   const n = Number(rest);
-  return Number.isFinite(n) && n > 0 ? n : 90;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -541,8 +541,13 @@ function resolveSource(
 export default function StartWorkoutScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
-  const { workouts, exercises: libraryExercises, addCustomExercise, logSession } =
-    useStore();
+  const {
+    workouts,
+    exercises: libraryExercises,
+    addCustomExercise,
+    logSession,
+    settings,
+  } = useStore();
 
   const routeId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -753,7 +758,10 @@ export default function StartWorkoutScreen() {
   const completeSet = (exIdx: number, setIdx: number) => {
     updateSet(exIdx, setIdx, { completed: true });
     haptic('light');
-    const restSeconds = parseRestSeconds(exercises[exIdx]?.rest ?? '90s');
+    const restSeconds = parseRestSeconds(
+      exercises[exIdx]?.rest ?? `${settings.defaultRestSeconds}s`,
+      settings.defaultRestSeconds,
+    );
     setRestRemaining(restSeconds);
     cancelNotification(restNotificationId);
     setRestNotificationId(null);

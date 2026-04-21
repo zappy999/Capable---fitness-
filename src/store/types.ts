@@ -223,6 +223,59 @@ export type HabitLog = {
   notes?: string;
 };
 
+export type SyncCategory =
+  | 'workouts'
+  | 'programs'
+  | 'health'
+  | 'peds'
+  | 'settings'
+  | 'meals'
+  | 'habits'
+  | 'social';
+
+export type UserSettings = {
+  weightIncrementKg: number;
+  defaultRestSeconds: number;
+  weekStartDay: 'monday' | 'sunday';
+  checkInDay: number;
+  accentColor: string;
+  timezone?: string;
+  goals: {
+    bodyweightKg?: number;
+    calories?: number;
+    proteinG?: number;
+    carbsG?: number;
+    fatG?: number;
+    cardioMinutes?: number;
+  };
+  sync: Record<SyncCategory, boolean>;
+  featureFlags: {
+    peds: boolean;
+  };
+};
+
+export const DEFAULT_SETTINGS: UserSettings = {
+  weightIncrementKg: 2.5,
+  defaultRestSeconds: 90,
+  weekStartDay: 'monday',
+  checkInDay: 0,
+  accentColor: '#C6F24E',
+  goals: {},
+  sync: {
+    workouts: true,
+    programs: true,
+    health: true,
+    peds: false,
+    settings: true,
+    meals: true,
+    habits: true,
+    social: false,
+  },
+  featureFlags: {
+    peds: false,
+  },
+};
+
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
   Chest: '#F87171',
   Back: '#60A5FA',

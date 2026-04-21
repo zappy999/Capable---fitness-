@@ -43,6 +43,7 @@ export default function ExerciseDetailScreen() {
   const {
     exercises,
     sessions,
+    settings,
     updateExerciseCategory,
     mergeExercise,
     deleteExercise,
@@ -264,7 +265,7 @@ export default function ExerciseDetailScreen() {
                   style={{ fontSize: 16 }}
                 >
                   {estimated > 0
-                    ? roundWeight((estimated * p) / 100)
+                    ? roundWeight((estimated * p) / 100, settings.weightIncrementKg)
                     : '—'}
                 </Text>
               </View>
@@ -508,8 +509,10 @@ export default function ExerciseDetailScreen() {
   );
 }
 
-function roundWeight(v: number) {
-  return String(Math.round(v * 2) / 2).replace(/\.0$/, '');
+function roundWeight(v: number, increment: number) {
+  if (!Number.isFinite(increment) || increment <= 0) return String(Math.round(v));
+  const rounded = Math.round(v / increment) * increment;
+  return String(Math.round(rounded * 100) / 100).replace(/\.0+$/, '');
 }
 
 function StatBox({ label, value }: { label: string; value: string }) {

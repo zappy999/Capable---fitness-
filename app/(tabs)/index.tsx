@@ -133,8 +133,16 @@ export default function HomeScreen() {
             <Text className="text-zinc-500 text-sm">You are capable of more</Text>
             <Text className="text-white text-2xl font-bold">Alex Morgan</Text>
           </View>
-          <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: GREEN }}>
-            <Text className="text-black font-bold text-base">AM</Text>
+          <View className="flex-row items-center gap-2">
+            <Pressable
+              onPress={() => router.push('/settings')}
+              className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+            >
+              <Ionicons name="settings-outline" size={18} color="#ffffff" />
+            </Pressable>
+            <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: GREEN }}>
+              <Text className="text-black font-bold text-base">AM</Text>
+            </View>
           </View>
         </View>
 

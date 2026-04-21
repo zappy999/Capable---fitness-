@@ -27,10 +27,12 @@ import type {
   PersonalRecord,
   Program,
   Supplement,
+  UserSettings,
   WeeklyCheckin,
   Workout,
   WorkoutSession,
 } from './types';
+import { DEFAULT_SETTINGS } from './types';
 
 const STORAGE_KEY = 'capable.store.v2';
 
@@ -52,6 +54,7 @@ type State = {
   mealLogs: MealLog[];
   habits: Habit[];
   habitLogs: HabitLog[];
+  settings: UserSettings;
 };
 
 const initialState: State = {
@@ -72,6 +75,7 @@ const initialState: State = {
   mealLogs: [],
   habits: [],
   habitLogs: [],
+  settings: DEFAULT_SETTINGS,
 };
 
 type Action =
@@ -108,7 +112,8 @@ type Action =
   | { type: 'UPSERT_HABIT'; habit: Habit }
   | { type: 'DELETE_HABIT'; id: string }
   | { type: 'UPSERT_HABIT_LOG'; log: HabitLog }
-  | { type: 'DELETE_HABIT_LOG'; id: string };
+  | { type: 'DELETE_HABIT_LOG'; id: string }
+  | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -356,6 +361,20 @@ function reducer(state: State, action: Action): State {
         ...state,
         habitLogs: state.habitLogs.filter((l) => l.id !== action.id),
       };
+    case 'UPDATE_SETTINGS':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          ...action.patch,
+          goals: { ...state.settings.goals, ...(action.patch.goals ?? {}) },
+          sync: { ...state.settings.sync, ...(action.patch.sync ?? {}) },
+          featureFlags: {
+            ...state.settings.featureFlags,
+            ...(action.patch.featureFlags ?? {}),
+          },
+        },
+      };
   }
 }
 
@@ -419,6 +438,7 @@ type StoreValue = State & {
   archiveHabit: (id: string, archived: boolean) => void;
   upsertHabitLog: (habitId: string, date: string, patch: { value?: number; notes?: string }) => HabitLog;
   deleteHabitLog: (id: string) => void;
+  updateSettings: (patch: Partial<UserSettings>) => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -526,6 +546,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               mealLogs: [],
               habits: [],
               habitLogs: [],
+              settings: DEFAULT_SETTINGS,
             },
           });
           return;
@@ -569,6 +590,22 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               mealLogs: parsed.mealLogs ?? [],
               habits: parsed.habits ?? [],
               habitLogs: parsed.habitLogs ?? [],
+              settings: {
+                ...DEFAULT_SETTINGS,
+                ...(parsed.settings ?? {}),
+                goals: {
+                  ...DEFAULT_SETTINGS.goals,
+                  ...(parsed.settings?.goals ?? {}),
+                },
+                sync: {
+                  ...DEFAULT_SETTINGS.sync,
+                  ...(parsed.settings?.sync ?? {}),
+                },
+                featureFlags: {
+                  ...DEFAULT_SETTINGS.featureFlags,
+                  ...(parsed.settings?.featureFlags ?? {}),
+                },
+              },
             },
           });
         } catch {
@@ -591,6 +628,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               mealLogs: [],
               habits: [],
               habitLogs: [],
+              settings: DEFAULT_SETTINGS,
             },
           });
         }
@@ -616,6 +654,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               mealLogs: [],
               habits: [],
               habitLogs: [],
+              settings: DEFAULT_SETTINGS,
             },
           });
         }
@@ -651,6 +690,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       mealLogs: state.mealLogs,
       habits: state.habits,
       habitLogs: state.habitLogs,
+      settings: state.settings,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -881,6 +921,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
         return log;
       },
       deleteHabitLog: (id) => dispatch({ type: 'DELETE_HABIT_LOG', id }),
+      updateSettings: (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch }),
     }),
     [state],
   );
