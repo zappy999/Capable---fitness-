@@ -8,13 +8,72 @@ import { useStore } from '../../src/store/WorkoutStore';
 
 const GREEN = '#22C55E';
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { bodyweight } = useStore();
+  const { bodyweight, mealPlans, foods, mealLogs, toggleMealLog } = useStore();
   const todaysWorkout = WORKOUTS[0];
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
   const maxMinutes = Math.max(...WEEKLY_ACTIVITY.map((d) => d.minutes), 1);
+
+  const activePlan = useMemo(
+    () => mealPlans.find((p) => p.isActive),
+    [mealPlans],
+  );
+
+  const today = todayISO();
+
+  const nutrition = useMemo(() => {
+    if (!activePlan) return null;
+    let planKcal = 0;
+    let planP = 0;
+    let planC = 0;
+    let planF = 0;
+    let consumedKcal = 0;
+    let consumedP = 0;
+    let consumedC = 0;
+    let consumedF = 0;
+    const loggedSet = new Set(
+      mealLogs.filter((l) => l.date === today).map((l) => l.mealId),
+    );
+    for (const meal of activePlan.meals) {
+      let kcal = 0;
+      let p = 0;
+      let c = 0;
+      let f = 0;
+      for (const row of meal.rows) {
+        const food = foods.find((x) => x.id === row.foodId);
+        if (!food) continue;
+        const mult = row.amountG / 100;
+        kcal += food.kcalPer100g * mult;
+        p += food.proteinPer100g * mult;
+        c += food.carbsPer100g * mult;
+        f += food.fatPer100g * mult;
+      }
+      planKcal += kcal;
+      planP += p;
+      planC += c;
+      planF += f;
+      if (loggedSet.has(meal.id)) {
+        consumedKcal += kcal;
+        consumedP += p;
+        consumedC += c;
+        consumedF += f;
+      }
+    }
+    return {
+      plan: { kcal: planKcal, p: planP, c: planC, f: planF },
+      consumed: { kcal: consumedKcal, p: consumedP, c: consumedC, f: consumedF },
+      loggedSet,
+    };
+  }, [activePlan, foods, mealLogs, today]);
 
   const weightStats = useMemo(() => {
     const sorted = [...bodyweight].sort((a, b) => a.date.localeCompare(b.date));
@@ -86,6 +145,111 @@ export default function HomeScreen() {
               {weightStats ? `7d avg ${weightStats.avg7}kg` : 'Log weight'}
             </Text>
           </Pressable>
+        </View>
+
+        {/* Nutrition dashboard */}
+        <View className="mx-5 mb-5 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
+          <View className="flex-row items-center justify-between mb-3">
+            <View>
+              <Text
+                className="text-zinc-500 font-bold"
+                style={{ fontSize: 11, letterSpacing: 1 }}
+              >
+                TODAY'S NUTRITION
+              </Text>
+              <Text className="text-white font-bold mt-1" style={{ fontSize: 16 }}>
+                {activePlan ? activePlan.name : 'No active plan'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push('/nutrition')}
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+            >
+              <Text className="text-white text-xs font-bold">
+                {activePlan ? 'Edit' : '+ Plan'}
+              </Text>
+            </Pressable>
+          </View>
+          {activePlan && nutrition ? (
+            <>
+              <View className="gap-2.5 mb-4">
+                {activePlan.meals.map((m) => {
+                  const checked = nutrition.loggedSet.has(m.id);
+                  return (
+                    <Pressable
+                      key={m.id}
+                      onPress={() => toggleMealLog(today, m.id)}
+                      className="flex-row items-center py-1 active:opacity-70"
+                    >
+                      <View
+                        className="w-6 h-6 rounded-md items-center justify-center mr-3"
+                        style={{
+                          backgroundColor: checked ? GREEN : 'transparent',
+                          borderWidth: 1.5,
+                          borderColor: checked ? GREEN : '#3F3F46',
+                        }}
+                      >
+                        {checked ? (
+                          <Ionicons name="checkmark" size={14} color="#0A0A0A" />
+                        ) : null}
+                      </View>
+                      <Text
+                        className="flex-1 font-semibold"
+                        style={{
+                          color: checked ? '#71717A' : '#ffffff',
+                          fontSize: 14,
+                          textDecorationLine: checked ? 'line-through' : 'none',
+                        }}
+                      >
+                        {m.name}
+                      </Text>
+                      <Text className="text-zinc-500 text-xs">
+                        {Math.round(
+                          m.rows.reduce((a, r) => {
+                            const f = foods.find((x) => x.id === r.foodId);
+                            return f ? a + (f.kcalPer100g * r.amountG) / 100 : a;
+                          }, 0),
+                        )}{' '}
+                        kcal
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <MacroBar
+                label="Calories"
+                value={nutrition.consumed.kcal}
+                total={nutrition.plan.kcal}
+                color={GREEN}
+                unit="kcal"
+              />
+              <MacroBar
+                label="Protein"
+                value={nutrition.consumed.p}
+                total={nutrition.plan.p}
+                color="#F87171"
+                unit="g"
+              />
+              <MacroBar
+                label="Carbs"
+                value={nutrition.consumed.c}
+                total={nutrition.plan.c}
+                color="#60A5FA"
+                unit="g"
+              />
+              <MacroBar
+                label="Fat"
+                value={nutrition.consumed.f}
+                total={nutrition.plan.f}
+                color="#FBBF24"
+                unit="g"
+              />
+            </>
+          ) : (
+            <Text className="text-zinc-500 text-sm">
+              Create a meal plan and mark it active to see today's macros here.
+            </Text>
+          )}
         </View>
 
         {/* Weekly activity */}
@@ -178,5 +342,41 @@ export default function HomeScreen() {
         </ScrollView>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function MacroBar({
+  label,
+  value,
+  total,
+  color,
+  unit,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+  unit: string;
+}) {
+  const pct = total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
+  return (
+    <View className="mb-2">
+      <View className="flex-row items-center justify-between mb-1">
+        <Text className="text-zinc-400 text-xs font-semibold">{label}</Text>
+        <Text className="text-zinc-500 text-xs">
+          {Math.round(value)} / {Math.round(total)} {unit}
+        </Text>
+      </View>
+      <View className="h-1.5 bg-[#1F1F1F] rounded-full overflow-hidden">
+        <View
+          style={{
+            height: '100%',
+            width: `${pct * 100}%`,
+            backgroundColor: color,
+            borderRadius: 9999,
+          }}
+        />
+      </View>
+    </View>
   );
 }

@@ -10,12 +10,17 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { DEMO_SESSIONS } from '../data/demoSessions';
+import { FOOD_LIBRARY } from '../data/foodLibrary';
 import type {
   BodyweightEntry,
   CardioSession,
   DailyHealthMetric,
   Exercise,
   ExerciseCategory,
+  Food,
+  Meal,
+  MealLog,
+  MealPlan,
   Medication,
   PersonalRecord,
   Program,
@@ -40,6 +45,9 @@ type State = {
   supplements: Supplement[];
   medications: Medication[];
   weeklyCheckins: WeeklyCheckin[];
+  foods: Food[];
+  mealPlans: MealPlan[];
+  mealLogs: MealLog[];
 };
 
 const initialState: State = {
@@ -55,6 +63,9 @@ const initialState: State = {
   supplements: [],
   medications: [],
   weeklyCheckins: [],
+  foods: FOOD_LIBRARY,
+  mealPlans: [],
+  mealLogs: [],
 };
 
 type Action =
@@ -81,7 +92,13 @@ type Action =
   | { type: 'UPSERT_MEDICATION'; medication: Medication }
   | { type: 'DELETE_MEDICATION'; id: string }
   | { type: 'UPSERT_CHECKIN'; checkin: WeeklyCheckin }
-  | { type: 'DELETE_CHECKIN'; id: string };
+  | { type: 'DELETE_CHECKIN'; id: string }
+  | { type: 'ADD_FOOD'; food: Food }
+  | { type: 'DELETE_FOOD'; id: string }
+  | { type: 'UPSERT_MEAL_PLAN'; plan: MealPlan }
+  | { type: 'DELETE_MEAL_PLAN'; id: string }
+  | { type: 'SET_ACTIVE_MEAL_PLAN'; id: string | null }
+  | { type: 'TOGGLE_MEAL_LOG'; date: string; mealId: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -254,6 +271,53 @@ function reducer(state: State, action: Action): State {
         ...state,
         weeklyCheckins: state.weeklyCheckins.filter((c) => c.id !== action.id),
       };
+    case 'ADD_FOOD':
+      return { ...state, foods: [...state.foods, action.food] };
+    case 'DELETE_FOOD':
+      return { ...state, foods: state.foods.filter((f) => f.id !== action.id) };
+    case 'UPSERT_MEAL_PLAN': {
+      const exists = state.mealPlans.some((p) => p.id === action.plan.id);
+      return {
+        ...state,
+        mealPlans: exists
+          ? state.mealPlans.map((p) => (p.id === action.plan.id ? action.plan : p))
+          : [...state.mealPlans, action.plan],
+      };
+    }
+    case 'DELETE_MEAL_PLAN':
+      return {
+        ...state,
+        mealPlans: state.mealPlans.filter((p) => p.id !== action.id),
+        mealLogs: state.mealLogs.filter((l) => {
+          const plan = state.mealPlans.find((p) => p.id === action.id);
+          if (!plan) return true;
+          const mealIds = new Set(plan.meals.map((m) => m.id));
+          return !mealIds.has(l.mealId);
+        }),
+      };
+    case 'SET_ACTIVE_MEAL_PLAN':
+      return {
+        ...state,
+        mealPlans: state.mealPlans.map((p) => ({
+          ...p,
+          isActive: p.id === action.id,
+        })),
+      };
+    case 'TOGGLE_MEAL_LOG': {
+      const match = state.mealLogs.find(
+        (l) => l.date === action.date && l.mealId === action.mealId,
+      );
+      if (match) {
+        return {
+          ...state,
+          mealLogs: state.mealLogs.filter((l) => l !== match),
+        };
+      }
+      return {
+        ...state,
+        mealLogs: [...state.mealLogs, { date: action.date, mealId: action.mealId }],
+      };
+    }
   }
 }
 
@@ -306,6 +370,12 @@ type StoreValue = State & {
   deleteMedication: (id: string) => void;
   upsertCheckin: (weekDate: string, patch: Partial<WeeklyCheckin>) => WeeklyCheckin;
   deleteCheckin: (id: string) => void;
+  addCustomFood: (food: Omit<Food, 'id' | 'isCustom'>) => Food;
+  deleteFood: (id: string) => void;
+  saveMealPlan: (input: { id?: string; name: string; meals: Meal[] }) => MealPlan;
+  deleteMealPlan: (id: string) => void;
+  setActiveMealPlan: (id: string | null) => void;
+  toggleMealLog: (date: string, mealId: string) => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -408,6 +478,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               supplements: [],
               medications: [],
               weeklyCheckins: [],
+              foods: FOOD_LIBRARY,
+              mealPlans: [],
+              mealLogs: [],
             },
           });
           return;
@@ -440,6 +513,15 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               supplements: parsed.supplements ?? [],
               medications: parsed.medications ?? [],
               weeklyCheckins: parsed.weeklyCheckins ?? [],
+              foods: (() => {
+                const libIds = new Set(FOOD_LIBRARY.map((f) => f.id));
+                const storedCustomFoods = (parsed.foods ?? []).filter(
+                  (f) => !libIds.has(f.id),
+                );
+                return [...FOOD_LIBRARY, ...storedCustomFoods];
+              })(),
+              mealPlans: parsed.mealPlans ?? [],
+              mealLogs: parsed.mealLogs ?? [],
             },
           });
         } catch {
@@ -457,6 +539,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               supplements: [],
               medications: [],
               weeklyCheckins: [],
+              foods: FOOD_LIBRARY,
+              mealPlans: [],
+              mealLogs: [],
             },
           });
         }
@@ -477,6 +562,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               supplements: [],
               medications: [],
               weeklyCheckins: [],
+              foods: FOOD_LIBRARY,
+              mealPlans: [],
+              mealLogs: [],
             },
           });
         }
@@ -507,6 +595,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       supplements: state.supplements,
       medications: state.medications,
       weeklyCheckins: state.weeklyCheckins,
+      foods: state.foods.filter((f) => f.isCustom),
+      mealPlans: state.mealPlans,
+      mealLogs: state.mealLogs,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -670,6 +761,31 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
         return checkin;
       },
       deleteCheckin: (id) => dispatch({ type: 'DELETE_CHECKIN', id }),
+      addCustomFood: (food) => {
+        const f: Food = { ...food, id: genId('fd'), isCustom: true };
+        dispatch({ type: 'ADD_FOOD', food: f });
+        return f;
+      },
+      deleteFood: (id) => dispatch({ type: 'DELETE_FOOD', id }),
+      saveMealPlan: (input) => {
+        const existing = input.id
+          ? stateRef.current.mealPlans.find((p) => p.id === input.id)
+          : undefined;
+        const plan: MealPlan = {
+          id: input.id ?? genId('mp'),
+          name: input.name.trim(),
+          meals: input.meals,
+          isActive: existing?.isActive ?? false,
+          createdAt: existing?.createdAt ?? Date.now(),
+        };
+        dispatch({ type: 'UPSERT_MEAL_PLAN', plan });
+        return plan;
+      },
+      deleteMealPlan: (id) => dispatch({ type: 'DELETE_MEAL_PLAN', id }),
+      setActiveMealPlan: (id) =>
+        dispatch({ type: 'SET_ACTIVE_MEAL_PLAN', id }),
+      toggleMealLog: (date, mealId) =>
+        dispatch({ type: 'TOGGLE_MEAL_LOG', date, mealId }),
     }),
     [state],
   );

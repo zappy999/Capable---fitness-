@@ -160,6 +160,45 @@ export type WeeklyCheckin = {
   createdAt: number;
 };
 
+export type FoodMacro = 'protein' | 'carb' | 'fat' | 'mixed';
+
+export type Food = {
+  id: string;
+  name: string;
+  macro: FoodMacro;
+  kcalPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+  fiberPer100g?: number;
+  isCustom?: boolean;
+};
+
+export type MealFoodRow = {
+  id: string;
+  foodId: string;
+  amountG: number;
+};
+
+export type Meal = {
+  id: string;
+  name: string;
+  rows: MealFoodRow[];
+};
+
+export type MealPlan = {
+  id: string;
+  name: string;
+  meals: Meal[];
+  isActive: boolean;
+  createdAt: number;
+};
+
+export type MealLog = {
+  date: string;
+  mealId: string;
+};
+
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {
   Chest: '#F87171',
   Back: '#60A5FA',
