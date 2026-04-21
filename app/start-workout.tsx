@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from '../src/store/WorkoutStore';
 import { WORKOUTS as DEMO_WORKOUTS } from '../src/data/workouts';
 import {
@@ -10,6 +11,16 @@ import {
   haptic,
   scheduleRestNotification,
 } from '../src/lib/platform';
+
+type DraftSnapshot = {
+  startedAt: number;
+  activeIdx: number;
+  exercises: ExerciseLog[];
+};
+
+function draftKey(kind: SourceKind, workoutId?: string) {
+  return `capable-draft-${kind}-${workoutId ?? 'fallback'}`;
+}
 
 function parseRestSeconds(rest: string): number {
   const s = rest.match(/(\d+)\s*s/i);
@@ -455,11 +466,11 @@ export default function StartWorkoutScreen() {
     [routeId, workouts, libraryExercises],
   );
 
-  const [elapsed, setElapsed] = useState(3);
+  const [startedAt, setStartedAt] = useState<number>(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
   const [exercises, setExercises] = useState<ExerciseLog[]>(source.exercises);
-  const [loadedFor, setLoadedFor] = useState<string>(
-    `${source.kind}:${source.workoutId ?? 'fallback'}`,
-  );
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [hydrating, setHydrating] = useState(true);
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
@@ -467,10 +478,62 @@ export default function StartWorkoutScreen() {
   useEffect(() => {
     const key = `${source.kind}:${source.workoutId ?? 'fallback'}`;
     if (key === loadedFor) return;
-    setExercises(source.exercises);
-    setActiveIdx(0);
-    setLoadedFor(key);
+    let cancelled = false;
+    setHydrating(true);
+    (async () => {
+      let restored = false;
+      try {
+        const raw = await AsyncStorage.getItem(
+          draftKey(source.kind, source.workoutId),
+        );
+        if (!cancelled && raw) {
+          const draft = JSON.parse(raw) as DraftSnapshot;
+          if (
+            draft &&
+            Array.isArray(draft.exercises) &&
+            typeof draft.startedAt === 'number'
+          ) {
+            setStartedAt(draft.startedAt);
+            setElapsed(Math.max(0, Math.floor((Date.now() - draft.startedAt) / 1000)));
+            setExercises(draft.exercises);
+            setActiveIdx(
+              Math.max(0, Math.min(draft.activeIdx ?? 0, draft.exercises.length - 1)),
+            );
+            restored = true;
+          }
+        }
+      } catch {
+        // ignore parse errors; fall through to fresh init
+      }
+      if (!cancelled && !restored) {
+        const now = Date.now();
+        setStartedAt(now);
+        setElapsed(0);
+        setExercises(source.exercises);
+        setActiveIdx(0);
+      }
+      if (!cancelled) {
+        setLoadedFor(key);
+        setHydrating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [source, loadedFor]);
+
+  useEffect(() => {
+    if (hydrating) return;
+    const key = draftKey(source.kind, source.workoutId);
+    const draft: DraftSnapshot = { startedAt, activeIdx, exercises };
+    AsyncStorage.setItem(key, JSON.stringify(draft)).catch(() => {});
+  }, [exercises, activeIdx, startedAt, hydrating, source.kind, source.workoutId]);
+
+  const clearDraft = () => {
+    return AsyncStorage.removeItem(
+      draftKey(source.kind, source.workoutId),
+    ).catch(() => {});
+  };
 
   const handleFinish = () => {
     const loggedExercises = exercises
@@ -503,14 +566,17 @@ export default function StartWorkoutScreen() {
       });
     }
     cancelNotification(restNotificationId);
+    clearDraft();
     haptic('success');
     router.back();
   };
 
   useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    const t = setInterval(() => {
+      setElapsed(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [startedAt]);
 
   useEffect(() => {
     if (restRemaining === null) return;
