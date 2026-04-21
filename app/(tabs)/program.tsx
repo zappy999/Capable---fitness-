@@ -10,39 +10,33 @@ import {
   type ExerciseCategory,
   type WorkoutSession,
 } from '../../src/store/types';
-import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
 
 const NEON = '#22C55E';
 const LIME = '#22C55E';
 
-type Tab = 'Programs' | 'History' | 'Exercises' | 'Discover';
-const TABS: Tab[] = ['Programs', 'History', 'Exercises', 'Discover'];
+type Tab = 'Program' | 'Workout' | 'Exercise';
+const TABS: Tab[] = ['Program', 'Workout', 'Exercise'];
 
 const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }> = {
-  Programs: {
-    eyebrow: 'WORKOUT',
+  Program: {
+    eyebrow: 'PROGRAM',
     title: 'Programs',
-    subtitle: 'Preview first, then start.',
+    subtitle: 'Group workouts into a training block.',
   },
-  History: {
-    eyebrow: 'WORKOUT',
-    title: 'History',
-    subtitle: 'Sessions you have logged.',
+  Workout: {
+    eyebrow: 'PROGRAM',
+    title: 'Workouts',
+    subtitle: 'Individual sessions you can add to programs.',
   },
-  Exercises: {
-    eyebrow: 'EXERCISES',
-    title: 'Exercise History',
+  Exercise: {
+    eyebrow: 'PROGRAM',
+    title: 'Exercise history',
     subtitle: 'All tracked movements, grouped by muscle.',
-  },
-  Discover: {
-    eyebrow: 'WORKOUT',
-    title: 'Discover',
-    subtitle: 'Starter workouts you can try.',
   },
 };
 
-export default function WorkoutHubScreen() {
-  const [tab, setTab] = useState<Tab>('Programs');
+export default function ProgramHubScreen() {
+  const [tab, setTab] = useState<Tab>('Program');
   const copy = TAB_COPY[tab];
 
   return (
@@ -80,10 +74,9 @@ export default function WorkoutHubScreen() {
           </View>
         </View>
 
-        {tab === 'Programs' ? <ProgramsTab /> : null}
-        {tab === 'History' ? <HistoryTab /> : null}
-        {tab === 'Exercises' ? <ExercisesTab /> : null}
-        {tab === 'Discover' ? <DiscoverTab /> : null}
+        {tab === 'Program' ? <ProgramsTab /> : null}
+        {tab === 'Workout' ? <WorkoutsTab /> : null}
+        {tab === 'Exercise' ? <ExercisesTab /> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -125,7 +118,7 @@ function HeaderCard({
 
 function ProgramsTab() {
   const router = useRouter();
-  const { programs, workouts, setActiveProgram, deleteProgram } = useStore();
+  const { programs, setActiveProgram, deleteProgram } = useStore();
 
   return (
     <>
@@ -189,12 +182,20 @@ function ProgramsTab() {
           ))}
         </View>
       )}
+    </>
+  );
+}
 
+function WorkoutsTab() {
+  const router = useRouter();
+  const { workouts, deleteWorkout } = useStore();
+
+  return (
+    <>
       <SectionHeader
         title="Your workouts"
         subtitle="Individual workouts you can add to programs."
         action={{ label: '+ Create', onPress: () => router.push('/workouts/new') }}
-        topPad
       />
       {workouts.length === 0 ? (
         <EmptyState
@@ -208,6 +209,7 @@ function ProgramsTab() {
             <Pressable
               key={w.id}
               onPress={() => router.push(`/workouts/${w.id}`)}
+              onLongPress={() => deleteWorkout(w.id)}
               className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
             >
               <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
@@ -228,75 +230,6 @@ function ProgramsTab() {
       )}
     </>
   );
-}
-
-function HistoryTab() {
-  const router = useRouter();
-  const { sessions } = useStore();
-  const sorted = useMemo(
-    () => [...sessions].sort((a, b) => b.date.localeCompare(a.date)),
-    [sessions],
-  );
-
-  if (sorted.length === 0) {
-    return (
-      <EmptyState
-        icon="time-outline"
-        title="No sessions logged yet"
-        body="Finish a workout to see it here."
-      />
-    );
-  }
-
-  return (
-    <View className="px-5 gap-3">
-      {sorted.map((s) => {
-        const totalSets = s.exercises.reduce((a, e) => a + e.sets.length, 0);
-        const volume = s.exercises.reduce(
-          (a, e) => a + e.sets.reduce((sa, st) => sa + st.weight * st.reps, 0),
-          0,
-        );
-        return (
-          <Pressable
-            key={s.id}
-            onPress={() => router.push(`/sessions/${s.id}`)}
-            className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 active:opacity-80"
-          >
-            <View className="flex-row items-center justify-between">
-              <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                {s.workoutName}
-              </Text>
-              <Text className="text-zinc-500 text-xs">{s.date}</Text>
-            </View>
-            <View className="flex-row gap-4 mt-2">
-              <Text className="text-zinc-400 text-xs">
-                {formatDuration(s.durationSeconds)}
-              </Text>
-              <Text className="text-zinc-400 text-xs">
-                {s.exercises.length} exercise{s.exercises.length === 1 ? '' : 's'}
-              </Text>
-              <Text className="text-zinc-400 text-xs">{totalSets} sets</Text>
-              {volume > 0 ? (
-                <Text className="text-zinc-400 text-xs">{Math.round(volume)}kg vol</Text>
-              ) : null}
-            </View>
-            {s.notes ? (
-              <Text className="text-zinc-500 text-xs italic mt-2" numberOfLines={1}>
-                {s.notes}
-              </Text>
-            ) : null}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function formatDuration(seconds: number) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }
 
 function ExercisesTab() {
@@ -460,40 +393,6 @@ function ExercisesTab() {
           })}
         </View>
       )}
-    </View>
-  );
-}
-
-function DiscoverTab() {
-  const router = useRouter();
-  return (
-    <View className="px-5 gap-3">
-      <Text className="text-zinc-500 text-xs mb-1">
-        Starter workouts · tap to preview
-      </Text>
-      {DEMO_WORKOUTS.map((w) => (
-        <Pressable
-          key={w.id}
-          onPress={() => router.push(`/workouts/${w.id}`)}
-          className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
-        >
-          <View
-            style={{ backgroundColor: `${w.color}20` }}
-            className="w-12 h-12 rounded-xl items-center justify-center"
-          >
-            <Ionicons name={w.icon} size={22} color={w.color} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-              {w.name}
-            </Text>
-            <Text className="text-zinc-500 text-xs mt-0.5" numberOfLines={1}>
-              {w.description}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-        </Pressable>
-      ))}
     </View>
   );
 }
