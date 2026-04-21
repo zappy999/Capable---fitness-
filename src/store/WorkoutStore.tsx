@@ -10,29 +10,16 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { DEMO_SESSIONS } from '../data/demoSessions';
-import { FOOD_LIBRARY } from '../data/foodLibrary';
-import type {
-  BodyweightEntry,
-  CardioSession,
-  DailyHealthMetric,
-  Exercise,
-  ExerciseCategory,
-  Food,
-  Habit,
-  HabitLog,
-  Meal,
-  MealLog,
-  MealPlan,
-  Medication,
-  PersonalRecord,
-  Program,
-  Supplement,
-  UserSettings,
-  WeeklyCheckin,
-  Workout,
-  WorkoutSession,
+import {
+  DEFAULT_SETTINGS,
+  type Exercise,
+  type ExerciseCategory,
+  type PersonalRecord,
+  type Program,
+  type UserSettings,
+  type Workout,
+  type WorkoutSession,
 } from './types';
-import { DEFAULT_SETTINGS } from './types';
 import { buildImportPayload, type ImportPayload, type ImportReport } from '../lib/importBackup';
 import {
   diffNewlyUnlocked,
@@ -48,17 +35,6 @@ type State = {
   programs: Program[];
   sessions: WorkoutSession[];
   personalRecords: PersonalRecord[];
-  bodyweight: BodyweightEntry[];
-  dailyMetrics: DailyHealthMetric[];
-  cardio: CardioSession[];
-  supplements: Supplement[];
-  medications: Medication[];
-  weeklyCheckins: WeeklyCheckin[];
-  foods: Food[];
-  mealPlans: MealPlan[];
-  mealLogs: MealLog[];
-  habits: Habit[];
-  habitLogs: HabitLog[];
   settings: UserSettings;
 };
 
@@ -69,17 +45,6 @@ const initialState: State = {
   programs: [],
   sessions: [],
   personalRecords: [],
-  bodyweight: [],
-  dailyMetrics: [],
-  cardio: [],
-  supplements: [],
-  medications: [],
-  weeklyCheckins: [],
-  foods: FOOD_LIBRARY,
-  mealPlans: [],
-  mealLogs: [],
-  habits: [],
-  habitLogs: [],
   settings: DEFAULT_SETTINGS,
 };
 
@@ -97,28 +62,6 @@ type Action =
   | { type: 'LOG_SESSION'; session: WorkoutSession; newPRs: PersonalRecord[] }
   | { type: 'UPDATE_SESSION'; id: string; patch: Partial<WorkoutSession> }
   | { type: 'DELETE_SESSION'; id: string }
-  | { type: 'UPSERT_BODYWEIGHT'; entry: BodyweightEntry }
-  | { type: 'DELETE_BODYWEIGHT'; id: string }
-  | { type: 'UPSERT_DAILY_METRIC'; metric: DailyHealthMetric }
-  | { type: 'DELETE_DAILY_METRIC'; id: string }
-  | { type: 'UPSERT_CARDIO'; session: CardioSession }
-  | { type: 'DELETE_CARDIO'; id: string }
-  | { type: 'UPSERT_SUPPLEMENT'; supplement: Supplement }
-  | { type: 'DELETE_SUPPLEMENT'; id: string }
-  | { type: 'UPSERT_MEDICATION'; medication: Medication }
-  | { type: 'DELETE_MEDICATION'; id: string }
-  | { type: 'UPSERT_CHECKIN'; checkin: WeeklyCheckin }
-  | { type: 'DELETE_CHECKIN'; id: string }
-  | { type: 'ADD_FOOD'; food: Food }
-  | { type: 'DELETE_FOOD'; id: string }
-  | { type: 'UPSERT_MEAL_PLAN'; plan: MealPlan }
-  | { type: 'DELETE_MEAL_PLAN'; id: string }
-  | { type: 'SET_ACTIVE_MEAL_PLAN'; id: string | null }
-  | { type: 'TOGGLE_MEAL_LOG'; date: string; mealId: string }
-  | { type: 'UPSERT_HABIT'; habit: Habit }
-  | { type: 'DELETE_HABIT'; id: string }
-  | { type: 'UPSERT_HABIT_LOG'; log: HabitLog }
-  | { type: 'DELETE_HABIT_LOG'; id: string }
   | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> }
   | { type: 'BULK_IMPORT'; payload: ImportPayload };
 
@@ -224,169 +167,12 @@ function reducer(state: State, action: Action): State {
           (p) => p.sessionId !== action.id,
         ),
       };
-    case 'UPSERT_BODYWEIGHT': {
-      const others = state.bodyweight.filter(
-        (b) => b.date !== action.entry.date && b.id !== action.entry.id,
-      );
-      return { ...state, bodyweight: [...others, action.entry] };
-    }
-    case 'DELETE_BODYWEIGHT':
-      return {
-        ...state,
-        bodyweight: state.bodyweight.filter((b) => b.id !== action.id),
-      };
-    case 'UPSERT_DAILY_METRIC': {
-      const others = state.dailyMetrics.filter(
-        (m) => m.date !== action.metric.date && m.id !== action.metric.id,
-      );
-      return { ...state, dailyMetrics: [...others, action.metric] };
-    }
-    case 'DELETE_DAILY_METRIC':
-      return {
-        ...state,
-        dailyMetrics: state.dailyMetrics.filter((m) => m.id !== action.id),
-      };
-    case 'UPSERT_CARDIO': {
-      const exists = state.cardio.some((c) => c.id === action.session.id);
-      return {
-        ...state,
-        cardio: exists
-          ? state.cardio.map((c) => (c.id === action.session.id ? action.session : c))
-          : [...state.cardio, action.session],
-      };
-    }
-    case 'DELETE_CARDIO':
-      return { ...state, cardio: state.cardio.filter((c) => c.id !== action.id) };
-    case 'UPSERT_SUPPLEMENT': {
-      const exists = state.supplements.some((s) => s.id === action.supplement.id);
-      return {
-        ...state,
-        supplements: exists
-          ? state.supplements.map((s) =>
-              s.id === action.supplement.id ? action.supplement : s,
-            )
-          : [...state.supplements, action.supplement],
-      };
-    }
-    case 'DELETE_SUPPLEMENT':
-      return {
-        ...state,
-        supplements: state.supplements.filter((s) => s.id !== action.id),
-      };
-    case 'UPSERT_MEDICATION': {
-      const exists = state.medications.some((m) => m.id === action.medication.id);
-      return {
-        ...state,
-        medications: exists
-          ? state.medications.map((m) =>
-              m.id === action.medication.id ? action.medication : m,
-            )
-          : [...state.medications, action.medication],
-      };
-    }
-    case 'DELETE_MEDICATION':
-      return {
-        ...state,
-        medications: state.medications.filter((m) => m.id !== action.id),
-      };
-    case 'UPSERT_CHECKIN': {
-      const others = state.weeklyCheckins.filter(
-        (c) => c.weekDate !== action.checkin.weekDate && c.id !== action.checkin.id,
-      );
-      return { ...state, weeklyCheckins: [...others, action.checkin] };
-    }
-    case 'DELETE_CHECKIN':
-      return {
-        ...state,
-        weeklyCheckins: state.weeklyCheckins.filter((c) => c.id !== action.id),
-      };
-    case 'ADD_FOOD':
-      return { ...state, foods: [...state.foods, action.food] };
-    case 'DELETE_FOOD':
-      return { ...state, foods: state.foods.filter((f) => f.id !== action.id) };
-    case 'UPSERT_MEAL_PLAN': {
-      const exists = state.mealPlans.some((p) => p.id === action.plan.id);
-      return {
-        ...state,
-        mealPlans: exists
-          ? state.mealPlans.map((p) => (p.id === action.plan.id ? action.plan : p))
-          : [...state.mealPlans, action.plan],
-      };
-    }
-    case 'DELETE_MEAL_PLAN':
-      return {
-        ...state,
-        mealPlans: state.mealPlans.filter((p) => p.id !== action.id),
-        mealLogs: state.mealLogs.filter((l) => {
-          const plan = state.mealPlans.find((p) => p.id === action.id);
-          if (!plan) return true;
-          const mealIds = new Set(plan.meals.map((m) => m.id));
-          return !mealIds.has(l.mealId);
-        }),
-      };
-    case 'SET_ACTIVE_MEAL_PLAN':
-      return {
-        ...state,
-        mealPlans: state.mealPlans.map((p) => ({
-          ...p,
-          isActive: p.id === action.id,
-        })),
-      };
-    case 'TOGGLE_MEAL_LOG': {
-      const match = state.mealLogs.find(
-        (l) => l.date === action.date && l.mealId === action.mealId,
-      );
-      if (match) {
-        return {
-          ...state,
-          mealLogs: state.mealLogs.filter((l) => l !== match),
-        };
-      }
-      return {
-        ...state,
-        mealLogs: [...state.mealLogs, { date: action.date, mealId: action.mealId }],
-      };
-    }
-    case 'UPSERT_HABIT': {
-      const exists = state.habits.some((h) => h.id === action.habit.id);
-      return {
-        ...state,
-        habits: exists
-          ? state.habits.map((h) => (h.id === action.habit.id ? action.habit : h))
-          : [...state.habits, action.habit],
-      };
-    }
-    case 'DELETE_HABIT':
-      return {
-        ...state,
-        habits: state.habits.filter((h) => h.id !== action.id),
-        habitLogs: state.habitLogs.filter((l) => l.habitId !== action.id),
-      };
-    case 'UPSERT_HABIT_LOG': {
-      const others = state.habitLogs.filter(
-        (l) =>
-          !(l.habitId === action.log.habitId && l.date === action.log.date) &&
-          l.id !== action.log.id,
-      );
-      return { ...state, habitLogs: [...others, action.log] };
-    }
-    case 'DELETE_HABIT_LOG':
-      return {
-        ...state,
-        habitLogs: state.habitLogs.filter((l) => l.id !== action.id),
-      };
     case 'UPDATE_SETTINGS':
       return {
         ...state,
         settings: {
           ...state.settings,
           ...action.patch,
-          goals: { ...state.settings.goals, ...(action.patch.goals ?? {}) },
-          sync: { ...state.settings.sync, ...(action.patch.sync ?? {}) },
-          featureFlags: {
-            ...state.settings.featureFlags,
-            ...(action.patch.featureFlags ?? {}),
-          },
         },
       };
     case 'BULK_IMPORT': {
@@ -394,9 +180,6 @@ function reducer(state: State, action: Action): State {
         customExercises,
         workouts: importedWorkouts,
         sessions: importedSessions,
-        bodyweight: importedBW,
-        dailyMetrics: importedDM,
-        medications: importedMeds,
         settings: importedSettings,
       } = action.payload;
 
@@ -424,33 +207,12 @@ function reducer(state: State, action: Action): State {
         prior.push(s);
       }
 
-      const bwDates = new Set(importedBW.map((b) => b.date));
-      const mergedBW = [
-        ...state.bodyweight.filter((b) => !bwDates.has(b.date)),
-        ...importedBW,
-      ];
-
-      const dmDates = new Set(importedDM.map((m) => m.date));
-      const mergedDM = [
-        ...state.dailyMetrics.filter((m) => !dmDates.has(m.date)),
-        ...importedDM,
-      ];
-
-      const medIds = new Set(importedMeds.map((m) => m.id));
-      const mergedMeds = [
-        ...state.medications.filter((m) => !medIds.has(m.id)),
-        ...importedMeds,
-      ];
-
       return {
         ...state,
         exercises: mergedExercises,
         workouts: mergedWorkouts,
         sessions: mergedSessions,
         personalRecords: recomputedPRs,
-        bodyweight: mergedBW,
-        dailyMetrics: mergedDM,
-        medications: mergedMeds,
         settings: {
           ...state.settings,
           ...importedSettings,
@@ -502,29 +264,6 @@ type StoreValue = State & {
   };
   updateSession: (id: string, patch: Partial<WorkoutSession>) => void;
   deleteSession: (id: string) => void;
-  upsertBodyweight: (input: { id?: string; date: string; weightKg: number; note?: string }) => BodyweightEntry;
-  deleteBodyweight: (id: string) => void;
-  upsertDailyMetric: (date: string, patch: Partial<DailyHealthMetric>) => DailyHealthMetric;
-  deleteDailyMetric: (id: string) => void;
-  upsertCardio: (input: Omit<CardioSession, 'id'> & { id?: string }) => CardioSession;
-  deleteCardio: (id: string) => void;
-  upsertSupplement: (input: Omit<Supplement, 'id' | 'createdAt'> & { id?: string }) => Supplement;
-  deleteSupplement: (id: string) => void;
-  upsertMedication: (input: Omit<Medication, 'id' | 'createdAt'> & { id?: string }) => Medication;
-  deleteMedication: (id: string) => void;
-  upsertCheckin: (weekDate: string, patch: Partial<WeeklyCheckin>) => WeeklyCheckin;
-  deleteCheckin: (id: string) => void;
-  addCustomFood: (food: Omit<Food, 'id' | 'isCustom'>) => Food;
-  deleteFood: (id: string) => void;
-  saveMealPlan: (input: { id?: string; name: string; meals: Meal[] }) => MealPlan;
-  deleteMealPlan: (id: string) => void;
-  setActiveMealPlan: (id: string | null) => void;
-  toggleMealLog: (date: string, mealId: string) => void;
-  saveHabit: (input: Omit<Habit, 'id' | 'createdAt' | 'sortOrder'> & { id?: string; sortOrder?: number }) => Habit;
-  deleteHabit: (id: string) => void;
-  archiveHabit: (id: string, archived: boolean) => void;
-  upsertHabitLog: (habitId: string, date: string, patch: { value?: number; notes?: string }) => HabitLog;
-  deleteHabitLog: (id: string) => void;
   updateSettings: (patch: Partial<UserSettings>) => void;
   previewImport: (raw: unknown) => ImportPayload;
   commitImport: (payload: ImportPayload) => ImportReport;
@@ -624,17 +363,6 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              bodyweight: [],
-              dailyMetrics: [],
-              cardio: [],
-              supplements: [],
-              medications: [],
-              weeklyCheckins: [],
-              foods: FOOD_LIBRARY,
-              mealPlans: [],
-              mealLogs: [],
-              habits: [],
-              habitLogs: [],
               settings: DEFAULT_SETTINGS,
             },
           });
@@ -662,38 +390,9 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: parsed.programs ?? [],
               sessions: parsed.sessions ?? [],
               personalRecords: parsed.personalRecords ?? [],
-              bodyweight: parsed.bodyweight ?? [],
-              dailyMetrics: parsed.dailyMetrics ?? [],
-              cardio: parsed.cardio ?? [],
-              supplements: parsed.supplements ?? [],
-              medications: parsed.medications ?? [],
-              weeklyCheckins: parsed.weeklyCheckins ?? [],
-              foods: (() => {
-                const libIds = new Set(FOOD_LIBRARY.map((f) => f.id));
-                const storedCustomFoods = (parsed.foods ?? []).filter(
-                  (f) => !libIds.has(f.id),
-                );
-                return [...FOOD_LIBRARY, ...storedCustomFoods];
-              })(),
-              mealPlans: parsed.mealPlans ?? [],
-              mealLogs: parsed.mealLogs ?? [],
-              habits: parsed.habits ?? [],
-              habitLogs: parsed.habitLogs ?? [],
               settings: {
                 ...DEFAULT_SETTINGS,
                 ...(parsed.settings ?? {}),
-                goals: {
-                  ...DEFAULT_SETTINGS.goals,
-                  ...(parsed.settings?.goals ?? {}),
-                },
-                sync: {
-                  ...DEFAULT_SETTINGS.sync,
-                  ...(parsed.settings?.sync ?? {}),
-                },
-                featureFlags: {
-                  ...DEFAULT_SETTINGS.featureFlags,
-                  ...(parsed.settings?.featureFlags ?? {}),
-                },
               },
             },
           });
@@ -706,17 +405,6 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              bodyweight: [],
-              dailyMetrics: [],
-              cardio: [],
-              supplements: [],
-              medications: [],
-              weeklyCheckins: [],
-              foods: FOOD_LIBRARY,
-              mealPlans: [],
-              mealLogs: [],
-              habits: [],
-              habitLogs: [],
               settings: DEFAULT_SETTINGS,
             },
           });
@@ -732,17 +420,6 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               programs: [],
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              bodyweight: [],
-              dailyMetrics: [],
-              cardio: [],
-              supplements: [],
-              medications: [],
-              weeklyCheckins: [],
-              foods: FOOD_LIBRARY,
-              mealPlans: [],
-              mealLogs: [],
-              habits: [],
-              habitLogs: [],
               settings: DEFAULT_SETTINGS,
             },
           });
@@ -768,17 +445,6 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       programs: state.programs,
       sessions: state.sessions,
       personalRecords: state.personalRecords,
-      bodyweight: state.bodyweight,
-      dailyMetrics: state.dailyMetrics,
-      cardio: state.cardio,
-      supplements: state.supplements,
-      medications: state.medications,
-      weeklyCheckins: state.weeklyCheckins,
-      foods: state.foods.filter((f) => f.isCustom),
-      mealPlans: state.mealPlans,
-      mealLogs: state.mealLogs,
-      habits: state.habits,
-      habitLogs: state.habitLogs,
       settings: state.settings,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
@@ -866,163 +532,6 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       updateSession: (id, patch) =>
         dispatch({ type: 'UPDATE_SESSION', id, patch }),
       deleteSession: (id) => dispatch({ type: 'DELETE_SESSION', id }),
-      upsertBodyweight: (input) => {
-        const existing = input.id
-          ? stateRef.current.bodyweight.find((b) => b.id === input.id)
-          : stateRef.current.bodyweight.find((b) => b.date === input.date);
-        const entry: BodyweightEntry = {
-          id: existing?.id ?? genId('bw'),
-          date: input.date,
-          weightKg: input.weightKg,
-          note: input.note,
-        };
-        dispatch({ type: 'UPSERT_BODYWEIGHT', entry });
-        return entry;
-      },
-      deleteBodyweight: (id) => dispatch({ type: 'DELETE_BODYWEIGHT', id }),
-      upsertDailyMetric: (date, patch) => {
-        const existing = stateRef.current.dailyMetrics.find((m) => m.date === date);
-        const metric: DailyHealthMetric = {
-          id: existing?.id ?? genId('dm'),
-          date,
-          ...existing,
-          ...patch,
-        };
-        dispatch({ type: 'UPSERT_DAILY_METRIC', metric });
-        return metric;
-      },
-      deleteDailyMetric: (id) => dispatch({ type: 'DELETE_DAILY_METRIC', id }),
-      upsertCardio: (input) => {
-        const session: CardioSession = {
-          id: input.id ?? genId('cardio'),
-          date: input.date,
-          activityType: input.activityType,
-          durationMin: input.durationMin,
-          distanceKm: input.distanceKm,
-          avgHr: input.avgHr,
-          calories: input.calories,
-          notes: input.notes,
-        };
-        dispatch({ type: 'UPSERT_CARDIO', session });
-        return session;
-      },
-      deleteCardio: (id) => dispatch({ type: 'DELETE_CARDIO', id }),
-      upsertSupplement: (input) => {
-        const existing = input.id
-          ? stateRef.current.supplements.find((s) => s.id === input.id)
-          : undefined;
-        const supplement: Supplement = {
-          id: input.id ?? genId('sup'),
-          name: input.name,
-          dose: input.dose,
-          notes: input.notes,
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
-        dispatch({ type: 'UPSERT_SUPPLEMENT', supplement });
-        return supplement;
-      },
-      deleteSupplement: (id) => dispatch({ type: 'DELETE_SUPPLEMENT', id }),
-      upsertMedication: (input) => {
-        const existing = input.id
-          ? stateRef.current.medications.find((m) => m.id === input.id)
-          : undefined;
-        const medication: Medication = {
-          id: input.id ?? genId('med'),
-          name: input.name,
-          dose: input.dose,
-          unit: input.unit,
-          frequency: input.frequency,
-          startDate: input.startDate,
-          weekdays: input.weekdays,
-          notes: input.notes,
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
-        dispatch({ type: 'UPSERT_MEDICATION', medication });
-        return medication;
-      },
-      deleteMedication: (id) => dispatch({ type: 'DELETE_MEDICATION', id }),
-      upsertCheckin: (weekDate, patch) => {
-        const existing = stateRef.current.weeklyCheckins.find(
-          (c) => c.weekDate === weekDate,
-        );
-        const checkin: WeeklyCheckin = {
-          id: existing?.id ?? genId('ck'),
-          weekDate,
-          ...existing,
-          ...patch,
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
-        dispatch({ type: 'UPSERT_CHECKIN', checkin });
-        return checkin;
-      },
-      deleteCheckin: (id) => dispatch({ type: 'DELETE_CHECKIN', id }),
-      addCustomFood: (food) => {
-        const f: Food = { ...food, id: genId('fd'), isCustom: true };
-        dispatch({ type: 'ADD_FOOD', food: f });
-        return f;
-      },
-      deleteFood: (id) => dispatch({ type: 'DELETE_FOOD', id }),
-      saveMealPlan: (input) => {
-        const existing = input.id
-          ? stateRef.current.mealPlans.find((p) => p.id === input.id)
-          : undefined;
-        const plan: MealPlan = {
-          id: input.id ?? genId('mp'),
-          name: input.name.trim(),
-          meals: input.meals,
-          isActive: existing?.isActive ?? false,
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
-        dispatch({ type: 'UPSERT_MEAL_PLAN', plan });
-        return plan;
-      },
-      deleteMealPlan: (id) => dispatch({ type: 'DELETE_MEAL_PLAN', id }),
-      setActiveMealPlan: (id) =>
-        dispatch({ type: 'SET_ACTIVE_MEAL_PLAN', id }),
-      toggleMealLog: (date, mealId) =>
-        dispatch({ type: 'TOGGLE_MEAL_LOG', date, mealId }),
-      saveHabit: (input) => {
-        const existing = input.id
-          ? stateRef.current.habits.find((h) => h.id === input.id)
-          : undefined;
-        const habit: Habit = {
-          id: input.id ?? genId('hb'),
-          name: input.name.trim(),
-          icon: input.icon,
-          color: input.color,
-          frequency: input.frequency,
-          customDays: input.customDays,
-          targetValue: input.targetValue,
-          unit: input.unit,
-          sortOrder:
-            input.sortOrder ?? existing?.sortOrder ?? stateRef.current.habits.length,
-          archived: input.archived ?? existing?.archived ?? false,
-          createdAt: existing?.createdAt ?? Date.now(),
-        };
-        dispatch({ type: 'UPSERT_HABIT', habit });
-        return habit;
-      },
-      deleteHabit: (id) => dispatch({ type: 'DELETE_HABIT', id }),
-      archiveHabit: (id, archived) => {
-        const habit = stateRef.current.habits.find((h) => h.id === id);
-        if (!habit) return;
-        dispatch({ type: 'UPSERT_HABIT', habit: { ...habit, archived } });
-      },
-      upsertHabitLog: (habitId, date, patch) => {
-        const existing = stateRef.current.habitLogs.find(
-          (l) => l.habitId === habitId && l.date === date,
-        );
-        const log: HabitLog = {
-          id: existing?.id ?? genId('hl'),
-          habitId,
-          date,
-          value: patch.value ?? existing?.value,
-          notes: patch.notes ?? existing?.notes,
-        };
-        dispatch({ type: 'UPSERT_HABIT_LOG', log });
-        return log;
-      },
-      deleteHabitLog: (id) => dispatch({ type: 'DELETE_HABIT_LOG', id }),
       updateSettings: (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch }),
       previewImport: (raw) =>
         buildImportPayload(

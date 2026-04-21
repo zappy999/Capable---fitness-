@@ -1,12 +1,8 @@
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { isSafeHttpUrl } from './platform';
 import type {
-  BodyweightEntry,
-  DailyHealthMetric,
   Exercise,
   GroupType,
-  Medication,
-  MedicationFrequency,
   SessionExercise,
   SessionSet,
   UserSettings,
@@ -19,9 +15,6 @@ export type ImportReport = {
   customExercisesCreated: number;
   workoutsImported: number;
   sessionsImported: number;
-  bodyweightImported: number;
-  dailyMetricsImported: number;
-  medicationsImported: number;
   warnings: string[];
 };
 
@@ -29,9 +22,6 @@ export type ImportPayload = {
   customExercises: Exercise[];
   workouts: Workout[];
   sessions: WorkoutSession[];
-  bodyweight: BodyweightEntry[];
-  dailyMetrics: DailyHealthMetric[];
-  medications: Medication[];
   settings: Partial<UserSettings>;
   report: ImportReport;
 };
@@ -79,10 +69,6 @@ function parseOptNum(v: unknown): number | undefined {
 
 function isGroupType(v: unknown): v is GroupType {
   return v === 'superset' || v === 'circuit' || v === 'emom';
-}
-
-function isMedFrequency(v: unknown): v is MedicationFrequency {
-  return v === 'daily' || v === 'weekdays' || v === 'weekends' || v === 'custom';
 }
 
 function genId(prefix: string) {
@@ -255,67 +241,6 @@ function buildFromWeb(
     });
   }
 
-  const bodyweight: BodyweightEntry[] = [];
-  const health = (backup.healthData ?? {}) as Record<string, unknown>;
-  const sourceBW = Array.isArray(health.bodyweightEntries)
-    ? (health.bodyweightEntries as Record<string, unknown>[])
-    : [];
-  for (const b of sourceBW) {
-    const date = typeof b.entry_date === 'string' ? b.entry_date : '';
-    const weight = typeof b.weight === 'number' ? b.weight : undefined;
-    if (!date || weight === undefined) continue;
-    bodyweight.push({
-      id: typeof b.id === 'string' ? b.id : genId('bw'),
-      date,
-      weightKg: weight,
-    });
-  }
-
-  const dailyMetrics: DailyHealthMetric[] = [];
-  const dmSource = (health.dailyMetricsByDate ?? {}) as Record<string, unknown>;
-  for (const [date, rowRaw] of Object.entries(dmSource)) {
-    if (!rowRaw || typeof rowRaw !== 'object') continue;
-    const r = rowRaw as Record<string, unknown>;
-    dailyMetrics.push({
-      id: genId('dm'),
-      date,
-      sleepHours: parseOptNum(r.sleepHours),
-      steps: parseOptNum(r.steps),
-      waterLiters: parseOptNum(r.water),
-      mood: parseOptNum(r.mood),
-      stress: parseOptNum(r.stress),
-      recovery: parseOptNum(r.recovery),
-      soreness: parseOptNum(r.soreness),
-      calories: parseOptNum(r.calories),
-      proteinG: parseOptNum(r.protein),
-      carbsG: parseOptNum(r.carbs),
-      fatG: parseOptNum(r.fat),
-      fiberG: parseOptNum(r.fiber),
-    });
-  }
-
-  const medications: Medication[] = [];
-  const medsSource = Array.isArray(health.meds)
-    ? (health.meds as Record<string, unknown>[])
-    : [];
-  for (const m of medsSource) {
-    if (typeof m.name !== 'string' || !m.name.trim()) continue;
-    const weekdays = Array.isArray(m.weekdays)
-      ? (m.weekdays.filter((x) => typeof x === 'number') as number[])
-      : undefined;
-    medications.push({
-      id: typeof m.id === 'string' ? m.id : genId('med'),
-      name: m.name.trim(),
-      dose: typeof m.dose === 'string' ? m.dose : undefined,
-      unit: typeof m.unit === 'string' ? m.unit : undefined,
-      frequency: isMedFrequency(m.frequency) ? m.frequency : undefined,
-      startDate: typeof m.startDate === 'string' ? m.startDate : undefined,
-      weekdays,
-      notes: typeof m.notes === 'string' ? m.notes : undefined,
-      createdAt: Date.now(),
-    });
-  }
-
   const settings: Partial<UserSettings> = {};
   if (typeof backup.defaultRestSeconds === 'number') {
     settings.defaultRestSeconds = backup.defaultRestSeconds;
@@ -328,17 +253,11 @@ function buildFromWeb(
     customExercises: newCustom,
     workouts,
     sessions,
-    bodyweight,
-    dailyMetrics,
-    medications,
     settings,
     report: {
       customExercisesCreated: newCustom.length,
       workoutsImported: workouts.length,
       sessionsImported: sessions.length,
-      bodyweightImported: bodyweight.length,
-      dailyMetricsImported: dailyMetrics.length,
-      medicationsImported: medications.length,
       warnings,
     },
   };
@@ -396,57 +315,6 @@ function buildFromNative(
     });
   }
 
-  const bodyweight: BodyweightEntry[] = [];
-  for (const b of (backup.bodyweight ?? []) as Record<string, unknown>[]) {
-    if (typeof b?.id !== 'string' || typeof b?.date !== 'string') continue;
-    if (typeof b?.weightKg !== 'number') continue;
-    bodyweight.push({
-      id: b.id,
-      date: b.date,
-      weightKg: b.weightKg,
-      note: typeof b.note === 'string' ? b.note : undefined,
-    });
-  }
-
-  const dailyMetrics: DailyHealthMetric[] = [];
-  for (const m of (backup.dailyMetrics ?? []) as Record<string, unknown>[]) {
-    if (typeof m?.id !== 'string' || typeof m?.date !== 'string') continue;
-    dailyMetrics.push({
-      id: m.id,
-      date: m.date,
-      sleepHours: parseOptNum(m.sleepHours),
-      steps: parseOptNum(m.steps),
-      waterLiters: parseOptNum(m.waterLiters),
-      mood: parseOptNum(m.mood),
-      stress: parseOptNum(m.stress),
-      recovery: parseOptNum(m.recovery),
-      soreness: parseOptNum(m.soreness),
-      calories: parseOptNum(m.calories),
-      proteinG: parseOptNum(m.proteinG),
-      carbsG: parseOptNum(m.carbsG),
-      fatG: parseOptNum(m.fatG),
-      fiberG: parseOptNum(m.fiberG),
-    });
-  }
-
-  const medications: Medication[] = [];
-  for (const m of (backup.medications ?? []) as Record<string, unknown>[]) {
-    if (typeof m?.id !== 'string' || typeof m?.name !== 'string') continue;
-    medications.push({
-      id: m.id,
-      name: m.name,
-      dose: typeof m.dose === 'string' ? m.dose : undefined,
-      unit: typeof m.unit === 'string' ? m.unit : undefined,
-      frequency: isMedFrequency(m.frequency) ? m.frequency : undefined,
-      startDate: typeof m.startDate === 'string' ? m.startDate : undefined,
-      weekdays: Array.isArray(m.weekdays)
-        ? (m.weekdays.filter((x) => typeof x === 'number') as number[])
-        : undefined,
-      notes: typeof m.notes === 'string' ? m.notes : undefined,
-      createdAt: typeof m.createdAt === 'number' ? m.createdAt : Date.now(),
-    });
-  }
-
   const settings: Partial<UserSettings> = {};
   const importedSettings = backup.settings as Record<string, unknown> | undefined;
   if (importedSettings) {
@@ -468,17 +336,11 @@ function buildFromNative(
     customExercises: newCustom,
     workouts,
     sessions,
-    bodyweight,
-    dailyMetrics,
-    medications,
     settings,
     report: {
       customExercisesCreated: newCustom.length,
       workoutsImported: workouts.length,
       sessionsImported: sessions.length,
-      bodyweightImported: bodyweight.length,
-      dailyMetricsImported: dailyMetrics.length,
-      medicationsImported: medications.length,
       warnings,
     },
   };

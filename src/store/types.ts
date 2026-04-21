@@ -96,186 +96,19 @@ export type PersonalRecord = {
   achievedAt: string;
 };
 
-export type BodyweightEntry = {
-  id: string;
-  date: string;
-  weightKg: number;
-  note?: string;
-};
-
-export type DailyHealthMetric = {
-  id: string;
-  date: string;
-  sleepHours?: number;
-  steps?: number;
-  waterLiters?: number;
-  mood?: number;
-  stress?: number;
-  recovery?: number;
-  soreness?: number;
-  calories?: number;
-  proteinG?: number;
-  carbsG?: number;
-  fatG?: number;
-  fiberG?: number;
-};
-
-export type CardioSession = {
-  id: string;
-  date: string;
-  activityType: string;
-  durationMin: number;
-  distanceKm?: number;
-  avgHr?: number;
-  calories?: number;
-  notes?: string;
-};
-
-export type Supplement = {
-  id: string;
-  name: string;
-  dose?: string;
-  notes?: string;
-  createdAt: number;
-};
-
-export type MedicationFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom';
-
-export type Medication = {
-  id: string;
-  name: string;
-  dose?: string;
-  unit?: string;
-  frequency?: MedicationFrequency;
-  startDate?: string;
-  weekdays?: number[];
-  notes?: string;
-  createdAt: number;
-};
-
-export type WeeklyCheckin = {
-  id: string;
-  weekDate: string;
-  measurements?: Record<string, number>;
-  notes?: string;
-  goals?: string;
-  createdAt: number;
-};
-
-export type FoodMacro = 'protein' | 'carb' | 'fat' | 'mixed';
-
-export type Food = {
-  id: string;
-  name: string;
-  macro: FoodMacro;
-  kcalPer100g: number;
-  proteinPer100g: number;
-  carbsPer100g: number;
-  fatPer100g: number;
-  fiberPer100g?: number;
-  isCustom?: boolean;
-};
-
-export type MealFoodRow = {
-  id: string;
-  foodId: string;
-  amountG: number;
-};
-
-export type Meal = {
-  id: string;
-  name: string;
-  rows: MealFoodRow[];
-};
-
-export type MealPlan = {
-  id: string;
-  name: string;
-  meals: Meal[];
-  isActive: boolean;
-  createdAt: number;
-};
-
-export type MealLog = {
-  date: string;
-  mealId: string;
-};
-
-export type HabitFrequency = 'daily' | 'weekdays' | 'weekends' | 'custom';
-
-export type Habit = {
-  id: string;
-  name: string;
-  icon?: string;
-  color?: string;
-  frequency: HabitFrequency;
-  customDays?: number[];
-  targetValue?: number;
-  unit?: string;
-  sortOrder: number;
-  archived?: boolean;
-  createdAt: number;
-};
-
-export type HabitLog = {
-  id: string;
-  habitId: string;
-  date: string;
-  value?: number;
-  notes?: string;
-};
-
-export type SyncCategory =
-  | 'workouts'
-  | 'programs'
-  | 'health'
-  | 'peds'
-  | 'settings'
-  | 'meals'
-  | 'habits'
-  | 'social';
-
 export type UserSettings = {
   weightIncrementKg: number;
   defaultRestSeconds: number;
   weekStartDay: 'monday' | 'sunday';
-  checkInDay: number;
   accentColor: string;
   timezone?: string;
-  goals: {
-    bodyweightKg?: number;
-    calories?: number;
-    proteinG?: number;
-    carbsG?: number;
-    fatG?: number;
-    cardioMinutes?: number;
-  };
-  sync: Record<SyncCategory, boolean>;
-  featureFlags: {
-    peds: boolean;
-  };
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
   weightIncrementKg: 2.5,
   defaultRestSeconds: 90,
   weekStartDay: 'monday',
-  checkInDay: 0,
   accentColor: '#C6F24E',
-  goals: {},
-  sync: {
-    workouts: true,
-    programs: true,
-    health: true,
-    peds: false,
-    settings: true,
-    meals: true,
-    habits: true,
-    social: false,
-  },
-  featureFlags: {
-    peds: false,
-  },
 };
 
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {

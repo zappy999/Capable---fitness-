@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   TextInput,
-  Switch,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useStore } from '../../src/store/WorkoutStore';
-import type { SyncCategory, UserSettings } from '../../src/store/types';
+import type { UserSettings } from '../../src/store/types';
 import { shareJsonAsFile } from '../../src/lib/platform';
 
 const LIME = '#C6F24E';
@@ -28,19 +27,6 @@ const ACCENT_OPTIONS = [
   '#EC4899',
   '#10B981',
 ];
-
-const SYNC_LABELS: Record<SyncCategory, string> = {
-  workouts: 'Workouts',
-  programs: 'Programs',
-  health: 'Health',
-  peds: 'PEDs',
-  settings: 'Settings',
-  meals: 'Meals',
-  habits: 'Habits',
-  social: 'Social',
-};
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -58,17 +44,6 @@ export default function SettingsScreen() {
       programs: store.programs,
       sessions: store.sessions,
       personalRecords: store.personalRecords,
-      bodyweight: store.bodyweight,
-      dailyMetrics: store.dailyMetrics,
-      cardio: store.cardio,
-      supplements: store.supplements,
-      medications: store.medications,
-      weeklyCheckins: store.weeklyCheckins,
-      foods: store.foods.filter((f) => f.isCustom),
-      mealPlans: store.mealPlans,
-      mealLogs: store.mealLogs,
-      habits: store.habits,
-      habitLogs: store.habitLogs,
       settings: store.settings,
     };
     const ok = await shareJsonAsFile(dump, 'capable-backup');
@@ -124,13 +99,7 @@ export default function SettingsScreen() {
     }
     const r = preview.report;
     const noop =
-      r.workoutsImported +
-        r.sessionsImported +
-        r.bodyweightImported +
-        r.dailyMetricsImported +
-        r.medicationsImported +
-        r.customExercisesCreated ===
-      0;
+      r.workoutsImported + r.sessionsImported + r.customExercisesCreated === 0;
     if (noop) {
       Alert.alert(
         'Nothing to import',
@@ -142,14 +111,11 @@ export default function SettingsScreen() {
       `${r.workoutsImported} workouts`,
       `${r.sessionsImported} sessions`,
       `${r.customExercisesCreated} new exercises`,
-      `${r.bodyweightImported} bodyweight entries`,
-      `${r.dailyMetricsImported} daily metric days`,
-      r.medicationsImported > 0 ? `${r.medicationsImported} medications` : '',
       r.warnings.length > 0 ? `\n${r.warnings.length} warnings ignored` : '',
     ].filter(Boolean);
     Alert.alert(
       'Import this backup?',
-      `${lines.join('\n')}\n\nExisting entries with the same id or date are overwritten by the import; anything else is kept.`,
+      `${lines.join('\n')}\n\nExisting entries with the same id are overwritten; anything else is kept.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -159,7 +125,7 @@ export default function SettingsScreen() {
             const report = store.commitImport(preview);
             Alert.alert(
               'Import complete',
-              `${report.workoutsImported} workouts · ${report.sessionsImported} sessions · ${report.bodyweightImported} weights · ${report.dailyMetricsImported} days`,
+              `${report.workoutsImported} workouts · ${report.sessionsImported} sessions`,
             );
           },
         },
@@ -193,11 +159,11 @@ export default function SettingsScreen() {
             Preferences
           </Text>
           <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            Tweak defaults, goals, and sync categories.
+            Tweak defaults and back up your data.
           </Text>
         </View>
 
-        <Section title="Preferences">
+        <Section title="Training">
           <NumRow
             label="Weight increment (kg)"
             value={String(settings.weightIncrementKg)}
@@ -224,15 +190,9 @@ export default function SettingsScreen() {
             ]}
             onChange={(v) => patch({ weekStartDay: v as UserSettings['weekStartDay'] })}
           />
-          <SelectRow
-            label="Check-in day"
-            value={String(settings.checkInDay)}
-            options={DAYS.map((d, i) => ({ value: String(i), label: d }))}
-            onChange={(v) => patch({ checkInDay: Number(v) })}
-          />
-          <View className="mb-4">
+          <View>
             <Text
-              className="text-zinc-500 font-bold mb-2"
+              className="text-zinc-500 font-bold mb-2 mt-2"
               style={{ fontSize: 11, letterSpacing: 0.5 }}
             >
               ACCENT COLOR
@@ -266,82 +226,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Section title="Goals">
-          <NumRow
-            label="Bodyweight (kg)"
-            value={strOrEmpty(settings.goals.bodyweightKg)}
-            onChange={(v) => patch({ goals: { bodyweightKg: parseOpt(v) } })}
-            decimal
-          />
-          <NumRow
-            label="Calories"
-            value={strOrEmpty(settings.goals.calories)}
-            onChange={(v) => patch({ goals: { calories: parseOpt(v) } })}
-          />
-          <NumRow
-            label="Protein (g)"
-            value={strOrEmpty(settings.goals.proteinG)}
-            onChange={(v) => patch({ goals: { proteinG: parseOpt(v) } })}
-          />
-          <NumRow
-            label="Carbs (g)"
-            value={strOrEmpty(settings.goals.carbsG)}
-            onChange={(v) => patch({ goals: { carbsG: parseOpt(v) } })}
-          />
-          <NumRow
-            label="Fat (g)"
-            value={strOrEmpty(settings.goals.fatG)}
-            onChange={(v) => patch({ goals: { fatG: parseOpt(v) } })}
-          />
-          <NumRow
-            label="Cardio (min/week)"
-            value={strOrEmpty(settings.goals.cardioMinutes)}
-            onChange={(v) => patch({ goals: { cardioMinutes: parseOpt(v) } })}
-          />
-          <Text className="text-zinc-600 text-xs italic">
-            Active meal plan totals override these macro goals on Home.
-          </Text>
-        </Section>
-
-        <Section title="Sync">
-          <Text className="text-zinc-500 text-xs mb-3">
-            Gates per-category cloud sync. No effect while cloud is disabled.
-          </Text>
-          {(Object.keys(SYNC_LABELS) as SyncCategory[]).map((k) => (
-            <View
-              key={k}
-              className="flex-row items-center justify-between py-2"
-            >
-              <Text className="text-white font-semibold">{SYNC_LABELS[k]}</Text>
-              <Switch
-                value={settings.sync[k]}
-                onValueChange={(v) => patch({ sync: { [k]: v } as Partial<Record<SyncCategory, boolean>> })}
-                trackColor={{ false: '#1F1F1F', true: LIME }}
-                thumbColor="#ffffff"
-              />
-            </View>
-          ))}
-        </Section>
-
-        <Section title="Feature flags">
-          <View className="flex-row items-center justify-between py-2">
-            <View className="flex-1 pr-3">
-              <Text className="text-white font-semibold">PEDs tracking</Text>
-              <Text className="text-zinc-500 text-xs mt-1">
-                Harm-reduction cycle + dose logging. Off by default.
-              </Text>
-            </View>
-            <Switch
-              value={settings.featureFlags.peds}
-              onValueChange={(v) =>
-                patch({ featureFlags: { peds: v } })
-              }
-              trackColor={{ false: '#1F1F1F', true: LIME }}
-              thumbColor="#ffffff"
-            />
-          </View>
-        </Section>
-
         <Section title="Data">
           <Pressable
             onPress={handleImport}
@@ -353,7 +237,7 @@ export default function SettingsScreen() {
                 Import JSON backup
               </Text>
               <Text className="text-zinc-500 text-xs mt-0.5">
-                Load programs, sessions, and health data from a backup file.
+                Load programs, workouts, and sessions from a backup file.
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
@@ -374,25 +258,9 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
           </Pressable>
         </Section>
-
-        <Section title="Account">
-          <Text className="text-zinc-500 text-sm">
-            Sign in, email and password changes land with cloud sync.
-          </Text>
-        </Section>
       </ScrollView>
     </SafeAreaView>
   );
-}
-
-function strOrEmpty(v: number | undefined) {
-  return v != null ? String(v) : '';
-}
-
-function parseOpt(v: string): number | undefined {
-  if (v.trim() === '') return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
 function Section({
