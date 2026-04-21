@@ -33,6 +33,7 @@ import type {
   WorkoutSession,
 } from './types';
 import { DEFAULT_SETTINGS } from './types';
+import { buildImportPayload, type ImportPayload, type ImportReport } from '../lib/importBackup';
 
 const STORAGE_KEY = 'capable.store.v2';
 
@@ -113,7 +114,8 @@ type Action =
   | { type: 'DELETE_HABIT'; id: string }
   | { type: 'UPSERT_HABIT_LOG'; log: HabitLog }
   | { type: 'DELETE_HABIT_LOG'; id: string }
-  | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> };
+  | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> }
+  | { type: 'BULK_IMPORT'; payload: ImportPayload };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -375,6 +377,74 @@ function reducer(state: State, action: Action): State {
           },
         },
       };
+    case 'BULK_IMPORT': {
+      const {
+        customExercises,
+        workouts: importedWorkouts,
+        sessions: importedSessions,
+        bodyweight: importedBW,
+        dailyMetrics: importedDM,
+        medications: importedMeds,
+        settings: importedSettings,
+      } = action.payload;
+
+      const mergedExercises = [...state.exercises, ...customExercises];
+
+      const wIds = new Set(importedWorkouts.map((w) => w.id));
+      const mergedWorkouts = [
+        ...state.workouts.filter((w) => !wIds.has(w.id)),
+        ...importedWorkouts,
+      ];
+
+      const sIds = new Set(importedSessions.map((s) => s.id));
+      const mergedSessions = [
+        ...state.sessions.filter((s) => !sIds.has(s.id)),
+        ...importedSessions,
+      ];
+
+      const chronological = [...mergedSessions].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
+      const recomputedPRs: PersonalRecord[] = [];
+      const prior: WorkoutSession[] = [];
+      for (const s of chronological) {
+        recomputedPRs.push(...detectPRs(s, prior));
+        prior.push(s);
+      }
+
+      const bwDates = new Set(importedBW.map((b) => b.date));
+      const mergedBW = [
+        ...state.bodyweight.filter((b) => !bwDates.has(b.date)),
+        ...importedBW,
+      ];
+
+      const dmDates = new Set(importedDM.map((m) => m.date));
+      const mergedDM = [
+        ...state.dailyMetrics.filter((m) => !dmDates.has(m.date)),
+        ...importedDM,
+      ];
+
+      const medIds = new Set(importedMeds.map((m) => m.id));
+      const mergedMeds = [
+        ...state.medications.filter((m) => !medIds.has(m.id)),
+        ...importedMeds,
+      ];
+
+      return {
+        ...state,
+        exercises: mergedExercises,
+        workouts: mergedWorkouts,
+        sessions: mergedSessions,
+        personalRecords: recomputedPRs,
+        bodyweight: mergedBW,
+        dailyMetrics: mergedDM,
+        medications: mergedMeds,
+        settings: {
+          ...state.settings,
+          ...importedSettings,
+        },
+      };
+    }
   }
 }
 
@@ -439,6 +509,8 @@ type StoreValue = State & {
   upsertHabitLog: (habitId: string, date: string, patch: { value?: number; notes?: string }) => HabitLog;
   deleteHabitLog: (id: string) => void;
   updateSettings: (patch: Partial<UserSettings>) => void;
+  previewImport: (raw: unknown) => ImportPayload;
+  commitImport: (payload: ImportPayload) => ImportReport;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -922,6 +994,16 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       },
       deleteHabitLog: (id) => dispatch({ type: 'DELETE_HABIT_LOG', id }),
       updateSettings: (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch }),
+      previewImport: (raw) =>
+        buildImportPayload(
+          raw,
+          stateRef.current.exercises.filter((e) => e.isCustom),
+          stateRef.current.settings.defaultRestSeconds,
+        ),
+      commitImport: (payload) => {
+        dispatch({ type: 'BULK_IMPORT', payload });
+        return payload.report;
+      },
     }),
     [state],
   );

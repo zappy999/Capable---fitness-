@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import { useStore } from '../../src/store/WorkoutStore';
 import type { SyncCategory, UserSettings } from '../../src/store/types';
 import { shareContent } from '../../src/lib/platform';
@@ -78,6 +79,96 @@ export default function SettingsScreen() {
     if (!ok) {
       Alert.alert('Export failed', 'Could not share the backup file.');
     }
+  };
+
+  const handleImport = async () => {
+    let pick: DocumentPicker.DocumentPickerResult;
+    try {
+      pick = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', 'text/plain', '*/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+    } catch {
+      Alert.alert('Import failed', 'Could not open file picker.');
+      return;
+    }
+    if (pick.canceled) return;
+    const asset = pick.assets?.[0];
+    if (!asset) return;
+
+    let text: string;
+    try {
+      const assetWithFile = asset as typeof asset & { file?: { text: () => Promise<string> } };
+      if (assetWithFile.file && typeof assetWithFile.file.text === 'function') {
+        text = await assetWithFile.file.text();
+      } else {
+        const res = await fetch(asset.uri);
+        text = await res.text();
+      }
+    } catch {
+      Alert.alert('Import failed', 'Could not read file contents.');
+      return;
+    }
+
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text);
+    } catch {
+      Alert.alert('Import failed', 'File is not valid JSON.');
+      return;
+    }
+
+    let preview;
+    try {
+      preview = store.previewImport(raw);
+    } catch {
+      Alert.alert('Import failed', 'Backup format not recognized.');
+      return;
+    }
+    const r = preview.report;
+    const noop =
+      r.workoutsImported +
+        r.sessionsImported +
+        r.bodyweightImported +
+        r.dailyMetricsImported +
+        r.medicationsImported +
+        r.customExercisesCreated ===
+      0;
+    if (noop) {
+      Alert.alert(
+        'Nothing to import',
+        'The file parsed but contained no importable data.',
+      );
+      return;
+    }
+    const lines = [
+      `${r.workoutsImported} workouts`,
+      `${r.sessionsImported} sessions`,
+      `${r.customExercisesCreated} new exercises`,
+      `${r.bodyweightImported} bodyweight entries`,
+      `${r.dailyMetricsImported} daily metric days`,
+      r.medicationsImported > 0 ? `${r.medicationsImported} medications` : '',
+      r.warnings.length > 0 ? `\n${r.warnings.length} warnings ignored` : '',
+    ].filter(Boolean);
+    Alert.alert(
+      'Import this backup?',
+      `${lines.join('\n')}\n\nExisting entries with the same id or date are overwritten by the import; anything else is kept.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'default',
+          onPress: () => {
+            const report = store.commitImport(preview);
+            Alert.alert(
+              'Import complete',
+              `${report.workoutsImported} workouts · ${report.sessionsImported} sessions · ${report.bodyweightImported} weights · ${report.dailyMetricsImported} days`,
+            );
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -256,6 +347,21 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="Data">
+          <Pressable
+            onPress={handleImport}
+            className="flex-row items-center px-4 py-3 rounded-2xl bg-[#0D0D0D] border border-[#1F1F1F] active:opacity-70 mb-2"
+          >
+            <Ionicons name="cloud-upload-outline" size={18} color={LIME} />
+            <View className="flex-1 ml-3">
+              <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+                Import JSON backup
+              </Text>
+              <Text className="text-zinc-500 text-xs mt-0.5">
+                Load programs, sessions, and health data from a backup file.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
+          </Pressable>
           <Pressable
             onPress={handleExport}
             className="flex-row items-center px-4 py-3 rounded-2xl bg-[#0D0D0D] border border-[#1F1F1F] active:opacity-70"
