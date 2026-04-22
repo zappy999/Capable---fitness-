@@ -15,7 +15,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import {
   EXERCISE_CATEGORIES,
   GROUP_TYPES,
@@ -25,8 +25,6 @@ import {
   type WorkoutExercise,
 } from '../../src/store/types';
 import { isSafeHttpUrl } from '../../src/lib/platform';
-
-const LIME = '#22C55E';
 
 type Draft = WorkoutExercise;
 
@@ -39,6 +37,7 @@ export default function NewWorkoutScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const editId = typeof params.id === 'string' ? params.id : undefined;
   const { exercises, workouts, addCustomExercise, saveWorkout } = useStore();
+  const LIME = useAccent();
 
   const editing = editId ? workouts.find((w) => w.id === editId) : undefined;
 
@@ -508,6 +507,7 @@ function AdvancedSection({
   patch: (p: Partial<WorkoutExercise>) => void;
 }) {
   const demoUrlInvalid = Boolean(item.demoUrl) && !isSafeHttpUrl(item.demoUrl);
+  const LIME = useAccent();
 
   return (
     <View className="mt-3">

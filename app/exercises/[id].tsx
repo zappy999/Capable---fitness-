@@ -10,16 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import {
   EXERCISE_CATEGORIES,
   MUSCLE_COLORS,
-  type ExerciseCategory,
   type WorkoutSession,
 } from '../../src/store/types';
 import { LineChart, type ChartPoint } from '../../src/components/LineChart';
-
-const LIME = '#22C55E';
 
 type ChartMode = 'Best Weight' | 'Volume' | 'Est. 1RM';
 const CHART_MODES: ChartMode[] = ['Best Weight', 'Volume', 'Est. 1RM'];
@@ -40,6 +37,7 @@ function formatDuration(seconds: number) {
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const LIME = useAccent();
   const {
     exercises,
     sessions,
@@ -305,7 +303,7 @@ export default function ExerciseDetailScreen() {
             </Pressable>
             {EXERCISE_CATEGORIES.map((c) => {
               const active = c === exercise.category;
-              const color = MUSCLE_COLORS[c as ExerciseCategory];
+              const color = MUSCLE_COLORS[c];
               return (
                 <Pressable
                   key={c}

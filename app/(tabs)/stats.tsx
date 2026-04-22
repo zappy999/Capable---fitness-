@@ -1,17 +1,15 @@
 import { useMemo } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useRouter } from 'expo-router';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { WorkoutSession } from '../../src/store/types';
 import {
   computeAchievementStatus,
   longestStreak,
   type AchievementStatus,
 } from '../../src/lib/achievements';
-
-const LIME = '#22C55E';
-const NEON = '#22C55E';
 
 function mondayISO(iso: string) {
   const d = new Date(iso);
@@ -62,7 +60,10 @@ function buildWeeks(sessions: WorkoutSession[], weeks: number): WeekBucket[] {
 }
 
 export default function StatsScreen() {
+  const router = useRouter();
   const { programs, workouts, exercises, sessions, personalRecords } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   const customExercises = exercises.filter((e) => e.isCustom).length;
 
@@ -110,11 +111,13 @@ export default function StatsScreen() {
             label="Sessions"
             value={String(sessions.length)}
             icon="time-outline"
+            onPress={() => router.push('/sessions')}
           />
           <StatCard
             label="PRs"
             value={String(personalRecords.length)}
             icon="trophy-outline"
+            onPress={() => router.push('/prs')}
           />
         </View>
         <View className="px-5 mt-3 flex-row gap-3">
@@ -122,11 +125,13 @@ export default function StatsScreen() {
             label="Programs"
             value={String(programs.length)}
             icon="albums-outline"
+            onPress={() => router.push('/program?tab=Program')}
           />
           <StatCard
             label="Workouts"
             value={String(workouts.length)}
             icon="barbell-outline"
+            onPress={() => router.push('/program?tab=Workout')}
           />
         </View>
         <View className="px-5 mt-3 flex-row gap-3">
@@ -134,11 +139,13 @@ export default function StatsScreen() {
             label="Exercises"
             value={String(exercises.length)}
             icon="list-outline"
+            onPress={() => router.push('/exercises')}
           />
           <StatCard
             label="Custom"
             value={String(customExercises)}
             icon="create-outline"
+            onPress={() => router.push('/exercises?custom=1')}
           />
         </View>
         <View className="px-5 mt-3 flex-row gap-3">
@@ -195,16 +202,39 @@ function StatCard({
   label,
   value,
   icon,
+  onPress,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
+  onPress?: () => void;
 }) {
-  return (
-    <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-      <Ionicons name={icon} size={20} color={LIME} />
+  const LIME = useAccent();
+  const body = (
+    <>
+      <View className="flex-row items-center justify-between">
+        <Ionicons name={icon} size={20} color={LIME} />
+        {onPress ? (
+          <Ionicons name="chevron-forward" size={14} color="#3F3F46" />
+        ) : null}
+      </View>
       <Text className="text-white text-xl font-bold mt-2">{value}</Text>
       <Text className="text-zinc-500 text-xs">{label}</Text>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] active:opacity-80"
+      >
+        {body}
+      </Pressable>
+    );
+  }
+  return (
+    <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
+      {body}
     </View>
   );
 }

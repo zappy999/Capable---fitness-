@@ -11,11 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { UserSettings } from '../../src/store/types';
 import { shareJsonAsFile } from '../../src/lib/platform';
-
-const LIME = '#22C55E';
 
 const ACCENT_OPTIONS = [
   '#22C55E',
@@ -32,6 +30,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const store = useStore();
   const { settings, updateSettings } = store;
+  const LIME = useAccent();
 
   const patch = (p: Partial<UserSettings>) => updateSettings(p);
 
@@ -70,9 +69,8 @@ export default function SettingsScreen() {
 
     let text: string;
     try {
-      const assetWithFile = asset as typeof asset & { file?: { text: () => Promise<string> } };
-      if (assetWithFile.file && typeof assetWithFile.file.text === 'function') {
-        text = await assetWithFile.file.text();
+      if (asset.file && typeof asset.file.text === 'function') {
+        text = await asset.file.text();
       } else {
         const res = await fetch(asset.uri);
         text = await res.text();
@@ -186,21 +184,21 @@ export default function SettingsScreen() {
               if (Number.isFinite(n) && n >= 0) patch({ defaultRestSeconds: n });
             }}
           />
-          <SelectRow
+          <SelectRow<UserSettings['weekStartDay']>
             label="Week starts"
             value={settings.weekStartDay}
             options={[
               { value: 'monday', label: 'Monday' },
               { value: 'sunday', label: 'Sunday' },
             ]}
-            onChange={(v) => patch({ weekStartDay: v as UserSettings['weekStartDay'] })}
+            onChange={(v) => patch({ weekStartDay: v })}
           />
           <View>
             <Text
               className="text-zinc-500 font-bold mb-2 mt-2"
               style={{ fontSize: 11, letterSpacing: 0.5 }}
             >
-              ACCENT COLOR
+              ACCENT COLOUR
             </Text>
             <View className="flex-row flex-wrap gap-2">
               {ACCENT_OPTIONS.map((c) => (
@@ -225,9 +223,6 @@ export default function SettingsScreen() {
                 </Pressable>
               ))}
             </View>
-            <Text className="text-zinc-600 text-xs mt-2 italic">
-              Applied to new visuals as the theme is migrated.
-            </Text>
           </View>
         </Section>
 
@@ -312,17 +307,18 @@ function NumRow({
   );
 }
 
-function SelectRow({
+function SelectRow<T extends string>({
   label,
   value,
   options,
   onChange,
 }: {
   label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (v: string) => void;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
 }) {
+  const LIME = useAccent();
   return (
     <View className="py-2.5 border-b border-[#1F1F1F]">
       <Text className="text-white font-semibold mb-2">{label}</Text>

@@ -12,10 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { MUSCLE_COLORS } from '../../src/store/types';
-
-const LIME = '#22C55E';
 
 function formatDuration(seconds: number) {
   if (seconds <= 0) return '—';
@@ -28,6 +26,7 @@ function formatDuration(seconds: number) {
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const LIME = useAccent();
   const {
     sessions,
     exercises,

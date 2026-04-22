@@ -2,15 +2,14 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
-
-const LIME = '#22C55E';
-const NEON = '#22C55E';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { programs, workouts, setActiveProgram, deleteProgram } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   const program = programs.find((p) => p.id === id);
 

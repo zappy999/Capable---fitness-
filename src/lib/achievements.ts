@@ -2,7 +2,7 @@ import type { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import type { PersonalRecord, WorkoutSession } from '../store/types';
 
-export type IoniconName = ComponentProps<typeof Ionicons>['name'];
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 export type AchievementId =
   | 'first_workout'

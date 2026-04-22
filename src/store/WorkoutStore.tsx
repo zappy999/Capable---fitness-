@@ -574,3 +574,7 @@ export function useStore() {
   if (!ctx) throw new Error('useStore must be used within WorkoutStoreProvider');
   return ctx;
 }
+
+export function useAccent(): string {
+  return useStore().settings.accentColor || DEFAULT_SETTINGS.accentColor;
+}

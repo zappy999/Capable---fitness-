@@ -3,16 +3,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { isSafeHttpUrl, openExternalUrl } from '../../src/lib/platform';
-
-const LIME = '#22C55E';
-const NEON = '#22C55E';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { workouts, exercises, deleteWorkout } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   const userWorkout = workouts.find((w) => w.id === id);
   const demoWorkout = DEMO_WORKOUTS.find((w) => w.id === id);
@@ -276,7 +275,7 @@ export default function WorkoutDetailScreen() {
           onPress={() =>
             router.push({
               pathname: '/start-workout',
-              params: { id: (userWorkout?.id ?? demoWorkout?.id) as string },
+              params: { id: userWorkout?.id ?? demoWorkout?.id ?? id },
             })
           }
           className="rounded-2xl py-4 flex-row items-center justify-center gap-2 active:opacity-90"

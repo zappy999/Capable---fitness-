@@ -1,9 +1,12 @@
 import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 
+// Local demo-data shapes, intentionally distinct from the canonical
+// Exercise/Workout in `src/store/types.ts`. Kept unexported so no caller
+// can pick up the wrong shape.
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
-export type Exercise = {
+type DemoExercise = {
   id: string;
   name: string;
   sets: number;
@@ -13,7 +16,7 @@ export type Exercise = {
   rest: string;
 };
 
-export type Workout = {
+type DemoWorkout = {
   id: string;
   name: string;
   description: string;
@@ -24,20 +27,10 @@ export type Workout = {
   exerciseCount: number;
   color: string;
   icon: IoniconName;
-  exercises: Exercise[];
+  exercises: DemoExercise[];
 };
 
-export type HistoryEntry = {
-  id: string;
-  workoutName: string;
-  date: string;
-  duration: number;
-  calories: number;
-  exercises: number;
-  volume: number;
-};
-
-export const WORKOUTS: Workout[] = [
+export const WORKOUTS: DemoWorkout[] = [
   {
     id: 'w1',
     name: 'Push Day',
@@ -155,16 +148,6 @@ export const WORKOUTS: Workout[] = [
       { id: 'e33', name: 'Plank', sets: 3, reps: '45s hold', muscle: 'Core', equipment: 'Bodyweight', rest: '30s' },
     ],
   },
-];
-
-export const HISTORY: HistoryEntry[] = [
-  { id: 'h1', workoutName: 'Push Day', date: 'Today', duration: 58, calories: 435, exercises: 6, volume: 8420 },
-  { id: 'h2', workoutName: 'HIIT Cardio', date: 'Yesterday', duration: 25, calories: 340, exercises: 5, volume: 0 },
-  { id: 'h3', workoutName: 'Pull Day', date: '2 days ago', duration: 52, calories: 390, exercises: 5, volume: 9150 },
-  { id: 'h4', workoutName: 'Leg Day', date: '4 days ago', duration: 65, calories: 540, exercises: 6, volume: 12800 },
-  { id: 'h5', workoutName: 'Core Crusher', date: '5 days ago', duration: 22, calories: 195, exercises: 5, volume: 0 },
-  { id: 'h6', workoutName: 'Push Day', date: '1 week ago', duration: 55, calories: 410, exercises: 6, volume: 8100 },
-  { id: 'h7', workoutName: 'Full Body Blast', date: '1 week ago', duration: 47, calories: 415, exercises: 6, volume: 6200 },
 ];
 
 export const WEEKLY_ACTIVITY = [

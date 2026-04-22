@@ -92,9 +92,7 @@ export function haptic(kind: HapticKind = 'light') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export async function scheduleRestNotification(
@@ -129,9 +127,7 @@ export async function cancelNotification(id: string | null | undefined) {
   if (Platform.OS === 'web') return;
   try {
     await Notifications.cancelScheduledNotificationAsync(id);
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 export function dismissKeyboard() {

@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useStore } from '../src/store/WorkoutStore';
-import type { Workout } from '../src/store/types';
+import { useAccent, useStore } from '../src/store/WorkoutStore';
+import type { PersonalRecord, Workout } from '../src/store/types';
+import type { AchievementDef } from '../src/lib/achievements';
 import { WORKOUTS as DEMO_WORKOUTS } from '../src/data/workouts';
 import {
   cancelNotification,
   haptic,
   scheduleRestNotification,
+  shareContent,
 } from '../src/lib/platform';
 
 type DraftSnapshot = {
@@ -42,7 +44,6 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const NEON = '#22C55E';
 const SWIPE_THRESHOLD = 110;
 
 type SetLog = {
@@ -69,6 +70,28 @@ type ExerciseLog = {
   emomSeconds?: number;
 };
 
+type SummarySetCompare = {
+  prev?: { weight: number; reps: number };
+  curr: { weight: number; reps: number };
+};
+
+type SummaryRow = {
+  name: string;
+  sets: SummarySetCompare[];
+};
+
+type WorkoutSummary = {
+  workoutName: string;
+  date: string;
+  durationSeconds: number;
+  exerciseCount: number;
+  setCount: number;
+  rows: SummaryRow[];
+  newPRs: PersonalRecord[];
+  newlyUnlocked: AchievementDef[];
+  sessionId: string | null;
+};
+
 type SwipeableSetCardProps = {
   set: SetLog;
   setIdx: number;
@@ -78,8 +101,8 @@ type SwipeableSetCardProps = {
   onIncWeight: () => void;
   onDecReps: () => void;
   onIncReps: () => void;
-  onSetRpe: (rpe: number | undefined) => void;
-  onSetRir: (rir: number | undefined) => void;
+  onChangeWeight: (v: number) => void;
+  onChangeReps: (v: number) => void;
   onComplete: () => void;
 };
 
@@ -92,11 +115,32 @@ function SwipeableSetCard({
   onIncWeight,
   onDecReps,
   onIncReps,
-  onSetRpe,
-  onSetRir,
+  onChangeWeight,
+  onChangeReps,
   onComplete,
 }: SwipeableSetCardProps) {
+  const NEON = useAccent();
   const translateX = useSharedValue(0);
+  const [weightText, setWeightText] = useState(
+    set.weight > 0 ? String(set.weight) : '',
+  );
+  const [repsText, setRepsText] = useState(
+    set.reps > 0 ? String(set.reps) : '',
+  );
+
+  useEffect(() => {
+    const parsed = parseFloat(weightText.replace(',', '.')) || 0;
+    if (parsed !== set.weight) {
+      setWeightText(set.weight > 0 ? String(set.weight) : '');
+    }
+  }, [set.weight]);
+
+  useEffect(() => {
+    const parsed = parseInt(repsText, 10) || 0;
+    if (parsed !== set.reps) {
+      setRepsText(set.reps > 0 ? String(set.reps) : '');
+    }
+  }, [set.reps]);
 
   const pan = Gesture.Pan()
     .enabled(!isDone)
@@ -232,11 +276,21 @@ function SwipeableSetCard({
                     −
                   </Text>
                 </Pressable>
-                <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
-                  <Text className="text-white font-bold" style={{ fontSize: 14 }}>
-                    {set.weight > 0 ? `${set.weight}kg` : 'kg'}
-                  </Text>
-                </View>
+                <TextInput
+                  value={weightText}
+                  onChangeText={(v) => {
+                    setWeightText(v);
+                    const parsed = parseFloat(v.replace(',', '.'));
+                    onChangeWeight(Number.isFinite(parsed) ? parsed : 0);
+                  }}
+                  editable={!isDone}
+                  keyboardType="decimal-pad"
+                  placeholder="kg"
+                  placeholderTextColor="#6B7280"
+                  selectTextOnFocus
+                  className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-center"
+                  style={{ fontSize: 14 }}
+                />
                 <Pressable
                   onPress={onIncWeight}
                   disabled={isDone}
@@ -262,11 +316,21 @@ function SwipeableSetCard({
                     −
                   </Text>
                 </Pressable>
-                <View className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center">
-                  <Text className="text-white font-bold" style={{ fontSize: 14 }}>
-                    {set.reps > 0 ? `${set.reps}` : 'reps'}
-                  </Text>
-                </View>
+                <TextInput
+                  value={repsText}
+                  onChangeText={(v) => {
+                    setRepsText(v);
+                    const parsed = parseInt(v, 10);
+                    onChangeReps(Number.isFinite(parsed) ? parsed : 0);
+                  }}
+                  editable={!isDone}
+                  keyboardType="number-pad"
+                  placeholder="reps"
+                  placeholderTextColor="#6B7280"
+                  selectTextOnFocus
+                  className="flex-1 h-9 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-center"
+                  style={{ fontSize: 14 }}
+                />
                 <Pressable
                   onPress={onIncReps}
                   disabled={isDone}
@@ -278,23 +342,6 @@ function SwipeableSetCard({
                 </Pressable>
               </View>
             </View>
-          </View>
-
-          <View className="flex-row gap-4 mt-3">
-            <RpeRirField
-              label="RPE"
-              value={set.rpe}
-              onChange={onSetRpe}
-              options={[6, 7, 8, 9, 10]}
-              disabled={isDone}
-            />
-            <RpeRirField
-              label="RIR"
-              value={set.rir}
-              onChange={onSetRir}
-              options={[0, 1, 2, 3, 4]}
-              disabled={isDone}
-            />
           </View>
 
           <View className="flex-row items-center justify-between mt-3">
@@ -317,59 +364,6 @@ function SwipeableSetCard({
           </View>
         </Animated.View>
       </GestureDetector>
-    </View>
-  );
-}
-
-function RpeRirField({
-  label,
-  value,
-  onChange,
-  options,
-  disabled,
-}: {
-  label: string;
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
-  options: number[];
-  disabled?: boolean;
-}) {
-  return (
-    <View className="flex-1">
-      <Text className="text-gray-500 font-bold mb-2" style={{ fontSize: 12 }}>
-        {label}
-      </Text>
-      <View className="flex-row gap-1">
-        {options.map((n) => {
-          const active = value === n;
-          return (
-            <Pressable
-              key={n}
-              onPress={() => {
-                if (disabled) return;
-                onChange(active ? undefined : n);
-              }}
-              disabled={disabled}
-              className="flex-1 h-8 rounded-lg items-center justify-center"
-              style={{
-                backgroundColor: active ? NEON : 'rgba(255,255,255,0.05)',
-                borderWidth: 1,
-                borderColor: active ? NEON : 'rgba(255,255,255,0.1)',
-              }}
-            >
-              <Text
-                className="font-bold"
-                style={{
-                  color: active ? '#0A0A0A' : '#A1A1AA',
-                  fontSize: 12,
-                }}
-              >
-                {n}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
     </View>
   );
 }
@@ -544,10 +538,12 @@ export default function StartWorkoutScreen() {
   const {
     workouts,
     exercises: libraryExercises,
+    sessions,
     addCustomExercise,
     logSession,
     settings,
   } = useStore();
+  const NEON = useAccent();
 
   const routeId = typeof params.id === 'string' ? params.id : undefined;
 
@@ -564,6 +560,49 @@ export default function StartWorkoutScreen() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
+  const [noteEditOpen, setNoteEditOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [summary, setSummary] = useState<WorkoutSummary | null>(null);
+
+  const prefillFirstSets = (exs: ExerciseLog[]): ExerciseLog[] =>
+    exs.map((ex) => {
+      let exId = ex.exerciseId;
+      if (!exId) {
+        const match = libraryExercises.find(
+          (e) => e.name.toLowerCase() === ex.name.toLowerCase(),
+        );
+        exId = match?.id;
+      }
+      if (!exId) return ex;
+
+      let prior: (typeof sessions)[number] | null = null;
+      for (const s of sessions) {
+        if (!s.exercises.some((se) => se.exerciseId === exId)) continue;
+        if (!prior || s.date > prior.date) prior = s;
+      }
+      const priorFirst = prior?.exercises.find((se) => se.exerciseId === exId)
+        ?.sets[0];
+      if (!priorFirst || (priorFirst.weight === 0 && priorFirst.reps === 0)) {
+        return ex;
+      }
+
+      const firstSet = ex.sets[0];
+      if (
+        !firstSet ||
+        firstSet.completed ||
+        firstSet.weight !== 0 ||
+        firstSet.reps !== 0
+      ) {
+        return ex;
+      }
+      const nextSets = [...ex.sets];
+      nextSets[0] = {
+        ...firstSet,
+        weight: priorFirst.weight,
+        reps: priorFirst.reps,
+      };
+      return { ...ex, sets: nextSets };
+    });
 
   useEffect(() => {
     const key = `${source.kind}:${source.workoutId ?? 'fallback'}`;
@@ -577,7 +616,11 @@ export default function StartWorkoutScreen() {
           draftKey(source.kind, source.workoutId),
         );
         if (!cancelled && raw) {
-          const draft = JSON.parse(raw) as DraftSnapshot;
+          const parsed: unknown = JSON.parse(raw);
+          const draft =
+            parsed && typeof parsed === 'object'
+              ? (parsed as DraftSnapshot)
+              : null;
           if (
             draft &&
             Array.isArray(draft.exercises) &&
@@ -593,13 +636,13 @@ export default function StartWorkoutScreen() {
           }
         }
       } catch {
-        // ignore parse errors; fall through to fresh init
+        // Corrupt draft: fall through to fresh init below.
       }
       if (!cancelled && !restored) {
         const now = Date.now();
         setStartedAt(now);
         setElapsed(0);
-        setExercises(source.exercises);
+        setExercises(prefillFirstSets(source.exercises));
         setActiveIdx(0);
       }
       if (!cancelled) {
@@ -647,63 +690,76 @@ export default function StartWorkoutScreen() {
         return {
           id: `se-${ex.id}`,
           exerciseId,
+          name: ex.name,
           sets: completedSets,
         };
       })
       .filter((x): x is NonNullable<typeof x> => Boolean(x));
 
-    type LogResult = ReturnType<typeof logSession>;
-    let newPRs: LogResult['newPRs'] = [];
-    let newlyUnlocked: LogResult['newlyUnlocked'] = [];
-    if (loggedExercises.length > 0) {
-      const result = logSession({
-        workoutName: source.name,
-        workoutId: source.workoutId,
-        durationSeconds: elapsed,
-        exercises: loggedExercises,
-      });
-      newPRs = result.newPRs;
-      newlyUnlocked = result.newlyUnlocked;
+    if (loggedExercises.length === 0) {
+      cancelNotification(restNotificationId);
+      clearDraft();
+      router.back();
+      return;
     }
+
+    // Snapshot prior first-N sets per exercise BEFORE logging this session.
+    const priorByExId = new Map<
+      string,
+      Array<{ weight: number; reps: number }>
+    >();
+    for (const le of loggedExercises) {
+      let mostRecent: (typeof sessions)[number] | null = null;
+      for (const s of sessions) {
+        if (!s.exercises.some((se) => se.exerciseId === le.exerciseId)) continue;
+        if (!mostRecent || s.date > mostRecent.date) mostRecent = s;
+      }
+      const priorEx = mostRecent?.exercises.find(
+        (se) => se.exerciseId === le.exerciseId,
+      );
+      if (priorEx) {
+        priorByExId.set(
+          le.exerciseId,
+          priorEx.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+        );
+      }
+    }
+
+    const result = logSession({
+      workoutName: source.name,
+      workoutId: source.workoutId,
+      durationSeconds: elapsed,
+      exercises: loggedExercises.map(({ name, ...rest }) => rest),
+    });
+
+    const rows: SummaryRow[] = loggedExercises.map((le) => {
+      const prior = priorByExId.get(le.exerciseId);
+      return {
+        name: le.name,
+        sets: le.sets.map((curr, i) => ({
+          curr: { weight: curr.weight, reps: curr.reps },
+          prev: prior?.[i],
+        })),
+      };
+    });
+
+    const setCount = loggedExercises.reduce((a, e) => a + e.sets.length, 0);
+
     cancelNotification(restNotificationId);
     clearDraft();
     haptic('success');
-    if (newPRs.length > 0 || newlyUnlocked.length > 0) {
-      const sections: string[] = [];
-      if (newPRs.length > 0) {
-        const lines = newPRs.map((pr) => {
-          const ex = libraryExercises.find((e) => e.id === pr.exerciseId);
-          const name = ex?.name ?? 'Exercise';
-          if (pr.kind === 'heaviest_weight') {
-            return `🏆 ${name} — ${pr.weight}kg heaviest`;
-          }
-          return `🏆 ${name} — ${pr.weight}×${pr.reps} best set`;
-        });
-        sections.push(lines.join('\n'));
-      }
-      if (newlyUnlocked.length > 0) {
-        const lines = newlyUnlocked.map((a) => `⭐ ${a.title} — ${a.description}`);
-        sections.push(lines.join('\n'));
-      }
-      const titleParts: string[] = [];
-      if (newPRs.length > 0) {
-        titleParts.push(newPRs.length === 1 ? 'New PR' : `${newPRs.length} new PRs`);
-      }
-      if (newlyUnlocked.length > 0) {
-        titleParts.push(
-          newlyUnlocked.length === 1
-            ? '1 achievement'
-            : `${newlyUnlocked.length} achievements`,
-        );
-      }
-      Alert.alert(
-        `${titleParts.join(' · ')}!`,
-        sections.join('\n\n'),
-        [{ text: 'Nice', onPress: () => router.back() }],
-      );
-      return;
-    }
-    router.back();
+
+    setSummary({
+      workoutName: source.name,
+      date: result.session.date,
+      durationSeconds: elapsed,
+      exerciseCount: loggedExercises.length,
+      setCount,
+      rows,
+      newPRs: result.newPRs,
+      newlyUnlocked: result.newlyUnlocked,
+      sessionId: result.session.id,
+    });
   };
 
   useEffect(() => {
@@ -778,7 +834,30 @@ export default function StartWorkoutScreen() {
   };
 
   const completeSet = (exIdx: number, setIdx: number) => {
-    updateSet(exIdx, setIdx, { completed: true });
+    setExercises((prev) =>
+      prev.map((e, i) => {
+        if (i !== exIdx) return e;
+        const justCompleted = e.sets[setIdx];
+        const nextSets = e.sets.map((s, si) => {
+          if (si === setIdx) return { ...s, completed: true };
+          if (
+            setIdx === 0 &&
+            si > 0 &&
+            !s.completed &&
+            s.weight === 0 &&
+            s.reps === 0
+          ) {
+            return {
+              ...s,
+              weight: justCompleted.weight,
+              reps: justCompleted.reps,
+            };
+          }
+          return s;
+        });
+        return { ...e, sets: nextSets };
+      }),
+    );
     haptic('light');
     const restSeconds = parseRestSeconds(
       exercises[exIdx]?.rest ?? `${settings.defaultRestSeconds}s`,
@@ -790,7 +869,6 @@ export default function StartWorkoutScreen() {
     scheduleRestNotification(restSeconds, 'Ready for your next set').then((id) => {
       if (id) setRestNotificationId(id);
     });
-    // advance to next exercise if all sets complete
     setTimeout(() => {
       setExercises((curr) => {
         const ex = curr[exIdx];
@@ -817,13 +895,33 @@ export default function StartWorkoutScreen() {
 
   const nextSetIdx = active.sets.findIndex((s) => !s.completed);
 
+  if (summary) {
+    return (
+      <WorkoutSummaryView
+        summary={summary}
+        accent={NEON}
+        onDone={() => {
+          setSummary(null);
+          router.dismissTo('/');
+        }}
+        onView={() => {
+          if (summary.sessionId) {
+            router.replace(`/sessions/${summary.sessionId}`);
+          } else {
+            router.back();
+          }
+        }}
+        onShare={() => shareWorkoutSummary(summary)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 180 }}
       >
-        {/* Top Status Card */}
         <View className="mx-4 mt-2 mb-4 rounded-3xl border border-white/10 bg-[#101010] p-5">
           <View className="flex-row items-start justify-between">
             <View className="flex-1">
@@ -863,7 +961,6 @@ export default function StartWorkoutScreen() {
             </Pressable>
           </View>
 
-          {/* Stats row */}
           <View className="mt-4 rounded-2xl bg-white/5 border border-white/5 px-4 py-3 flex-row items-center">
             <View className="flex-1">
               <Text
@@ -908,7 +1005,6 @@ export default function StartWorkoutScreen() {
             </View>
           </View>
 
-          {/* Progress segments */}
           <View className="mt-4 flex-row gap-1.5">
             {exercises.map((e, i) => {
               const done = e.sets.every((s) => s.completed);
@@ -930,7 +1026,6 @@ export default function StartWorkoutScreen() {
           </View>
         </View>
 
-        {/* Active Exercise */}
         <View className="mx-4 mb-4 rounded-3xl border border-white/10 bg-[#101010] p-5">
           <View className="flex-row items-start justify-between mb-3">
             <View className="flex-1 pr-3">
@@ -965,7 +1060,7 @@ export default function StartWorkoutScreen() {
                     >
                       <Text
                         className="text-xs font-bold"
-                        style={{ color: '#22C55E', letterSpacing: 0.5 }}
+                        style={{ color: NEON, letterSpacing: 0.5 }}
                       >
                         {active.groupType === 'emom'
                           ? `EMOM ${active.emomSeconds ?? ''}s`.trim()
@@ -982,9 +1077,15 @@ export default function StartWorkoutScreen() {
                 </Text>
               ) : null}
             </View>
-            <Pressable className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 active:opacity-70">
+            <Pressable
+              onPress={() => {
+                setNoteDraft(active.note ?? '');
+                setNoteEditOpen(true);
+              }}
+              className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 active:opacity-70"
+            >
               <Text className="text-white font-bold" style={{ fontSize: 13 }}>
-                Note
+                {active.note ? 'Edit' : 'Note'}
               </Text>
             </Pressable>
           </View>
@@ -1001,7 +1102,6 @@ export default function StartWorkoutScreen() {
             ))}
           </View>
 
-          {/* Set cards */}
           <View className="mt-4 gap-3">
             {active.sets.map((set, i) => (
               <SwipeableSetCard
@@ -1016,8 +1116,8 @@ export default function StartWorkoutScreen() {
                 onIncWeight={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
                 onDecReps={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
                 onIncReps={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
-                onSetRpe={(rpe) => updateSet(activeIdx, i, { rpe })}
-                onSetRir={(rir) => updateSet(activeIdx, i, { rir })}
+                onChangeWeight={(weight) => updateSet(activeIdx, i, { weight })}
+                onChangeReps={(reps) => updateSet(activeIdx, i, { reps })}
                 onComplete={() => completeSet(activeIdx, i)}
               />
             ))}
@@ -1033,7 +1133,6 @@ export default function StartWorkoutScreen() {
           </View>
         </View>
 
-        {/* Up Next */}
         {upcoming.length > 0 ? (
           <View className="px-4 mb-3">
             <Text
@@ -1079,7 +1178,6 @@ export default function StartWorkoutScreen() {
           </View>
         ) : null}
 
-        {/* Completed */}
         {completed.length > 0 ? (
           <View className="px-4 mb-3">
             <Text
@@ -1130,7 +1228,6 @@ export default function StartWorkoutScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Bottom Action Bar */}
       <View className="absolute bottom-0 left-0 right-0 bg-black border-t border-white/10 pt-3 pb-6 px-4">
         {restRemaining !== null ? (
           <View className="flex-row items-center justify-center gap-3 mb-3">
@@ -1171,6 +1268,360 @@ export default function StartWorkoutScreen() {
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={noteEditOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNoteEditOpen(false)}
+      >
+        <Pressable
+          onPress={() => setNoteEditOpen(false)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#141414',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: 32,
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-white font-bold" style={{ fontSize: 18 }}>
+                {active.name} note
+              </Text>
+              <Pressable
+                onPress={() => setNoteEditOpen(false)}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+              >
+                <Ionicons name="close" size={16} color="#ffffff" />
+              </Pressable>
+            </View>
+            <TextInput
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              placeholder="Form cues, tempo, setup…"
+              placeholderTextColor="#52525B"
+              multiline
+              autoFocus
+              className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
+              style={{
+                paddingVertical: 12,
+                fontSize: 15,
+                minHeight: 120,
+                textAlignVertical: 'top',
+              }}
+            />
+            <View className="flex-row gap-3 mt-4">
+              {active.note ? (
+                <Pressable
+                  onPress={() => {
+                    setExercises((prev) =>
+                      prev.map((e, i) =>
+                        i === activeIdx ? { ...e, note: undefined } : e,
+                      ),
+                    );
+                    setNoteEditOpen(false);
+                  }}
+                  className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 active:opacity-80"
+                >
+                  <Text className="text-red-400 font-bold" style={{ fontSize: 14 }}>
+                    Delete
+                  </Text>
+                </Pressable>
+              ) : null}
+              <View className="flex-1" />
+              <Pressable
+                onPress={() => setNoteEditOpen(false)}
+                className="px-5 py-3 rounded-2xl bg-white/5 border border-white/10 active:opacity-80"
+              >
+                <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  const trimmed = noteDraft.trim();
+                  setExercises((prev) =>
+                    prev.map((e, i) =>
+                      i === activeIdx
+                        ? { ...e, note: trimmed.length > 0 ? trimmed : undefined }
+                        : e,
+                    ),
+                  );
+                  setNoteEditOpen(false);
+                }}
+                style={{ backgroundColor: NEON }}
+                className="px-5 py-3 rounded-2xl active:opacity-90"
+              >
+                <Text className="text-black font-bold" style={{ fontSize: 14 }}>
+                  Save
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function formatSummaryDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (s === 0) return `${m}m`;
+  return `${m}m ${s}s`;
+}
+
+function formatNum(n: number): string {
+  return Number.isInteger(n) ? String(n) : String(n);
+}
+
+function diffLabel(compare: SummarySetCompare): {
+  text: string;
+  tone: 'same' | 'up' | 'down' | 'new';
+} {
+  const { prev, curr } = compare;
+  if (!prev) return { text: '(new)', tone: 'new' };
+  const dw = curr.weight - prev.weight;
+  const dr = curr.reps - prev.reps;
+  if (dw === 0 && dr === 0) return { text: '(=)', tone: 'same' };
+  const parts: string[] = [];
+  if (dw !== 0) parts.push(`${dw > 0 ? '+' : ''}${formatNum(dw)}kg`);
+  if (dr !== 0) parts.push(`${dr > 0 ? '+' : ''}${dr} reps`);
+  const tone: 'up' | 'down' = dw + dr >= 0 ? 'up' : 'down';
+  return { text: `(${parts.join(', ')})`, tone };
+}
+
+function shareWorkoutSummary(summary: WorkoutSummary) {
+  const lines: string[] = [];
+  lines.push(`${summary.workoutName} — ${summary.date}`);
+  lines.push(
+    `${formatSummaryDuration(summary.durationSeconds)} · ${summary.exerciseCount} exercises · ${summary.setCount} sets`,
+  );
+  lines.push('');
+  for (const row of summary.rows) {
+    lines.push(row.name);
+    for (const s of row.sets) {
+      const curr = `${formatNum(s.curr.weight)}×${s.curr.reps}`;
+      if (s.prev) {
+        const prev = `${formatNum(s.prev.weight)}×${s.prev.reps}`;
+        lines.push(`  ${prev} → ${curr} ${diffLabel(s).text}`);
+      } else {
+        lines.push(`  ${curr} (new)`);
+      }
+    }
+    lines.push('');
+  }
+  shareContent({ message: lines.join('\n').trim() });
+}
+
+function WorkoutSummaryView({
+  summary,
+  accent,
+  onDone,
+  onView,
+  onShare,
+}: {
+  summary: WorkoutSummary;
+  accent: string;
+  onDone: () => void;
+  onView: () => void;
+  onShare: () => void;
+}) {
+  return (
+    <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 160 }}
+      >
+        <View
+          className="mx-4 mt-2 rounded-3xl p-6"
+          style={{ backgroundColor: accent }}
+        >
+          <Text
+            className="font-bold text-black/70"
+            style={{ fontSize: 11, letterSpacing: 2 }}
+          >
+            WORKOUT COMPLETE
+          </Text>
+          <Text
+            className="text-black font-bold mt-2"
+            style={{ fontSize: 32 }}
+            numberOfLines={2}
+          >
+            {summary.workoutName}
+          </Text>
+          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
+            {summary.date}
+          </Text>
+        </View>
+
+        <View className="mx-4 mt-4 p-4 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
+          <View className="flex-row gap-3">
+            <SummaryStat label="Duration" value={formatSummaryDuration(summary.durationSeconds)} />
+            <SummaryStat label="Exercises" value={String(summary.exerciseCount)} />
+            <SummaryStat label="Sets" value={String(summary.setCount)} />
+          </View>
+        </View>
+
+        {summary.newPRs.length > 0 || summary.newlyUnlocked.length > 0 ? (
+          <View className="mx-4 mt-4 p-5 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
+            {summary.newPRs.length > 0 ? (
+              <>
+                <Text
+                  className="font-bold"
+                  style={{ color: accent, fontSize: 12, letterSpacing: 1.5 }}
+                >
+                  {summary.newPRs.length === 1
+                    ? 'NEW PERSONAL RECORD'
+                    : `${summary.newPRs.length} NEW PERSONAL RECORDS`}
+                </Text>
+                {summary.newPRs.map((pr) => (
+                  <Text
+                    key={pr.id}
+                    className="text-white mt-2"
+                    style={{ fontSize: 15 }}
+                  >
+                    🏆{' '}
+                    {pr.kind === 'heaviest_weight'
+                      ? `${formatNum(pr.weight)}kg heaviest`
+                      : `${formatNum(pr.weight)}×${pr.reps} best set`}
+                  </Text>
+                ))}
+              </>
+            ) : null}
+            {summary.newlyUnlocked.length > 0 ? (
+              <>
+                <Text
+                  className="font-bold mt-3"
+                  style={{ color: accent, fontSize: 12, letterSpacing: 1.5 }}
+                >
+                  ACHIEVEMENTS
+                </Text>
+                {summary.newlyUnlocked.map((a) => (
+                  <Text
+                    key={a.id}
+                    className="text-white mt-2"
+                    style={{ fontSize: 15 }}
+                  >
+                    ⭐ {a.title} — {a.description}
+                  </Text>
+                ))}
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        <View className="mx-4 mt-4 p-5 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
+          <Text className="text-white font-bold mb-2" style={{ fontSize: 18 }}>
+            Compared to Previous Session
+          </Text>
+          {summary.rows.map((row, rIdx) => (
+            <View key={`${row.name}-${rIdx}`} className="mt-4">
+              <Text className="text-white font-bold" style={{ fontSize: 17 }}>
+                {row.name}
+              </Text>
+              {row.sets.map((s, i) => {
+                const diff = diffLabel(s);
+                const diffColor =
+                  diff.tone === 'up'
+                    ? accent
+                    : diff.tone === 'down'
+                      ? '#F87171'
+                      : diff.tone === 'new'
+                        ? accent
+                        : '#71717A';
+                return (
+                  <View
+                    key={i}
+                    className="flex-row items-center mt-2"
+                    style={{ gap: 8 }}
+                  >
+                    {s.prev ? (
+                      <>
+                        <Text className="text-zinc-300" style={{ fontSize: 15 }}>
+                          {formatNum(s.prev.weight)}×{s.prev.reps}
+                        </Text>
+                        <Text className="text-zinc-500" style={{ fontSize: 15 }}>
+                          →
+                        </Text>
+                        <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+                          {formatNum(s.curr.weight)}×{s.curr.reps}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+                        {formatNum(s.curr.weight)}×{s.curr.reps}
+                      </Text>
+                    )}
+                    <Text
+                      className="font-semibold"
+                      style={{ color: diffColor, fontSize: 14 }}
+                    >
+                      {diff.text}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+
+        <Pressable
+          onPress={onShare}
+          className="mx-4 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-2xl py-4 items-center active:opacity-80"
+        >
+          <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+            Share Workout
+          </Text>
+        </Pressable>
+      </ScrollView>
+
+      <View className="absolute bottom-0 left-0 right-0 p-4 bg-black/95 border-t border-white/5">
+        <View className="flex-row gap-3">
+          <Pressable
+            onPress={onView}
+            className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 items-center active:opacity-80"
+          >
+            <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+              View Workout
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onDone}
+            style={{ backgroundColor: accent }}
+            className="flex-1 rounded-2xl py-4 items-center active:opacity-90"
+          >
+            <Text className="text-black font-bold" style={{ fontSize: 15 }}>
+              Done
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-1 rounded-2xl bg-[#0D0D0D] border border-[#1F1F1F] p-4">
+      <Text className="text-zinc-500" style={{ fontSize: 12 }}>
+        {label}
+      </Text>
+      <Text className="text-white font-bold mt-1" style={{ fontSize: 22 }}>
+        {value}
+      </Text>
+    </View>
   );
 }

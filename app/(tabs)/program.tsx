@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import {
   EXERCISE_CATEGORIES,
   MUSCLE_COLORS,
@@ -11,11 +11,12 @@ import {
   type WorkoutSession,
 } from '../../src/store/types';
 
-const NEON = '#22C55E';
-const LIME = '#22C55E';
-
 type Tab = 'Program' | 'Workout' | 'Exercise';
 const TABS: Tab[] = ['Program', 'Workout', 'Exercise'];
+
+function isTab(v: string | undefined): v is Tab {
+  return v !== undefined && (TABS as string[]).includes(v);
+}
 
 const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }> = {
   Program: {
@@ -36,8 +37,16 @@ const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }
 };
 
 export default function ProgramHubScreen() {
-  const [tab, setTab] = useState<Tab>('Program');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: Tab = isTab(params.tab) ? params.tab : 'Program';
+  const [tab, setTab] = useState<Tab>(initialTab);
+  useEffect(() => {
+    if (isTab(params.tab) && params.tab !== tab) {
+      setTab(params.tab);
+    }
+  }, [params.tab]);
   const copy = TAB_COPY[tab];
+  const LIME = useAccent();
 
   return (
     <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
@@ -91,27 +100,21 @@ function HeaderCard({
   title: string;
   subtitle: string;
 }) {
+  const LIME = useAccent();
   return (
     <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-3">
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            {eyebrow}
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 36 }}>
-            {title}
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            {subtitle}
-          </Text>
-        </View>
-        <View className="w-10 h-10 rounded-2xl items-center justify-center bg-black/20">
-          <Ionicons name="settings-sharp" size={18} color="#0A0A0A" />
-        </View>
-      </View>
+      <Text
+        className="font-bold text-black/70"
+        style={{ fontSize: 11, letterSpacing: 2 }}
+      >
+        {eyebrow}
+      </Text>
+      <Text className="text-black font-bold mt-2" style={{ fontSize: 36 }}>
+        {title}
+      </Text>
+      <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
+        {subtitle}
+      </Text>
     </View>
   );
 }
@@ -119,6 +122,8 @@ function HeaderCard({
 function ProgramsTab() {
   const router = useRouter();
   const { programs, setActiveProgram, deleteProgram } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   return (
     <>
@@ -193,7 +198,26 @@ function ProgramsTab() {
 
 function WorkoutsTab() {
   const router = useRouter();
-  const { workouts, deleteWorkout } = useStore();
+  const { workouts, programs, deleteWorkout } = useStore();
+  const LIME = useAccent();
+
+  const activeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of programs) {
+      if (!p.isActive) continue;
+      for (const id of p.workoutIds) ids.add(id);
+    }
+    return ids;
+  }, [programs]);
+
+  const ordered = useMemo(() => {
+    return [...workouts].sort((a, b) => {
+      const aActive = activeIds.has(a.id);
+      const bActive = activeIds.has(b.id);
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+  }, [workouts, activeIds]);
 
   return (
     <>
@@ -210,27 +234,37 @@ function WorkoutsTab() {
         />
       ) : (
         <View className="px-5 gap-3">
-          {workouts.map((w) => (
-            <Pressable
-              key={w.id}
-              onPress={() => router.push(`/workouts/${w.id}`)}
-              onLongPress={() => deleteWorkout(w.id)}
-              className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
-            >
-              <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
-                <Ionicons name="barbell" size={20} color={LIME} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                  {w.name}
-                </Text>
-                <Text className="text-zinc-500 text-xs mt-0.5">
-                  {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-            </Pressable>
-          ))}
+          {ordered.map((w) => {
+            const isActive = activeIds.has(w.id);
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => router.push(`/workouts/${w.id}`)}
+                onLongPress={() => deleteWorkout(w.id)}
+                className="bg-[#141414] rounded-2xl p-4 flex-row items-center gap-4 active:opacity-80"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isActive ? `${LIME}66` : '#1F1F1F',
+                }}
+              >
+                <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
+                  <Ionicons name="barbell" size={20} color={LIME} />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center flex-wrap gap-2">
+                    <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                      {w.name}
+                    </Text>
+                    {isActive ? <Badge label="ACTIVE" color={LIME} /> : null}
+                  </View>
+                  <Text className="text-zinc-500 text-xs mt-0.5">
+                    {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
+              </Pressable>
+            );
+          })}
         </View>
       )}
     </>
@@ -269,12 +303,15 @@ function ExercisesTab() {
   const grouped = useMemo(() => {
     const groups = new Map<string, typeof exercises>();
     for (const ex of filtered) {
-      const key = (ex.category as string) ?? 'Uncategorized';
+      const key = ex.category ?? 'Uncategorized';
       const arr = groups.get(key) ?? [];
       arr.push(ex);
       groups.set(key, arr);
     }
-    const order = [...EXERCISE_CATEGORIES, 'Uncategorized'];
+    const order: (ExerciseCategory | 'Uncategorized')[] = [
+      ...EXERCISE_CATEGORIES,
+      'Uncategorized',
+    ];
     return order
       .map((cat) => ({ cat, items: groups.get(cat) ?? [] }))
       .filter((g) => g.items.length > 0);
@@ -331,7 +368,9 @@ function ExercisesTab() {
         <View className="gap-3">
           {grouped.map((group) => {
             const color =
-              MUSCLE_COLORS[group.cat as ExerciseCategory] ?? '#71717A';
+              group.cat !== 'Uncategorized'
+                ? MUSCLE_COLORS[group.cat]
+                : '#71717A';
             const open = openGroups.has(group.cat) || query.trim().length > 0;
             return (
               <View
@@ -415,6 +454,7 @@ function SectionHeader({
   secondaryAction?: { label: string; onPress: () => void; icon?: React.ComponentProps<typeof Ionicons>['name'] };
   topPad?: boolean;
 }) {
+  const LIME = useAccent();
   return (
     <View
       className="px-5 flex-row items-start justify-between mb-3"

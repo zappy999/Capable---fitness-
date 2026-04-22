@@ -15,16 +15,15 @@ import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { DateField } from '../../src/components/DateField';
-
-const LIME = '#22C55E';
 
 export default function NewProgramScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const editId = typeof params.id === 'string' ? params.id : undefined;
   const { workouts, programs, saveProgram } = useStore();
+  const LIME = useAccent();
 
   const editing = editId ? programs.find((p) => p.id === editId) : undefined;
 

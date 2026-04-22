@@ -4,49 +4,97 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
-
-const GREEN = '#22C55E';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { workouts, sessions } = useStore();
+  const { workouts, sessions, programs } = useStore();
+  const GREEN = useAccent();
   const todaysWorkout = WORKOUTS[0];
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
-  const maxMinutes = Math.max(...WEEKLY_ACTIVITY.map((d) => d.minutes), 1);
 
   const streak = useMemo(
     () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
     [sessions],
   );
 
-  const firstUserWorkout = workouts[0];
+  const suggestion = useMemo(() => {
+    const activeProgram = programs.find((p) => p.isActive) ?? null;
+    if (activeProgram) {
+      const programWorkouts = activeProgram.workoutIds
+        .map((id) => workouts.find((w) => w.id === id))
+        .filter((w): w is (typeof workouts)[number] => Boolean(w));
+      if (programWorkouts.length > 0) {
+        const inProgram = new Set(programWorkouts.map((w) => w.id));
+        let lastDoneId: string | null = null;
+        let lastDoneDate: string | null = null;
+        for (let i = sessions.length - 1; i >= 0; i--) {
+          const s = sessions[i];
+          if (s.workoutId && inProgram.has(s.workoutId)) {
+            lastDoneId = s.workoutId;
+            lastDoneDate = s.date;
+            break;
+          }
+        }
+        if (lastDoneId) {
+          const idx = programWorkouts.findIndex((w) => w.id === lastDoneId);
+          const next = programWorkouts[(idx + 1) % programWorkouts.length];
+          return {
+            kind: 'program-next' as const,
+            program: activeProgram,
+            workout: next,
+            lastDoneName: programWorkouts[idx].name,
+            lastDoneDate,
+          };
+        }
+        return {
+          kind: 'program-first' as const,
+          program: activeProgram,
+          workout: programWorkouts[0],
+          lastDoneName: null,
+          lastDoneDate: null,
+        };
+      }
+    }
+    const mostRecentUser = [...workouts].sort(
+      (a, b) => b.createdAt - a.createdAt,
+    )[0];
+    if (mostRecentUser) {
+      return {
+        kind: 'recent' as const,
+        program: null,
+        workout: mostRecentUser,
+        lastDoneName: null,
+        lastDoneDate: null,
+      };
+    }
+    return { kind: 'empty' as const } as const;
+  }, [programs, workouts, sessions]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Header */}
-        <View className="px-5 pt-2 pb-4 flex-row items-center justify-between">
-          <View>
-            <Text className="text-zinc-500 text-sm">You are capable of more</Text>
-            <Text className="text-white text-2xl font-bold">Alex Morgan</Text>
-          </View>
-          <View className="flex-row items-center gap-2">
+        <View className="mx-5 mt-2 mb-4 rounded-3xl p-6" style={{ backgroundColor: GREEN }}>
+          <View className="flex-row items-start justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-black font-bold" style={{ fontSize: 36 }}>
+                Capable
+              </Text>
+              <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
+                workout tracker
+              </Text>
+            </View>
             <Pressable
               onPress={() => router.push('/settings')}
-              className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+              className="w-10 h-10 rounded-2xl items-center justify-center bg-black/20 active:opacity-70"
             >
-              <Ionicons name="settings-outline" size={18} color="#ffffff" />
+              <Ionicons name="settings-sharp" size={18} color="#0A0A0A" />
             </Pressable>
-            <View className="w-12 h-12 rounded-full items-center justify-center" style={{ backgroundColor: GREEN }}>
-              <Text className="text-black font-bold text-base">AM</Text>
-            </View>
           </View>
         </View>
 
-        {/* Streak Card */}
         <View className="mx-5 mb-4 rounded-3xl overflow-hidden bg-[#141414] border border-[#1F1F1F] p-5">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
@@ -65,7 +113,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Stats row */}
         <View className="px-5 flex-row gap-3 mb-5">
           <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
             <Ionicons name="time-outline" size={20} color={GREEN} />
@@ -84,83 +131,107 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Weekly activity */}
-        <View className="mx-5 mb-5 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-white text-base font-bold">Weekly Activity</Text>
-            <Text className="text-zinc-600 text-xs">Last 7 days</Text>
-          </View>
-          <View className="flex-row items-end justify-between h-24">
-            {WEEKLY_ACTIVITY.map((d) => (
-              <View key={d.day} className="items-center flex-1">
-                <View className="h-20 w-full items-center justify-end mb-2">
+        {suggestion.kind === 'empty' ? (
+          <>
+            <View className="px-5 mb-3">
+              <Text className="text-white text-lg font-bold">Today's workout</Text>
+              <Text className="text-zinc-500 text-xs mt-0.5">
+                Ready to crush it?
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push(`/workouts/${todaysWorkout.id}`)}
+              className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 active:opacity-90"
+            >
+              <View className="flex-row items-start justify-between mb-3">
+                <View className="flex-1">
                   <View
-                    style={{ height: `${(d.minutes / maxMinutes) * 100}%`, backgroundColor: d.active ? GREEN : '#2A2A2A' }}
-                    className="w-7 rounded-t-lg"
-                  />
+                    className="self-start px-2.5 py-1 rounded-full mb-2"
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{ color: GREEN }}
+                    >
+                      {todaysWorkout.category}
+                    </Text>
+                  </View>
+                  <Text className="text-white text-xl font-bold">
+                    {todaysWorkout.name}
+                  </Text>
+                  <Text className="text-zinc-500 text-xs mt-1">
+                    {todaysWorkout.description}
+                  </Text>
                 </View>
-                <Text className="text-zinc-600 text-xs font-medium">{d.day}</Text>
+                <View
+                  className="w-12 h-12 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  <Ionicons name="play" size={20} color="#000" />
+                </View>
               </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Today's workout */}
-        <View className="px-5 mb-3">
-          <Text className="text-white text-lg font-bold">
-            {firstUserWorkout ? 'Start a workout' : "Today's workout"}
-          </Text>
-          <Text className="text-zinc-500 text-xs mt-0.5">Ready to crush it?</Text>
-        </View>
-        {firstUserWorkout ? (
-          <Pressable
-            onPress={() => router.push(`/workouts/${firstUserWorkout.id}`)}
-            className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 active:opacity-90"
-          >
-            <View className="flex-row items-start justify-between mb-3">
-              <View className="flex-1">
-                <Text className="text-white text-xl font-bold">{firstUserWorkout.name}</Text>
-                <Text className="text-zinc-500 text-xs mt-1">
-                  {firstUserWorkout.exercises.length} exercise
-                  {firstUserWorkout.exercises.length === 1 ? '' : 's'}
-                </Text>
-              </View>
-              <View className="w-12 h-12 rounded-2xl items-center justify-center" style={{ backgroundColor: GREEN }}>
-                <Ionicons name="play" size={20} color="#000" />
-              </View>
-            </View>
-          </Pressable>
+            </Pressable>
+          </>
         ) : (
-          <Pressable
-            onPress={() => router.push(`/workouts/${todaysWorkout.id}`)}
-            className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 active:opacity-90"
-          >
-            <View className="flex-row items-start justify-between mb-3">
-              <View className="flex-1">
-                <View className="self-start px-2.5 py-1 rounded-full mb-2" style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}>
-                  <Text className="text-xs font-semibold" style={{ color: GREEN }}>{todaysWorkout.category}</Text>
+          <>
+            <View className="px-5 mb-3">
+              <Text className="text-white text-lg font-bold">
+                {suggestion.kind === 'program-next' ? 'Up next' : 'Start a workout'}
+              </Text>
+              <Text className="text-zinc-500 text-xs mt-0.5">
+                {suggestion.kind === 'program-next'
+                  ? `Last: ${suggestion.lastDoneName}${suggestion.lastDoneDate ? ` · ${suggestion.lastDoneDate}` : ''}`
+                  : suggestion.kind === 'program-first'
+                    ? 'First workout in your active program.'
+                    : 'Pick up where you left off.'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => router.push(`/workouts/${suggestion.workout.id}`)}
+              className="mx-5 bg-[#141414] rounded-3xl p-5 active:opacity-90"
+              style={{
+                borderWidth: 1,
+                borderColor: suggestion.program ? `${GREEN}55` : '#1F1F1F',
+              }}
+            >
+              <View className="flex-row items-start justify-between mb-1">
+                <View className="flex-1 pr-3">
+                  {suggestion.program ? (
+                    <View
+                      className="self-start px-2.5 py-1 rounded-full mb-2"
+                      style={{ backgroundColor: `${GREEN}22` }}
+                    >
+                      <Text
+                        className="font-bold"
+                        style={{
+                          color: GREEN,
+                          fontSize: 10,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        {suggestion.program.name.toUpperCase()}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text className="text-white text-xl font-bold">
+                    {suggestion.workout.name}
+                  </Text>
+                  <Text className="text-zinc-500 text-xs mt-1">
+                    {suggestion.workout.exercises.length} exercise
+                    {suggestion.workout.exercises.length === 1 ? '' : 's'}
+                  </Text>
                 </View>
-                <Text className="text-white text-xl font-bold">{todaysWorkout.name}</Text>
-                <Text className="text-zinc-500 text-xs mt-1">{todaysWorkout.description}</Text>
+                <View
+                  className="w-12 h-12 rounded-2xl items-center justify-center"
+                  style={{ backgroundColor: GREEN }}
+                >
+                  <Ionicons name="play" size={20} color="#000" />
+                </View>
               </View>
-              <View className="w-12 h-12 rounded-2xl items-center justify-center" style={{ backgroundColor: GREEN }}>
-                <Ionicons name="play" size={20} color="#000" />
-              </View>
-            </View>
-            <View className="flex-row gap-4 mt-2">
-              <View className="flex-row items-center gap-1.5">
-                <Ionicons name="time-outline" size={14} color="#52525B" />
-                <Text className="text-zinc-500 text-xs">{todaysWorkout.duration} min</Text>
-              </View>
-              <View className="flex-row items-center gap-1.5">
-                <Ionicons name="barbell-outline" size={14} color="#52525B" />
-                <Text className="text-zinc-500 text-xs">{todaysWorkout.exerciseCount} exercises</Text>
-              </View>
-            </View>
-          </Pressable>
+            </Pressable>
+          </>
         )}
 
-        {/* Quick start */}
         {workouts.length > 1 ? (
           <>
             <View className="px-5 mt-6 mb-3">
