@@ -838,6 +838,22 @@ export default function StartWorkoutScreen() {
     });
   };
 
+  const startRest = (seconds: number) => {
+    if (seconds <= 0) return;
+    setRestRemaining(seconds);
+    cancelNotification(restNotificationId);
+    setRestNotificationId(null);
+    scheduleRestNotification(seconds, 'Ready for your next set').then((id) => {
+      if (id) setRestNotificationId(id);
+    });
+  };
+
+  const stopRest = () => {
+    setRestRemaining(null);
+    cancelNotification(restNotificationId);
+    setRestNotificationId(null);
+  };
+
   const completeSet = (exIdx: number, setIdx: number) => {
     const target = exercises[exIdx]?.sets[setIdx];
     if (!target || target.reps <= 0) {
@@ -873,12 +889,7 @@ export default function StartWorkoutScreen() {
       exercises[exIdx]?.rest ?? `${settings.defaultRestSeconds}s`,
       settings.defaultRestSeconds,
     );
-    setRestRemaining(restSeconds);
-    cancelNotification(restNotificationId);
-    setRestNotificationId(null);
-    scheduleRestNotification(restSeconds, 'Ready for your next set').then((id) => {
-      if (id) setRestNotificationId(id);
-    });
+    startRest(restSeconds);
     setTimeout(() => {
       setExercises((curr) => {
         const ex = curr[exIdx];
@@ -1240,24 +1251,53 @@ export default function StartWorkoutScreen() {
 
       <View className="absolute bottom-0 left-0 right-0 bg-black border-t border-white/10 pt-3 pb-6 px-4">
         {restRemaining !== null ? (
-          <View className="flex-row items-center justify-center gap-3 mb-3">
-            <Text className="text-green-400 font-bold" style={{ fontSize: 15 }}>
+          <View className="flex-row items-center justify-center gap-2 mb-3">
+            <Text className="font-bold" style={{ color: NEON, fontSize: 15 }}>
               Rest: {formatRest(restRemaining)}
             </Text>
             <Pressable
-              onPress={() => {
-                setRestRemaining(null);
-                cancelNotification(restNotificationId);
-                setRestNotificationId(null);
-              }}
-              className="px-4 py-1.5 rounded-full border border-green-400 active:opacity-70"
+              onPress={() => setRestRemaining((r) => (r === null ? null : r + 30))}
+              className="px-3 py-1.5 rounded-full active:opacity-70"
+              style={{ borderWidth: 1, borderColor: NEON }}
             >
-              <Text className="text-green-400 font-bold" style={{ fontSize: 13 }}>
+              <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
+                +30s
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={stopRest}
+              className="px-3 py-1.5 rounded-full active:opacity-70"
+              style={{ borderWidth: 1, borderColor: NEON }}
+            >
+              <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
                 Skip
               </Text>
             </Pressable>
           </View>
-        ) : null}
+        ) : (
+          <View className="flex-row items-center justify-center mb-3">
+            <Pressable
+              onPress={() => {
+                const seconds = parseRestSeconds(
+                  active?.rest ?? `${settings.defaultRestSeconds}s`,
+                  settings.defaultRestSeconds,
+                );
+                startRest(seconds);
+                haptic('light');
+              }}
+              className="flex-row items-center px-4 py-1.5 rounded-full active:opacity-70"
+              style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
+            >
+              <Ionicons name="timer-outline" size={14} color="#ffffff" />
+              <Text
+                className="text-white font-bold ml-1.5"
+                style={{ fontSize: 13 }}
+              >
+                Start rest
+              </Text>
+            </Pressable>
+          </View>
+        )}
         <View className="flex-row gap-3">
           <Pressable
             onPress={() => {
