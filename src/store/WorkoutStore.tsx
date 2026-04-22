@@ -68,7 +68,8 @@ type Action =
   | { type: 'UPDATE_SESSION'; id: string; patch: Partial<WorkoutSession> }
   | { type: 'DELETE_SESSION'; id: string }
   | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> }
-  | { type: 'BULK_IMPORT'; payload: ImportPayload };
+  | { type: 'BULK_IMPORT'; payload: ImportPayload }
+  | { type: 'WIPE' };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -232,6 +233,16 @@ function reducer(state: State, action: Action): State {
         },
       };
     }
+    case 'WIPE':
+      return {
+        hydrated: true,
+        exercises: EXERCISE_LIBRARY,
+        workouts: [],
+        programs: [],
+        sessions: [],
+        personalRecords: [],
+        settings: DEFAULT_SETTINGS,
+      };
   }
 }
 
@@ -281,6 +292,7 @@ type StoreValue = State & {
   previewImport: (raw: unknown) => ImportPayload;
   previewCoachImport: (raw: unknown) => ImportPayload;
   commitImport: (payload: ImportPayload) => ImportReport;
+  wipe: () => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -561,6 +573,10 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       commitImport: (payload) => {
         dispatch({ type: 'BULK_IMPORT', payload });
         return payload.report;
+      },
+      wipe: () => {
+        AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+        dispatch({ type: 'WIPE' });
       },
     }),
     [state],

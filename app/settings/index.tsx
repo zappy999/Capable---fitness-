@@ -51,6 +51,37 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleWipe = () => {
+    Alert.alert(
+      'Wipe all data?',
+      'This deletes every workout, program, session, PR, custom exercise, and setting on this device. The built-in exercise library stays. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Wipe',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Are you sure?',
+              'Last chance — tap Wipe again to erase.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Wipe',
+                  style: 'destructive',
+                  onPress: () => {
+                    store.wipe();
+                    router.back();
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
+
   const handleImport = async () => {
     let pick: DocumentPicker.DocumentPickerResult;
     try {
@@ -258,6 +289,35 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
           </Pressable>
         </Section>
+
+        <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+          <Text
+            className="font-bold mb-3"
+            style={{ color: '#F87171', fontSize: 18 }}
+          >
+            Danger zone
+          </Text>
+          <Pressable
+            onPress={handleWipe}
+            className="flex-row items-center px-4 py-3 rounded-2xl bg-[#0D0D0D] active:opacity-70"
+            style={{ borderWidth: 1, borderColor: '#F8717155' }}
+          >
+            <Ionicons name="trash-outline" size={18} color="#F87171" />
+            <View className="flex-1 ml-3">
+              <Text
+                className="font-bold"
+                style={{ color: '#F87171', fontSize: 15 }}
+              >
+                Wipe account data
+              </Text>
+              <Text className="text-zinc-500 text-xs mt-0.5">
+                Remove all local data. Export a backup first if you want to
+                keep anything.
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
