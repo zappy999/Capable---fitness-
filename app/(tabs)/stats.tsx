@@ -136,7 +136,7 @@ export default function StatsScreen() {
         </View>
         <View className="px-5 mt-3 flex-row gap-3">
           <StatCard
-            label="Exercises"
+            label="In library"
             value={String(exercises.length)}
             icon="list-outline"
             onPress={() => router.push('/exercises')}
@@ -322,19 +322,30 @@ function AchievementCard({ achievement }: { achievement: AchievementStatus }) {
           ) : null}
         </View>
         <Text className="text-zinc-500 text-xs mt-0.5">{def.description}</Text>
-        <View className="h-1.5 bg-[#1F1F1F] rounded-full overflow-hidden mt-2">
-          <View
-            style={{
-              height: '100%',
-              width: `${pct * 100}%`,
-              backgroundColor: def.color,
-              borderRadius: 9999,
-            }}
-          />
-        </View>
-        <Text className="text-zinc-500 text-xs mt-1">
-          {Math.min(progress, def.target)} / {def.target}
-        </Text>
+        {unlocked ? (
+          <Text
+            className="mt-2 font-semibold"
+            style={{ color: def.color, fontSize: 12 }}
+          >
+            Unlocked
+          </Text>
+        ) : (
+          <>
+            <View className="h-1.5 bg-[#1F1F1F] rounded-full overflow-hidden mt-2">
+              <View
+                style={{
+                  height: '100%',
+                  width: `${pct * 100}%`,
+                  backgroundColor: def.color,
+                  borderRadius: 9999,
+                }}
+              />
+            </View>
+            <Text className="text-zinc-500 text-xs mt-1">
+              {Math.min(progress, def.target)} / {def.target}
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );

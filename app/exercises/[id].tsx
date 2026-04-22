@@ -28,6 +28,7 @@ function estimate1RM(weight: number, reps: number) {
 }
 
 function formatDuration(seconds: number) {
+  if (seconds < 60) return `${Math.max(0, Math.round(seconds))}s`;
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
@@ -69,15 +70,16 @@ export default function ExerciseDetailScreen() {
   }, [exerciseSessions, exercise?.id]);
 
   const bestSet = useMemo(() => {
-    if (allSets.length === 0) return null;
-    return allSets.reduce((best, s) => (s.weight > best.weight ? s : best));
+    const valid = allSets.filter((s) => s.reps > 0);
+    if (valid.length === 0) return null;
+    return valid.reduce((best, s) => (s.weight > best.weight ? s : best));
   }, [allSets]);
 
   const [calcWeight, setCalcWeight] = useState<string>(
     bestSet ? String(bestSet.weight) : '',
   );
   const [calcReps, setCalcReps] = useState<string>(
-    bestSet ? String(bestSet.reps) : '',
+    bestSet ? String(Math.max(1, bestSet.reps)) : '',
   );
   const [chartMode, setChartMode] = useState<ChartMode>('Best Weight');
   const [mergePickerOpen, setMergePickerOpen] = useState(false);
@@ -93,7 +95,8 @@ export default function ExerciseDetailScreen() {
     return exerciseSessions.map((s) => {
       const setsForEx = s.exercises
         .filter((se) => se.exerciseId === exercise.id)
-        .flatMap((se) => se.sets);
+        .flatMap((se) => se.sets)
+        .filter((x) => x.reps > 0);
       let value = 0;
       if (chartMode === 'Best Weight') {
         value = Math.max(0, ...setsForEx.map((x) => x.weight));

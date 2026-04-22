@@ -31,8 +31,8 @@ const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }
   },
   Exercise: {
     eyebrow: 'PROGRAM',
-    title: 'Exercise history',
-    subtitle: 'All tracked movements, grouped by muscle.',
+    title: 'Exercise History',
+    subtitle: 'All tracked movements, grouped by muscle group.',
   },
 };
 
@@ -178,12 +178,23 @@ function ProgramsTab() {
                   </Text>
                 </Pressable>
               </View>
-              <View className="flex-row gap-2 mt-3 ml-[72px]">
+              <View className="flex-row items-center gap-2 mt-3 ml-[72px]">
                 {p.isActive ? (
                   <Badge label="ACTIVE" color={NEON} />
                 ) : (
-                  <Pressable onPress={() => setActiveProgram(p.id)}>
-                    <Badge label="SET ACTIVE" color="#6b7280" outline />
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setActiveProgram(p.id);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 active:opacity-70"
+                  >
+                    <Text
+                      className="text-white font-semibold"
+                      style={{ fontSize: 11, letterSpacing: 0.5 }}
+                    >
+                      Set active
+                    </Text>
                   </Pressable>
                 )}
                 {p.isCustom ? <Badge label="CUSTOM" color="#EAB308" /> : null}
@@ -223,7 +234,7 @@ function WorkoutsTab() {
     <>
       <SectionHeader
         title="Your workouts"
-        subtitle="Individual workouts you can add to programs."
+        subtitle="Active program first, then newest."
         action={{ label: '+ Create', onPress: () => router.push('/workouts/new') }}
       />
       {workouts.length === 0 ? (
@@ -328,17 +339,8 @@ function ExercisesTab() {
   return (
     <View className="px-5">
       <View className="bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 mb-4">
-        <Text
-          className="text-zinc-500 font-bold"
-          style={{ fontSize: 11, letterSpacing: 1.5 }}
-        >
-          EXERCISES
-        </Text>
-        <Text className="text-white font-bold mt-2" style={{ fontSize: 28 }}>
-          Exercise History
-        </Text>
-        <Text className="text-zinc-500 text-sm mt-1 mb-4">
-          {trackedCount} tracked · grouped by muscle group
+        <Text className="text-zinc-500 text-sm mb-3">
+          {trackedCount} tracked
         </Text>
         <View className="flex-row items-center bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4">
           <Ionicons name="search" size={16} color="#52525B" />

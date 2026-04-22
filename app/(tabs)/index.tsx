@@ -7,6 +7,34 @@ import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
 
+const MONTH_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+function friendlyDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  const dt = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - dt.getTime()) / 86_400_000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`;
+  return `${MONTH_SHORT[m - 1]} ${d}`;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { workouts, sessions, programs } = useStore();
@@ -83,7 +111,7 @@ export default function HomeScreen() {
                 Capable
               </Text>
               <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-                workout tracker
+                Workout Tracker
               </Text>
             </View>
             <Pressable
@@ -120,7 +148,7 @@ export default function HomeScreen() {
             <Text className="text-zinc-500 text-xs">This week</Text>
           </View>
           <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-            <Ionicons name="checkmark-circle-outline" size={20} color="#3B82F6" />
+            <Ionicons name="checkmark-circle-outline" size={20} color={GREEN} />
             <Text className="text-white text-xl font-bold mt-2">{activeDays}/7</Text>
             <Text className="text-zinc-500 text-xs">Active days</Text>
           </View>
@@ -180,7 +208,7 @@ export default function HomeScreen() {
               </Text>
               <Text className="text-zinc-500 text-xs mt-0.5">
                 {suggestion.kind === 'program-next'
-                  ? `Last: ${suggestion.lastDoneName}${suggestion.lastDoneDate ? ` · ${suggestion.lastDoneDate}` : ''}`
+                  ? `After ${suggestion.lastDoneName}${suggestion.lastDoneDate ? ` · ${friendlyDate(suggestion.lastDoneDate)}` : ''}`
                   : suggestion.kind === 'program-first'
                     ? 'First workout in your active program.'
                     : 'Pick up where you left off.'}

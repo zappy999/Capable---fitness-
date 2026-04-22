@@ -17,6 +17,7 @@ import { MUSCLE_COLORS } from '../../src/store/types';
 
 function formatDuration(seconds: number) {
   if (seconds <= 0) return '—';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;

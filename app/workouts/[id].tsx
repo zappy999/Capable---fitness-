@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -32,8 +32,21 @@ export default function WorkoutDetailScreen() {
 
   const handleDelete = () => {
     if (!userWorkout) return;
-    deleteWorkout(userWorkout.id);
-    router.back();
+    Alert.alert(
+      `Delete "${userWorkout.name}"?`,
+      'This removes the workout from any program that includes it. Logged sessions stay.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteWorkout(userWorkout.id);
+            router.back();
+          },
+        },
+      ],
+    );
   };
 
   return (

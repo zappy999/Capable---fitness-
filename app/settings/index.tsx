@@ -17,7 +17,7 @@ import { shareJsonAsFile } from '../../src/lib/platform';
 
 const ACCENT_OPTIONS = [
   '#22C55E',
-  '#10B981',
+  '#14B8A6',
   '#60A5FA',
   '#F87171',
   '#FBBF24',

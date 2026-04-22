@@ -279,8 +279,12 @@ function SwipeableSetCard({
                 <TextInput
                   value={weightText}
                   onChangeText={(v) => {
-                    setWeightText(v);
-                    const parsed = parseFloat(v.replace(',', '.'));
+                    const sanitized = v
+                      .replace(',', '.')
+                      .replace(/[^0-9.]/g, '')
+                      .replace(/(\..*)\./g, '$1');
+                    setWeightText(sanitized);
+                    const parsed = parseFloat(sanitized);
                     onChangeWeight(Number.isFinite(parsed) ? parsed : 0);
                   }}
                   editable={!isDone}
@@ -319,8 +323,9 @@ function SwipeableSetCard({
                 <TextInput
                   value={repsText}
                   onChangeText={(v) => {
-                    setRepsText(v);
-                    const parsed = parseInt(v, 10);
+                    const sanitized = v.replace(/[^0-9]/g, '');
+                    setRepsText(sanitized);
+                    const parsed = parseInt(sanitized, 10);
                     onChangeReps(Number.isFinite(parsed) ? parsed : 0);
                   }}
                   editable={!isDone}
@@ -672,7 +677,7 @@ export default function StartWorkoutScreen() {
     const loggedExercises = exercises
       .map((ex) => {
         const completedSets = ex.sets
-          .filter((s) => s.completed)
+          .filter((s) => s.completed && s.reps > 0)
           .map((s) => ({
             weight: s.weight,
             reps: s.reps,
@@ -834,6 +839,11 @@ export default function StartWorkoutScreen() {
   };
 
   const completeSet = (exIdx: number, setIdx: number) => {
+    const target = exercises[exIdx]?.sets[setIdx];
+    if (!target || target.reps <= 0) {
+      haptic('warning');
+      return;
+    }
     setExercises((prev) =>
       prev.map((e, i) => {
         if (i !== exIdx) return e;
@@ -1250,11 +1260,31 @@ export default function StartWorkoutScreen() {
         ) : null}
         <View className="flex-row gap-3">
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => {
+              if (stats.completedSets === 0) {
+                Alert.alert(
+                  'Discard this workout?',
+                  'No sets have been completed yet, so nothing will be saved.',
+                  [
+                    { text: 'Keep going', style: 'cancel' },
+                    {
+                      text: 'Discard',
+                      style: 'destructive',
+                      onPress: () => {
+                        clearDraft();
+                        router.back();
+                      },
+                    },
+                  ],
+                );
+                return;
+              }
+              router.back();
+            }}
             className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 items-center active:opacity-80"
           >
             <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-              Save & Exit
+              {stats.completedSets === 0 ? 'Discard & Exit' : 'Save & Exit'}
             </Text>
           </Pressable>
           <Pressable
