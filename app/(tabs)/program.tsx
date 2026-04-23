@@ -197,7 +197,11 @@ function ProgramsTab() {
                     </Text>
                   </Pressable>
                 )}
-                {p.isCustom ? <Badge label="CUSTOM" color="#EAB308" /> : null}
+                {p.isCustom ? (
+                  <Badge label="CUSTOM" color="#EAB308" />
+                ) : (
+                  <Badge label="PRESET" color="#60A5FA" />
+                )}
               </View>
             </Pressable>
           ))}

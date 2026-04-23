@@ -102,6 +102,7 @@ export type UserSettings = {
   weekStartDay: 'monday' | 'sunday';
   accentColor: string;
   timezone?: string;
+  starterProgramsSeeded?: boolean;
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {

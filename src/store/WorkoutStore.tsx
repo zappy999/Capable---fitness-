@@ -10,6 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { DEMO_SESSIONS } from '../data/demoSessions';
+import { STARTER_PROGRAMS, STARTER_WORKOUTS } from '../data/starterPrograms';
 import {
   DEFAULT_SETTINGS,
   type Exercise,
@@ -241,7 +242,9 @@ function reducer(state: State, action: Action): State {
         programs: [],
         sessions: [],
         personalRecords: [],
-        settings: DEFAULT_SETTINGS,
+        // Flag intentionally set so starter programs don't reappear on
+        // relaunch — a wipe means a clean slate.
+        settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
       };
   }
 }
@@ -385,11 +388,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              settings: DEFAULT_SETTINGS,
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
           return;
@@ -408,18 +411,36 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               ? { ...e, category: storedCategoryOverrides.get(e.id)! }
               : e,
           );
+          const mergedSettings = {
+            ...DEFAULT_SETTINGS,
+            ...(parsed.settings ?? {}),
+          };
+          // One-shot starter-program seed for pre-existing installs. User
+          // deletions after this flag flips are respected forever.
+          let workouts = parsed.workouts ?? [];
+          let programs = parsed.programs ?? [];
+          if (!mergedSettings.starterProgramsSeeded) {
+            const existingWorkoutIds = new Set(workouts.map((w) => w.id));
+            const existingProgramIds = new Set(programs.map((p) => p.id));
+            workouts = [
+              ...workouts,
+              ...STARTER_WORKOUTS.filter((w) => !existingWorkoutIds.has(w.id)),
+            ];
+            programs = [
+              ...programs,
+              ...STARTER_PROGRAMS.filter((p) => !existingProgramIds.has(p.id)),
+            ];
+            mergedSettings.starterProgramsSeeded = true;
+          }
           dispatch({
             type: 'HYDRATE',
             payload: {
               exercises: [...mergedLibrary, ...storedCustom],
-              workouts: parsed.workouts ?? [],
-              programs: parsed.programs ?? [],
+              workouts,
+              programs,
               sessions: parsed.sessions ?? [],
               personalRecords: parsed.personalRecords ?? [],
-              settings: {
-                ...DEFAULT_SETTINGS,
-                ...(parsed.settings ?? {}),
-              },
+              settings: mergedSettings,
             },
           });
         } catch {
@@ -427,11 +448,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              settings: DEFAULT_SETTINGS,
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
         }
@@ -442,11 +463,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
               personalRecords: [],
-              settings: DEFAULT_SETTINGS,
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
         }
