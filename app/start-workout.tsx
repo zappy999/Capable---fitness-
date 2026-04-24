@@ -25,6 +25,12 @@ import {
   scheduleRestNotification,
   shareContent,
 } from '../src/lib/platform';
+import { COLORS, MONO, accentAlpha } from '../src/design/tokens';
+import {
+  Badge,
+  ModernHeader,
+  NumMono,
+} from '../src/design/components';
 
 type DraftSnapshot = {
   startedAt: number;
@@ -1417,10 +1423,10 @@ export default function StartWorkoutScreen() {
           </Pressable>
           <Pressable
             onPress={handleFinish}
-            style={{ backgroundColor: NEON }}
+            style={{ backgroundColor: '#FAFAFA' }}
             className="flex-1 rounded-2xl py-4 items-center active:opacity-90"
           >
-            <Text className="text-black font-bold" style={{ fontSize: 15 }}>
+            <Text style={{ color: '#0A0A0A', fontSize: 15, fontWeight: '800' }}>
               Finish Workout
             </Text>
           </Pressable>
@@ -1454,7 +1460,7 @@ export default function StartWorkoutScreen() {
             <Pressable
               onPress={(e) => e.stopPropagation()}
               style={{
-                backgroundColor: '#141414',
+                backgroundColor: '#1A1A1A',
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
                 padding: 20,
@@ -1564,7 +1570,7 @@ export default function StartWorkoutScreen() {
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: '#141414',
+              backgroundColor: '#1A1A1A',
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               padding: 20,
@@ -1718,171 +1724,325 @@ function WorkoutSummaryView({
   onView: () => void;
   onShare: () => void;
 }) {
+  const prCount = summary.newPRs.length;
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 160 }}
+        contentContainerStyle={{ paddingBottom: 140 }}
       >
+        <ModernHeader
+          eyebrow="Workout complete"
+          badge={
+            prCount > 0
+              ? `${prCount} new PR${prCount === 1 ? '' : 's'}`
+              : 'Logged'
+          }
+          title={summary.workoutName}
+          sub={summary.date}
+          accent={accent}
+          back
+          action={false}
+          dropMark
+        />
+
+        {/* Stat row */}
         <View
-          className="mx-4 mt-2 rounded-3xl p-6"
-          style={{ backgroundColor: accent }}
+          style={{
+            flexDirection: 'row',
+            gap: 12,
+            paddingHorizontal: 20,
+            marginBottom: 12,
+          }}
         >
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            WORKOUT COMPLETE
-          </Text>
-          <Text
-            className="text-black font-bold mt-2"
-            style={{ fontSize: 32 }}
-            numberOfLines={2}
-          >
-            {summary.workoutName}
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            {summary.date}
-          </Text>
+          <SummaryStat
+            label="Duration"
+            value={formatSummaryDuration(summary.durationSeconds)}
+          />
+          <SummaryStat label="Exercises" value={String(summary.exerciseCount)} />
+          <SummaryStat
+            label="Sets"
+            value={String(summary.setCount)}
+            valueColor={prCount > 0 ? accent : COLORS.text}
+          />
         </View>
 
-        <View className="mx-4 mt-4 p-4 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
-          <View className="flex-row gap-3">
-            <SummaryStat label="Duration" value={formatSummaryDuration(summary.durationSeconds)} />
-            <SummaryStat label="Exercises" value={String(summary.exerciseCount)} />
-            <SummaryStat label="Sets" value={String(summary.setCount)} />
-          </View>
-        </View>
-
+        {/* PRs / achievements */}
         {summary.newPRs.length > 0 || summary.newlyUnlocked.length > 0 ? (
-          <View className="mx-4 mt-4 p-5 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 12,
+              padding: 20,
+              borderRadius: 24,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: accentAlpha(accent, 0.333),
+            }}
+          >
             {summary.newPRs.length > 0 ? (
               <>
                 <Text
-                  className="font-bold"
-                  style={{ color: accent, fontSize: 12, letterSpacing: 1.5 }}
+                  style={{
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    letterSpacing: 1.5,
+                  }}
                 >
                   {summary.newPRs.length === 1
                     ? 'NEW PERSONAL RECORD'
                     : `${summary.newPRs.length} NEW PERSONAL RECORDS`}
                 </Text>
-                {summary.newPRs.map((pr) => (
-                  <Text
-                    key={pr.id}
-                    className="text-white mt-2"
-                    style={{ fontSize: 15 }}
-                  >
-                    🏆{' '}
-                    {pr.kind === 'heaviest_weight'
-                      ? `${formatNum(pr.weight)}kg heaviest`
-                      : `${formatNum(pr.weight)}×${pr.reps} best set`}
-                  </Text>
-                ))}
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  {summary.newPRs.map((pr) => (
+                    <View
+                      key={pr.id}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        backgroundColor: accentAlpha(accent, 0.133),
+                        borderWidth: 1,
+                        borderColor: accentAlpha(accent, 0.22),
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Ionicons name="trophy" size={16} color={accent} />
+                      <NumMono
+                        style={{
+                          color: COLORS.text,
+                          fontSize: 14,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {formatNum(pr.weight)}
+                        <Text style={{ color: COLORS.muted }}>
+                          {pr.kind === 'heaviest_weight'
+                            ? ' kg heaviest'
+                            : ` × ${pr.reps} best set`}
+                        </Text>
+                      </NumMono>
+                    </View>
+                  ))}
+                </View>
               </>
             ) : null}
             {summary.newlyUnlocked.length > 0 ? (
               <>
                 <Text
-                  className="font-bold mt-3"
-                  style={{ color: accent, fontSize: 12, letterSpacing: 1.5 }}
+                  style={{
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    letterSpacing: 1.5,
+                    marginTop: summary.newPRs.length > 0 ? 14 : 0,
+                  }}
                 >
                   ACHIEVEMENTS
                 </Text>
-                {summary.newlyUnlocked.map((a) => (
-                  <Text
-                    key={a.id}
-                    className="text-white mt-2"
-                    style={{ fontSize: 15 }}
-                  >
-                    ⭐ {a.title} — {a.description}
-                  </Text>
-                ))}
+                <View style={{ marginTop: 8, gap: 6 }}>
+                  {summary.newlyUnlocked.map((a) => (
+                    <View
+                      key={a.id}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    >
+                      <Ionicons name="ribbon" size={14} color={accent} />
+                      <Text style={{ color: COLORS.text, fontSize: 14 }}>
+                        <Text style={{ fontWeight: '700' }}>{a.title}</Text>
+                        <Text style={{ color: COLORS.muted }}> — {a.description}</Text>
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </>
             ) : null}
           </View>
         ) : null}
 
-        <View className="mx-4 mt-4 p-5 rounded-3xl bg-[#141414] border border-[#1F1F1F]">
-          <Text className="text-white font-bold mb-2" style={{ fontSize: 18 }}>
-            Compared to Previous Session
+        {/* Compared to previous */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 12,
+            padding: 20,
+            borderRadius: 24,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: COLORS.subtle,
+              letterSpacing: -0.1,
+            }}
+          >
+            Compared to previous session
           </Text>
           {summary.rows.map((row, rIdx) => (
-            <View key={`${row.name}-${rIdx}`} className="mt-4">
-              <Text className="text-white font-bold" style={{ fontSize: 17 }}>
+            <View
+              key={`${row.name}-${rIdx}`}
+              style={{
+                marginTop: 14,
+                paddingTop: 14,
+                borderTopWidth: rIdx === 0 ? 0 : 1,
+                borderTopColor: COLORS.borderSoft,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 15,
+                  fontWeight: '700',
+                  color: COLORS.text,
+                }}
+              >
                 {row.name}
               </Text>
-              {row.sets.map((s, i) => {
-                const diff = diffLabel(s);
-                const diffColor =
-                  diff.tone === 'up'
-                    ? accent
-                    : diff.tone === 'down'
-                      ? '#F87171'
-                      : diff.tone === 'new'
-                        ? accent
-                        : '#71717A';
-                return (
-                  <View
-                    key={i}
-                    className="flex-row items-center mt-2"
-                    style={{ gap: 8 }}
-                  >
-                    {s.prev ? (
-                      <>
-                        <Text className="text-zinc-300" style={{ fontSize: 15 }}>
-                          {formatNum(s.prev.weight)}×{s.prev.reps}
-                        </Text>
-                        <Text className="text-zinc-500" style={{ fontSize: 15 }}>
-                          →
-                        </Text>
-                        <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-                          {formatNum(s.curr.weight)}×{s.curr.reps}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-                        {formatNum(s.curr.weight)}×{s.curr.reps}
-                      </Text>
-                    )}
-                    <Text
-                      className="font-semibold"
-                      style={{ color: diffColor, fontSize: 14 }}
+              <View style={{ marginTop: 6, gap: 4 }}>
+                {row.sets.map((s, i) => {
+                  const diff = diffLabel(s);
+                  const diffColor =
+                    diff.tone === 'up'
+                      ? accent
+                      : diff.tone === 'down'
+                        ? '#F87171'
+                        : diff.tone === 'new'
+                          ? accent
+                          : COLORS.subtle;
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
                     >
-                      {diff.text}
-                    </Text>
-                  </View>
-                );
-              })}
+                      {s.prev ? (
+                        <>
+                          <NumMono
+                            style={{ color: COLORS.muted, fontSize: 14 }}
+                          >
+                            {formatNum(s.prev.weight)} × {s.prev.reps}
+                          </NumMono>
+                          <Text
+                            style={{ color: COLORS.ghost, fontSize: 14 }}
+                          >
+                            →
+                          </Text>
+                          <NumMono
+                            style={{
+                              color: COLORS.text,
+                              fontSize: 14,
+                              fontWeight: '700',
+                            }}
+                          >
+                            {formatNum(s.curr.weight)} × {s.curr.reps}
+                          </NumMono>
+                        </>
+                      ) : (
+                        <NumMono
+                          style={{
+                            color: COLORS.text,
+                            fontSize: 14,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {formatNum(s.curr.weight)} × {s.curr.reps}
+                        </NumMono>
+                      )}
+                      {diff.text ? (
+                        <Text
+                          style={{
+                            color: diffColor,
+                            fontSize: 12,
+                            fontWeight: '700',
+                          }}
+                        >
+                          {diff.text}
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           ))}
         </View>
 
         <Pressable
           onPress={onShare}
-          className="mx-4 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-2xl py-4 items-center active:opacity-80"
+          style={{
+            marginHorizontal: 20,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 16,
+            paddingVertical: 14,
+            alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 8,
+          }}
         >
-          <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-            Share Workout
+          <Ionicons name="share-outline" size={16} color={COLORS.text} />
+          <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 14 }}>
+            Share workout
           </Text>
         </Pressable>
       </ScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 p-4 bg-black/95 border-t border-white/5">
-        <View className="flex-row gap-3">
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: 16,
+          backgroundColor: 'rgba(13,13,13,0.95)',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255,255,255,0.05)',
+        }}
+      >
+        <View style={{ flexDirection: 'row', gap: 10 }}>
           <Pressable
             onPress={onView}
-            className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-4 items-center active:opacity-80"
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
+              borderRadius: 16,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
           >
-            <Text className="text-white font-bold" style={{ fontSize: 15 }}>
-              View Workout
+            <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 15 }}>
+              View session
             </Text>
           </Pressable>
           <Pressable
             onPress={onDone}
-            style={{ backgroundColor: accent }}
-            className="flex-1 rounded-2xl py-4 items-center active:opacity-90"
+            style={{
+              flex: 1,
+              backgroundColor: COLORS.text,
+              borderRadius: 16,
+              paddingVertical: 14,
+              alignItems: 'center',
+            }}
           >
-            <Text className="text-black font-bold" style={{ fontSize: 15 }}>
+            <Text
+              style={{
+                color: COLORS.onAccent,
+                fontWeight: '800',
+                fontSize: 15,
+              }}
+            >
               Done
             </Text>
           </Pressable>
@@ -1892,15 +2052,46 @@ function WorkoutSummaryView({
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: string }) {
+function SummaryStat({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
   return (
-    <View className="flex-1 rounded-2xl bg-[#0D0D0D] border border-[#1F1F1F] p-4">
-      <Text className="text-zinc-500" style={{ fontSize: 12 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 11,
+          color: COLORS.subtle,
+          letterSpacing: -0.1,
+        }}
+      >
         {label}
       </Text>
-      <Text className="text-white font-bold mt-1" style={{ fontSize: 22 }}>
+      <NumMono
+        style={{
+          fontSize: 20,
+          fontWeight: '800',
+          color: valueColor ?? COLORS.text,
+          marginTop: 6,
+          letterSpacing: -0.3,
+        }}
+      >
         {value}
-      </Text>
+      </NumMono>
     </View>
   );
 }

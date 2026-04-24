@@ -218,7 +218,7 @@ export default function NewWorkoutScreen() {
         </Text>
       </View>
 
-      <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+      <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
         <Text className="text-white font-bold mb-3" style={{ fontSize: 14 }}>
           Workout name
         </Text>
@@ -232,7 +232,7 @@ export default function NewWorkoutScreen() {
         />
       </View>
 
-      <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+      <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
         <Text className="text-white font-bold" style={{ fontSize: 20 }}>
           Add Exercise
         </Text>
@@ -411,7 +411,7 @@ export default function NewWorkoutScreen() {
       </View>
 
       {drafts.length === 0 ? (
-        <View className="mx-5 bg-[#141414] rounded-2xl border border-[#1F1F1F] py-6 px-5 mb-3">
+        <View className="mx-5 bg-[#1A1A1A] rounded-2xl border border-[#1F1F1F] py-6 px-5 mb-3">
           <Text className="text-zinc-500 text-sm italic text-center">
             Add exercises from above to build your workout.
           </Text>
@@ -425,7 +425,7 @@ export default function NewWorkoutScreen() {
       <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
         <Pressable
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
         >
           <Ionicons name="close" size={18} color="#ffffff" />
         </Pressable>
@@ -488,7 +488,7 @@ function NumberField({
         onChangeText={onChange}
         keyboardType={keyboard ?? 'default'}
         placeholderTextColor="#52525B"
-        className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+        className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white"
         style={{ paddingVertical: 10, fontSize: 14 }}
       />
     </View>
@@ -539,7 +539,7 @@ function AdvancedSection({
                 onChangeText={(v) => patch({ tempo: v || undefined })}
                 placeholder="e.g. 3011"
                 placeholderTextColor="#52525B"
-                className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white"
                 style={{ paddingVertical: 10, fontSize: 14 }}
               />
             </View>
@@ -548,7 +548,7 @@ function AdvancedSection({
               className="flex-1 flex-row items-center px-3 rounded-xl"
               style={{
                 paddingVertical: 10,
-                backgroundColor: item.isDropSet ? 'rgba(34,197,94,0.15)' : '#141414',
+                backgroundColor: item.isDropSet ? 'rgba(34,197,94,0.15)' : '#1A1A1A',
                 borderWidth: 1,
                 borderColor: item.isDropSet ? LIME : '#1F1F1F',
               }}
@@ -588,7 +588,7 @@ function AdvancedSection({
                 }
                 className="px-3 py-1.5 rounded-full"
                 style={{
-                  backgroundColor: !item.groupType ? LIME : '#141414',
+                  backgroundColor: !item.groupType ? LIME : '#1A1A1A',
                   borderWidth: 1,
                   borderColor: !item.groupType ? LIME : '#1F1F1F',
                 }}
@@ -613,7 +613,7 @@ function AdvancedSection({
                     }
                     className="px-3 py-1.5 rounded-full"
                     style={{
-                      backgroundColor: active ? LIME : '#141414',
+                      backgroundColor: active ? LIME : '#1A1A1A',
                       borderWidth: 1,
                       borderColor: active ? LIME : '#1F1F1F',
                     }}
@@ -644,7 +644,7 @@ function AdvancedSection({
                   onChangeText={(v) => patch({ supersetGroup: v || undefined })}
                   placeholder="A"
                   placeholderTextColor="#52525B"
-                  className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                  className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white"
                   style={{ paddingVertical: 10, fontSize: 14 }}
                 />
               </View>
@@ -668,7 +668,7 @@ function AdvancedSection({
                     keyboardType="number-pad"
                     placeholder="60"
                     placeholderTextColor="#52525B"
-                    className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                    className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white"
                     style={{ paddingVertical: 10, fontSize: 14 }}
                   />
                 </View>
@@ -691,7 +691,7 @@ function AdvancedSection({
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
-              className="bg-[#141414] border rounded-xl px-3 text-white"
+              className="bg-[#1A1A1A] border rounded-xl px-3 text-white"
               style={{
                 paddingVertical: 10,
                 fontSize: 14,
@@ -711,7 +711,7 @@ function AdvancedSection({
             placeholder="Exercise note (grip, cue, etc.)"
             placeholderTextColor="#52525B"
             multiline
-            className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+            className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white"
             style={{ paddingVertical: 10, fontSize: 13, minHeight: 40 }}
           />
         </View>

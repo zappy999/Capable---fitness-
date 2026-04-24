@@ -14,6 +14,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { MUSCLE_COLORS } from '../../src/store/types';
+import {
+  COLORS,
+  MONO,
+  accentAlpha,
+} from '../../src/design/tokens';
+import {
+  Badge,
+  CardSm,
+  ModernHeader,
+  NavTop,
+  NumMono,
+} from '../../src/design/components';
 
 function formatDuration(seconds: number) {
   if (seconds <= 0) return '—';
@@ -24,10 +36,18 @@ function formatDuration(seconds: number) {
   return `${m}m`;
 }
 
+function friendlyDate(iso: string): string {
+  const parts = iso.slice(0, 10).split('-');
+  if (parts.length !== 3) return iso;
+  const [y, m, d] = parts.map(Number);
+  const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MONTH[m - 1]} ${d}`;
+}
+
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const LIME = useAccent();
+  const accent = useAccent();
   const {
     sessions,
     exercises,
@@ -37,7 +57,6 @@ export default function SessionDetailScreen() {
   } = useStore();
 
   const session = sessions.find((s) => s.id === id);
-
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
 
   const stats = useMemo(() => {
@@ -51,18 +70,30 @@ export default function SessionDetailScreen() {
       0,
     );
     const prs = personalRecords.filter((p) => p.sessionId === session.id);
-    return { totalSets, volume, prs };
+    let totalRestSeconds = 0; // not tracked yet; placeholder
+    const avgRest = totalSets > 1 ? totalRestSeconds / (totalSets - 1) : 0;
+    return { totalSets, volume, prs, avgRest };
   }, [session, personalRecords]);
 
   if (!session || !stats) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D] items-center justify-center">
-        <Text className="text-zinc-500">Session not found</Text>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Text style={{ color: COLORS.subtle }}>Session not found</Text>
         <Pressable
           onPress={() => router.back()}
-          className="mt-4 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10"
+          style={{
+            marginTop: 16,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+          }}
         >
-          <Text className="text-white font-bold">Go back</Text>
+          <Text style={{ color: COLORS.text, fontWeight: '700' }}>Go back</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -85,21 +116,27 @@ export default function SessionDetailScreen() {
   const displayNote = noteDraft !== null ? noteDraft : session.notes ?? '';
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top', 'bottom']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
-        <Pressable
-          onPress={handleDelete}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="trash-outline" size={16} color="#F87171" />
-        </Pressable>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
+      <NavTop
+        onBack={() => router.back()}
+        right={
+          <Pressable
+            onPress={handleDelete}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="trash-outline" size={16} color="#F87171" />
+          </Pressable>
+        }
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -110,43 +147,54 @@ export default function SessionDetailScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 40 }}
         >
-          <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-            <Text
-              className="font-bold text-black/70"
-              style={{ fontSize: 11, letterSpacing: 2 }}
-            >
-              SESSION · {session.date}
-            </Text>
-            <Text className="text-black font-bold mt-2" style={{ fontSize: 30 }}>
-              {session.workoutName}
-            </Text>
-            <View className="flex-row gap-4 mt-2">
-              <Text className="text-black/70 text-sm font-semibold">
-                {formatDuration(session.durationSeconds)}
-              </Text>
-              <Text className="text-black/70 text-sm font-semibold">
-                {session.exercises.length} exercise
-                {session.exercises.length === 1 ? '' : 's'}
-              </Text>
-              <Text className="text-black/70 text-sm font-semibold">
-                {stats.totalSets} sets
-              </Text>
-            </View>
-          </View>
+          <ModernHeader
+            eyebrow={`Session · ${friendlyDate(session.date)}`}
+            badge={stats.prs.length > 0 ? `${stats.prs.length} new PR${stats.prs.length === 1 ? '' : 's'}` : undefined}
+            title={session.workoutName}
+            sub={`${formatDuration(session.durationSeconds)} · ${session.exercises.length} exercise${session.exercises.length === 1 ? '' : 's'} · ${stats.totalSets} sets`}
+            accent={accent}
+            back
+            action={false}
+            dropMark
+          />
 
-          <View className="mx-5 mt-4 flex-row gap-3">
-            <StatBox label="Volume" value={`${Math.round(stats.volume)}kg`} />
-            <StatBox label="PRs" value={String(stats.prs.length)} />
+          {/* Stat row */}
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: 12,
+              paddingHorizontal: 20,
+              marginBottom: 12,
+            }}
+          >
+            <StatBox label="Volume" value={Math.round(stats.volume).toLocaleString()} suffix="kg" />
             <StatBox
-              label="Sets"
-              value={`${stats.totalSets}`}
+              label="PRs"
+              value={String(stats.prs.length)}
+              valueColor={stats.prs.length > 0 ? accent : COLORS.text}
             />
+            <StatBox label="Sets" value={String(stats.totalSets)} />
           </View>
 
-          <View className="mx-5 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5">
+          {/* Session note */}
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 12,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 20,
+              padding: 16,
+            }}
+          >
             <Text
-              className="text-zinc-500 font-bold"
-              style={{ fontSize: 11, letterSpacing: 1 }}
+              style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: COLORS.subtle,
+                letterSpacing: 1,
+              }}
             >
               SESSION NOTE
             </Text>
@@ -166,96 +214,136 @@ export default function SessionDetailScreen() {
                 setNoteDraft(null);
               }}
               placeholder="Tap to add a note"
-              placeholderTextColor="#52525B"
+              placeholderTextColor={COLORS.faint}
               multiline
-              className="mt-2 text-white"
-              style={{ fontSize: 14, minHeight: 40 }}
+              style={{
+                marginTop: 8,
+                fontSize: 14,
+                minHeight: 40,
+                color: COLORS.text,
+              }}
             />
           </View>
 
-          <View className="mx-5 mt-4 gap-3">
+          {/* Exercises */}
+          <View style={{ paddingHorizontal: 20, gap: 8 }}>
             {session.exercises.map((se, idx) => {
               const ex = exercises.find((e) => e.id === se.exerciseId);
               const color = ex?.category
                 ? MUSCLE_COLORS[ex.category]
-                : '#71717A';
+                : COLORS.subtle;
               const exPRs = stats.prs.filter(
                 (p) => p.exerciseId === se.exerciseId,
               );
+              const workingSets = se.sets;
               return (
-                <Pressable
+                <CardSm
                   key={se.id}
                   onPress={() =>
                     ex ? router.push(`/exercises/${ex.id}`) : undefined
                   }
-                  className="bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4 active:opacity-80"
                 >
-                  <View className="flex-row items-center">
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                     <View
-                      style={{ backgroundColor: color, width: 6, height: 24, borderRadius: 3, marginRight: 10 }}
+                      style={{
+                        width: 4,
+                        alignSelf: 'stretch',
+                        backgroundColor: color,
+                        borderRadius: 2,
+                        marginRight: 12,
+                      }}
                     />
-                    <View className="flex-1">
-                      <View className="flex-row items-center gap-2">
-                        <Text
-                          className="text-zinc-500"
-                          style={{ fontSize: 11 }}
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <NumMono
+                          style={{ fontSize: 11, color: COLORS.subtle, fontWeight: '700' }}
                         >
                           {idx + 1}.
-                        </Text>
+                        </NumMono>
                         <Text
-                          className="text-white font-bold"
-                          style={{ fontSize: 16 }}
+                          style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }}
                         >
                           {ex?.name ?? 'Exercise'}
                         </Text>
                         {exPRs.length > 0 ? (
-                          <View
-                            className="px-1.5 py-0.5 rounded-full flex-row items-center"
-                            style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
-                          >
-                            <Ionicons name="trophy" size={10} color={LIME} />
-                            <Text
-                              className="font-bold ml-1"
-                              style={{ color: LIME, fontSize: 10, letterSpacing: 0.5 }}
-                            >
-                              PR
-                            </Text>
-                          </View>
+                          <Badge accent={accent}>
+                            <Ionicons name="trophy" size={9} color={accent} />
+                            {'  '}PR
+                          </Badge>
                         ) : null}
                       </View>
-                      <Text className="text-zinc-500 text-xs mt-0.5">
-                        {se.sets.length} set{se.sets.length === 1 ? '' : 's'}
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: COLORS.subtle,
+                          marginTop: 2,
+                        }}
+                      >
+                        {workingSets.length} set
+                        {workingSets.length === 1 ? '' : 's'}
                       </Text>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                          gap: 6,
+                          marginTop: 10,
+                        }}
+                      >
+                        {workingSets.map((s, i) => {
+                          const isPR = exPRs.some(
+                            (p) => p.weight === s.weight && p.reps === s.reps,
+                          );
+                          return (
+                            <View
+                              key={i}
+                              style={{
+                                backgroundColor: isPR
+                                  ? accentAlpha(accent, 0.133)
+                                  : COLORS.bg,
+                                borderWidth: 1,
+                                borderColor: isPR
+                                  ? accentAlpha(accent, 0.22)
+                                  : COLORS.border,
+                                borderRadius: 10,
+                                paddingVertical: 5,
+                                paddingHorizontal: 10,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <NumMono
+                                style={{ fontSize: 13, fontWeight: '700', color: COLORS.text }}
+                              >
+                                {s.weight}
+                                <Text style={{ color: COLORS.subtle }}> × {s.reps}</Text>
+                              </NumMono>
+                              {isPR ? (
+                                <Ionicons name="trophy" size={10} color={accent} />
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                      </View>
+                      {se.note ? (
+                        <Text
+                          style={{
+                            color: COLORS.muted,
+                            fontStyle: 'italic',
+                            fontSize: 12,
+                            marginTop: 10,
+                          }}
+                        >
+                          {se.note}
+                        </Text>
+                      ) : null}
                     </View>
                     {ex ? (
-                      <Ionicons name="chevron-forward" size={16} color="#3F3F46" />
+                      <Ionicons name="chevron-forward" size={14} color={COLORS.ghost} />
                     ) : null}
                   </View>
-                  <View className="flex-row flex-wrap gap-1.5 mt-3 ml-4">
-                    {se.sets.map((s, i) => (
-                      <View
-                        key={i}
-                        className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-xl px-3 py-1.5"
-                      >
-                        <Text className="text-white text-sm font-semibold">
-                          {s.weight} × {s.reps}
-                        </Text>
-                        {s.rpe != null || s.rir != null ? (
-                          <Text className="text-zinc-500 text-[10px] mt-0.5">
-                            {s.rpe != null ? `RPE ${s.rpe}` : ''}
-                            {s.rpe != null && s.rir != null ? ' · ' : ''}
-                            {s.rir != null ? `RIR ${s.rir}` : ''}
-                          </Text>
-                        ) : null}
-                      </View>
-                    ))}
-                  </View>
-                  {se.note ? (
-                    <Text className="text-zinc-400 italic text-xs mt-3 ml-4">
-                      {se.note}
-                    </Text>
-                  ) : null}
-                </Pressable>
+                </CardSm>
               );
             })}
           </View>
@@ -265,13 +353,48 @@ export default function SessionDetailScreen() {
   );
 }
 
-function StatBox({ label, value }: { label: string; value: string }) {
+function StatBox({
+  label,
+  value,
+  suffix,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  valueColor?: string;
+}) {
   return (
-    <View className="flex-1 bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4">
-      <Text className="text-zinc-500 text-xs">{label}</Text>
-      <Text className="text-white font-bold mt-1" style={{ fontSize: 20 }}>
-        {value}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+      }}
+    >
+      <Text style={{ fontSize: 11, color: COLORS.subtle, letterSpacing: -0.1 }}>
+        {label}
       </Text>
+      <NumMono
+        style={{
+          fontSize: 18,
+          fontWeight: '800',
+          color: valueColor ?? COLORS.text,
+          marginTop: 6,
+          letterSpacing: -0.3,
+        }}
+      >
+        {value}
+        {suffix ? (
+          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.muted }}>
+            {' '}
+            {suffix}
+          </Text>
+        ) : null}
+      </NumMono>
     </View>
   );
 }

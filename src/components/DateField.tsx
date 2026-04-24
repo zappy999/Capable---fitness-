@@ -93,7 +93,7 @@ export function DateField({ label, value, onChange, placeholder = 'Not set' }: D
             <Pressable
               onPress={(e) => e.stopPropagation()}
               style={{
-                backgroundColor: '#141414',
+                backgroundColor: '#1A1A1A',
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
                 padding: 16,

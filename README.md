@@ -56,6 +56,16 @@ The application will start and display the local URL / QR code in your terminal.
 
 Press `Ctrl+C` in the terminal (twice if it doesn't stop on the first try).
 
+## Daily dev loop (Windows)
+
+To pop open a fresh terminal window that's already `cd`'d into the project and running the dev server:
+
+```bash
+start cmd /k "cd /d C:\Users\tom99\Capable---fitness- && npm start"
+```
+
+Fast Refresh is on — save a file under `app/` or `src/` and the running app reloads automatically. Press `r` in the dev-server window to force a full reload. Only run one dev server at a time (they'll fight over the same port).
+
 ## Pulling the Latest Changes
 
 ```bash

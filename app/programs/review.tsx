@@ -246,7 +246,7 @@ export default function ReviewImportScreen() {
       <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
         <Pressable
           onPress={handleCancel}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
         >
           <Ionicons name="close" size={18} color="#ffffff" />
         </Pressable>
@@ -369,7 +369,7 @@ export default function ReviewImportScreen() {
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: '#141414',
+              backgroundColor: '#1A1A1A',
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               padding: 16,
@@ -419,7 +419,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+    <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
       <Text className="text-white font-bold mb-3" style={{ fontSize: 18 }}>
         {title}
       </Text>
@@ -457,7 +457,7 @@ function WorkoutBlock({
   onSwap: (exId: string) => void;
 }) {
   return (
-    <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+    <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
       <View className="flex-row items-center gap-3 mb-3">
         <Text
           className="text-zinc-500 font-bold"
@@ -620,7 +620,7 @@ function TinyField({
         value={value}
         onChangeText={onChange}
         keyboardType={numeric ? 'number-pad' : 'default'}
-        className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white text-center"
+        className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-xl px-3 text-white text-center"
         style={{ paddingVertical: 8, fontSize: 13 }}
       />
     </View>

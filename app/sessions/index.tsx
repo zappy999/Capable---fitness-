@@ -52,7 +52,7 @@ export default function SessionsIndexScreen() {
       <View className="px-5 pt-2 pb-2 flex-row items-center">
         <PressableScale
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center"
+          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center"
         >
           <Ionicons name="chevron-back" size={18} color="#ffffff" />
         </PressableScale>
@@ -81,7 +81,7 @@ export default function SessionsIndexScreen() {
         </View>
 
         {sessions.length === 0 ? (
-          <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] py-10 px-6 items-center">
+          <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] py-10 px-6 items-center">
             <View className="w-12 h-12 rounded-2xl bg-[#1F1F1F] items-center justify-center mb-3">
               <Ionicons name="time-outline" size={22} color="#71717A" />
             </View>
@@ -116,7 +116,7 @@ export default function SessionsIndexScreen() {
                     >
                     <PressableScale
                       onPress={() => router.push(`/sessions/${s.id}`)}
-                      className="bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4 flex-row items-center gap-3"
+                      className="bg-[#1A1A1A] border border-[#1F1F1F] rounded-2xl p-4 flex-row items-center gap-3"
                     >
                       <View
                         className="w-11 h-11 rounded-xl items-center justify-center"
