@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, TextInput, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Alert,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -1403,32 +1414,45 @@ export default function StartWorkoutScreen() {
         visible={noteEditOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setNoteEditOpen(false)}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setNoteEditOpen(false);
+        }}
       >
-        <Pressable
-          onPress={() => setNoteEditOpen(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            justifyContent: 'flex-end',
-          }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
         >
           <Pressable
-            onPress={(e) => e.stopPropagation()}
+            onPress={() => {
+              Keyboard.dismiss();
+              setNoteEditOpen(false);
+            }}
             style={{
-              backgroundColor: '#141414',
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 20,
-              paddingBottom: 32,
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              justifyContent: 'flex-end',
             }}
           >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#141414',
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                padding: 20,
+                paddingBottom: 32,
+              }}
+            >
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-white font-bold" style={{ fontSize: 18 }}>
                 {active.name} note
               </Text>
               <Pressable
-                onPress={() => setNoteEditOpen(false)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setNoteEditOpen(false);
+                }}
                 className="w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
               >
                 <Ionicons name="close" size={16} color="#ffffff" />
@@ -1453,6 +1477,7 @@ export default function StartWorkoutScreen() {
               {active.note ? (
                 <Pressable
                   onPress={() => {
+                    Keyboard.dismiss();
                     setExercises((prev) =>
                       prev.map((e, i) =>
                         i === activeIdx ? { ...e, note: undefined } : e,
@@ -1469,7 +1494,10 @@ export default function StartWorkoutScreen() {
               ) : null}
               <View className="flex-1" />
               <Pressable
-                onPress={() => setNoteEditOpen(false)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setNoteEditOpen(false);
+                }}
                 className="px-5 py-3 rounded-2xl bg-white/5 border border-white/10 active:opacity-80"
               >
                 <Text className="text-white font-bold" style={{ fontSize: 14 }}>
@@ -1478,6 +1506,7 @@ export default function StartWorkoutScreen() {
               </Pressable>
               <Pressable
                 onPress={() => {
+                  Keyboard.dismiss();
                   const trimmed = noteDraft.trim();
                   setExercises((prev) =>
                     prev.map((e, i) =>
@@ -1498,6 +1527,7 @@ export default function StartWorkoutScreen() {
             </View>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
