@@ -1,7 +1,9 @@
 import { Keyboard, Linking, Platform, Share, type ShareContent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
-import * as FileSystem from 'expo-file-system';
+// Use the legacy FS API: the v19 default entry no longer exposes
+// cacheDirectory / EncodingType / writeAsStringAsync.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 export function isSafeHttpUrl(url: string | undefined | null): boolean {
