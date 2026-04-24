@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { PressableScale } from '../../src/components/PressableScale';
 import {
   EXERCISE_CATEGORIES,
   MUSCLE_COLORS,
@@ -13,6 +22,65 @@ import {
 
 type Tab = 'Program' | 'Workout' | 'Exercise';
 const TABS: Tab[] = ['Program', 'Workout', 'Exercise'];
+
+function SegmentedTabs({
+  tabs,
+  active,
+  onChange,
+  activeColor,
+}: {
+  tabs: Tab[];
+  active: Tab;
+  onChange: (t: Tab) => void;
+  activeColor: string;
+}) {
+  const activeIdx = tabs.indexOf(active);
+  const offset = useSharedValue(activeIdx);
+  useEffect(() => {
+    offset.value = withSpring(activeIdx, { damping: 22, stiffness: 200 });
+  }, [activeIdx, offset]);
+  const indicatorStyle = useAnimatedStyle(() => ({
+    left: `${(offset.value / tabs.length) * 100}%`,
+  }));
+  return (
+    <View
+      className="flex-row rounded-full p-1 relative"
+      style={{ backgroundColor: '#141414', borderWidth: 1, borderColor: '#1F1F1F' }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: 4,
+            bottom: 4,
+            width: `${100 / tabs.length}%`,
+            backgroundColor: activeColor,
+            borderRadius: 9999,
+          },
+          indicatorStyle,
+        ]}
+      />
+      {tabs.map((t) => {
+        const isActive = t === active;
+        return (
+          <Pressable
+            key={t}
+            onPress={() => onChange(t)}
+            className="flex-1 py-2.5 items-center"
+          >
+            <Text
+              className="text-sm font-bold"
+              style={{ color: isActive ? '#0A0A0A' : '#ffffff' }}
+            >
+              {t}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
 
 function isTab(v: string | undefined): v is Tab {
   return v !== undefined && (TABS as string[]).includes(v);
@@ -57,30 +125,12 @@ export default function ProgramHubScreen() {
         <HeaderCard eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle} />
 
         <View className="px-5 mt-4 mb-4">
-          <View className="flex-row flex-wrap gap-2">
-            {TABS.map((t) => {
-              const active = t === tab;
-              return (
-                <Pressable
-                  key={t}
-                  onPress={() => setTab(t)}
-                  className="px-5 py-2.5 rounded-full"
-                  style={{
-                    backgroundColor: active ? LIME : '#141414',
-                    borderWidth: 1,
-                    borderColor: active ? LIME : '#1F1F1F',
-                  }}
-                >
-                  <Text
-                    className="text-sm font-bold"
-                    style={{ color: active ? '#0A0A0A' : '#ffffff' }}
-                  >
-                    {t}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <SegmentedTabs
+            tabs={TABS}
+            active={tab}
+            onChange={setTab}
+            activeColor={LIME}
+          />
         </View>
 
         {tab === 'Program' ? <ProgramsTab /> : null}
@@ -146,11 +196,16 @@ function ProgramsTab() {
       ) : (
         <View className="px-5 gap-3">
           {programs.map((p, idx) => (
-            <Pressable
+            <Animated.View
               key={p.id}
+              entering={FadeIn.duration(220)}
+              exiting={FadeOut.duration(180)}
+              layout={LinearTransition.springify().damping(18)}
+            >
+            <PressableScale
               onPress={() => router.push(`/programs/${p.id}`)}
               onLongPress={() => deleteProgram(p.id)}
-              className="bg-[#141414] rounded-3xl border border-[#1F1F1F] p-4 active:opacity-80"
+              className="bg-[#141414] rounded-3xl border border-[#1F1F1F] p-4"
             >
               <View className="flex-row items-center gap-4">
                 <View className="w-14 h-14 rounded-2xl items-center justify-center bg-[#1F1F1F]">
@@ -203,7 +258,8 @@ function ProgramsTab() {
                   <Badge label="PRESET" color="#60A5FA" />
                 )}
               </View>
-            </Pressable>
+            </PressableScale>
+            </Animated.View>
           ))}
         </View>
       )}
@@ -252,11 +308,16 @@ function WorkoutsTab() {
           {ordered.map((w) => {
             const isActive = activeIds.has(w.id);
             return (
-              <Pressable
+              <Animated.View
                 key={w.id}
+                entering={FadeIn.duration(220)}
+                exiting={FadeOut.duration(180)}
+                layout={LinearTransition.springify().damping(18)}
+              >
+              <PressableScale
                 onPress={() => router.push(`/workouts/${w.id}`)}
                 onLongPress={() => deleteWorkout(w.id)}
-                className="bg-[#141414] rounded-2xl p-4 flex-row items-center gap-4 active:opacity-80"
+                className="bg-[#141414] rounded-2xl p-4 flex-row items-center gap-4"
                 style={{
                   borderWidth: 1,
                   borderColor: isActive ? `${LIME}66` : '#1F1F1F',
@@ -277,7 +338,8 @@ function WorkoutsTab() {
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-              </Pressable>
+              </PressableScale>
+              </Animated.View>
             );
           })}
         </View>

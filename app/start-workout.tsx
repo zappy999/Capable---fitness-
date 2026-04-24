@@ -36,7 +36,10 @@ function parseRestSeconds(rest: string, fallback = 90): number {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
+  FadeIn,
+  FadeOut,
   interpolate,
+  LinearTransition,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -470,6 +473,43 @@ function formatRest(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function RestProgressBar({
+  restRemaining,
+  restTotal,
+  color,
+}: {
+  restRemaining: number;
+  restTotal: number | null;
+  color: string;
+}) {
+  const progress = useSharedValue(
+    restTotal ? restRemaining / restTotal : 0,
+  );
+  useEffect(() => {
+    const target = restTotal ? Math.max(0, restRemaining / restTotal) : 0;
+    // ~1s tween matches the 1Hz countdown tick so the bar drains smoothly
+    // rather than stepping.
+    progress.value = withTiming(target, { duration: 950 });
+  }, [restRemaining, restTotal, progress]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+  return (
+    <View className="h-1 bg-white/10 rounded-full overflow-hidden">
+      <Animated.View
+        style={[
+          {
+            height: '100%',
+            backgroundColor: color,
+            borderRadius: 9999,
+          },
+          animatedStyle,
+        ]}
+      />
+    </View>
+  );
+}
+
 type SourceKind = 'user' | 'demo' | 'fallback';
 
 function resolveSource(
@@ -564,6 +604,7 @@ export default function StartWorkoutScreen() {
   const [hydrating, setHydrating] = useState(true);
   const [activeIdx, setActiveIdx] = useState(0);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const [restTotal, setRestTotal] = useState<number | null>(null);
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
@@ -779,6 +820,7 @@ export default function StartWorkoutScreen() {
     if (restRemaining <= 0) {
       haptic('success');
       setRestRemaining(null);
+      setRestTotal(null);
       setRestNotificationId(null);
       return;
     }
@@ -841,6 +883,7 @@ export default function StartWorkoutScreen() {
   const startRest = (seconds: number) => {
     if (seconds <= 0) return;
     setRestRemaining(seconds);
+    setRestTotal(seconds);
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
     scheduleRestNotification(seconds, 'Ready for your next set').then((id) => {
@@ -850,6 +893,7 @@ export default function StartWorkoutScreen() {
 
   const stopRest = () => {
     setRestRemaining(null);
+    setRestTotal(null);
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
   };
@@ -1125,22 +1169,28 @@ export default function StartWorkoutScreen() {
 
           <View className="mt-4 gap-3">
             {active.sets.map((set, i) => (
-              <SwipeableSetCard
+              <Animated.View
                 key={`${active.id}-${i}`}
-                set={set}
-                setIdx={i}
-                isNext={i === nextSetIdx}
-                isDone={set.completed}
-                onDecWeight={() =>
-                  updateSet(activeIdx, i, { weight: Math.max(0, set.weight - 2.5) })
-                }
-                onIncWeight={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
-                onDecReps={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
-                onIncReps={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
-                onChangeWeight={(weight) => updateSet(activeIdx, i, { weight })}
-                onChangeReps={(reps) => updateSet(activeIdx, i, { reps })}
-                onComplete={() => completeSet(activeIdx, i)}
-              />
+                entering={FadeIn.springify().damping(18)}
+                exiting={FadeOut.duration(180)}
+                layout={LinearTransition.springify().damping(18)}
+              >
+                <SwipeableSetCard
+                  set={set}
+                  setIdx={i}
+                  isNext={i === nextSetIdx}
+                  isDone={set.completed}
+                  onDecWeight={() =>
+                    updateSet(activeIdx, i, { weight: Math.max(0, set.weight - 2.5) })
+                  }
+                  onIncWeight={() => updateSet(activeIdx, i, { weight: set.weight + 2.5 })}
+                  onDecReps={() => updateSet(activeIdx, i, { reps: Math.max(0, set.reps - 1) })}
+                  onIncReps={() => updateSet(activeIdx, i, { reps: set.reps + 1 })}
+                  onChangeWeight={(weight) => updateSet(activeIdx, i, { weight })}
+                  onChangeReps={(reps) => updateSet(activeIdx, i, { reps })}
+                  onComplete={() => completeSet(activeIdx, i)}
+                />
+              </Animated.View>
             ))}
 
             <Pressable
@@ -1251,28 +1301,38 @@ export default function StartWorkoutScreen() {
 
       <View className="absolute bottom-0 left-0 right-0 bg-black border-t border-white/10 pt-3 pb-6 px-4">
         {restRemaining !== null ? (
-          <View className="flex-row items-center justify-center gap-2 mb-3">
-            <Text className="font-bold" style={{ color: NEON, fontSize: 15 }}>
-              Rest: {formatRest(restRemaining)}
-            </Text>
-            <Pressable
-              onPress={() => setRestRemaining((r) => (r === null ? null : r + 30))}
-              className="px-3 py-1.5 rounded-full active:opacity-70"
-              style={{ borderWidth: 1, borderColor: NEON }}
-            >
-              <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
-                +30s
+          <View className="mb-3">
+            <View className="flex-row items-center justify-center gap-2 mb-2">
+              <Text className="font-bold" style={{ color: NEON, fontSize: 15 }}>
+                Rest: {formatRest(restRemaining)}
               </Text>
-            </Pressable>
-            <Pressable
-              onPress={stopRest}
-              className="px-3 py-1.5 rounded-full active:opacity-70"
-              style={{ borderWidth: 1, borderColor: NEON }}
-            >
-              <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
-                Skip
-              </Text>
-            </Pressable>
+              <Pressable
+                onPress={() => {
+                  setRestRemaining((r) => (r === null ? null : r + 30));
+                  setRestTotal((t) => (t === null ? null : t + 30));
+                }}
+                className="px-3 py-1.5 rounded-full active:opacity-70"
+                style={{ borderWidth: 1, borderColor: NEON }}
+              >
+                <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
+                  +30s
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={stopRest}
+                className="px-3 py-1.5 rounded-full active:opacity-70"
+                style={{ borderWidth: 1, borderColor: NEON }}
+              >
+                <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
+                  Skip
+                </Text>
+              </Pressable>
+            </View>
+            <RestProgressBar
+              restRemaining={restRemaining}
+              restTotal={restTotal}
+              color={NEON}
+            />
           </View>
         ) : (
           <View className="flex-row items-center justify-center mb-3">

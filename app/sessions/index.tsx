@@ -1,5 +1,11 @@
 import { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from 'react-native-reanimated';
+import { PressableScale } from '../../src/components/PressableScale';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -44,12 +50,12 @@ export default function SessionsIndexScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
       <View className="px-5 pt-2 pb-2 flex-row items-center">
-        <Pressable
+        <PressableScale
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center"
         >
           <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
+        </PressableScale>
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -102,10 +108,15 @@ export default function SessionsIndexScreen() {
                     0,
                   );
                   return (
-                    <Pressable
+                    <Animated.View
                       key={s.id}
+                      entering={FadeIn.duration(220)}
+                      exiting={FadeOut.duration(180)}
+                      layout={LinearTransition.springify().damping(18)}
+                    >
+                    <PressableScale
                       onPress={() => router.push(`/sessions/${s.id}`)}
-                      className="bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4 flex-row items-center gap-3 active:opacity-80"
+                      className="bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4 flex-row items-center gap-3"
                     >
                       <View
                         className="w-11 h-11 rounded-xl items-center justify-center"
@@ -134,7 +145,8 @@ export default function SessionsIndexScreen() {
                         size={16}
                         color="#3F3F46"
                       />
-                    </Pressable>
+                    </PressableScale>
+                    </Animated.View>
                   );
                 })}
               </View>

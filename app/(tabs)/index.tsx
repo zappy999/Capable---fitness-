@@ -7,6 +7,8 @@ import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
 import { triggerBackupShare } from '../../src/lib/backup';
+import { PressableScale } from '../../src/components/PressableScale';
+import { AnimatedNumber } from '../../src/components/AnimatedNumber';
 
 const DAY_MS = 86_400_000;
 const BACKUP_STALE_AFTER_DAYS = 30;
@@ -198,9 +200,9 @@ export default function HomeScreen() {
                   : "You haven't backed up yet. Save a copy of your progress."}
               </Text>
               <View className="flex-row gap-2 mt-2">
-                <Pressable
+                <PressableScale
                   onPress={handleBackupNow}
-                  className="px-3 py-1.5 rounded-lg active:opacity-70"
+                  className="px-3 py-1.5 rounded-lg"
                   style={{ backgroundColor: '#EAB308' }}
                 >
                   <Text
@@ -209,10 +211,10 @@ export default function HomeScreen() {
                   >
                     Back up now
                   </Text>
-                </Pressable>
-                <Pressable
+                </PressableScale>
+                <PressableScale
                   onPress={handleDismissBackup}
-                  className="px-3 py-1.5 rounded-lg bg-white/5 active:opacity-70"
+                  className="px-3 py-1.5 rounded-lg bg-white/5"
                 >
                   <Text
                     className="font-semibold text-zinc-400"
@@ -220,7 +222,7 @@ export default function HomeScreen() {
                   >
                     Later
                   </Text>
-                </Pressable>
+                </PressableScale>
               </View>
             </View>
           </View>
@@ -233,7 +235,11 @@ export default function HomeScreen() {
                 <Ionicons name="flame" size={18} color={GREEN} />
                 <Text className="text-zinc-500 text-sm font-semibold" style={{ letterSpacing: 1.2 }}>CURRENT STREAK</Text>
               </View>
-              <Text className="text-white text-4xl font-bold">{streak} days</Text>
+              <AnimatedNumber
+                value={streak}
+                className="text-white text-4xl font-bold"
+                format={(n) => `${n} days`}
+              />
               <Text className="text-zinc-500 text-sm mt-1">
                 {streak === 0 ? 'Log a workout to start a streak.' : 'Keep it up!'}
               </Text>
@@ -247,17 +253,28 @@ export default function HomeScreen() {
         <View className="px-5 flex-row gap-3 mb-5">
           <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
             <Ionicons name="time-outline" size={20} color={GREEN} />
-            <Text className="text-white text-xl font-bold mt-2">{totalMinutes}m</Text>
+            <AnimatedNumber
+              value={totalMinutes}
+              className="text-white text-xl font-bold mt-2"
+              format={(n) => `${n}m`}
+            />
             <Text className="text-zinc-500 text-xs">This week</Text>
           </View>
           <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
             <Ionicons name="checkmark-circle-outline" size={20} color={GREEN} />
-            <Text className="text-white text-xl font-bold mt-2">{activeDays}/7</Text>
+            <AnimatedNumber
+              value={activeDays}
+              className="text-white text-xl font-bold mt-2"
+              format={(n) => `${n}/7`}
+            />
             <Text className="text-zinc-500 text-xs">Active days</Text>
           </View>
           <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
             <Ionicons name="barbell-outline" size={20} color={GREEN} />
-            <Text className="text-white text-xl font-bold mt-2">{sessions.length}</Text>
+            <AnimatedNumber
+              value={sessions.length}
+              className="text-white text-xl font-bold mt-2"
+            />
             <Text className="text-zinc-500 text-xs">Sessions</Text>
           </View>
         </View>
@@ -270,9 +287,9 @@ export default function HomeScreen() {
                 Ready to crush it?
               </Text>
             </View>
-            <Pressable
+            <PressableScale
               onPress={() => router.push(`/workouts/${todaysWorkout.id}`)}
-              className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 active:opacity-90"
+              className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5"
             >
               <View className="flex-row items-start justify-between mb-3">
                 <View className="flex-1">
@@ -301,7 +318,7 @@ export default function HomeScreen() {
                   <Ionicons name="play" size={20} color="#000" />
                 </View>
               </View>
-            </Pressable>
+            </PressableScale>
           </>
         ) : (
           <>
@@ -317,9 +334,9 @@ export default function HomeScreen() {
                     : 'Pick up where you left off.'}
               </Text>
             </View>
-            <Pressable
+            <PressableScale
               onPress={() => router.push(`/workouts/${suggestion.workout.id}`)}
-              className="mx-5 bg-[#141414] rounded-3xl p-5 active:opacity-90"
+              className="mx-5 bg-[#141414] rounded-3xl p-5"
               style={{
                 borderWidth: 1,
                 borderColor: suggestion.program ? `${GREEN}55` : '#1F1F1F',
@@ -359,7 +376,7 @@ export default function HomeScreen() {
                   <Ionicons name="play" size={20} color="#000" />
                 </View>
               </View>
-            </Pressable>
+            </PressableScale>
           </>
         )}
 
@@ -374,10 +391,10 @@ export default function HomeScreen() {
               contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
             >
               {workouts.slice(0, 8).map((w) => (
-                <Pressable
+                <PressableScale
                   key={w.id}
                   onPress={() => router.push(`/workouts/${w.id}`)}
-                  className="w-44 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] active:opacity-80"
+                  className="w-44 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]"
                 >
                   <View
                     style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
@@ -391,7 +408,7 @@ export default function HomeScreen() {
                   <Text className="text-zinc-500 text-xs mt-0.5">
                     {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </ScrollView>
           </>
