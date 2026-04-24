@@ -1,49 +1,120 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { PressableScale } from '../../src/components/PressableScale';
 import {
   EXERCISE_CATEGORIES,
   MUSCLE_COLORS,
   type ExerciseCategory,
   type WorkoutSession,
 } from '../../src/store/types';
-import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
 
-const NEON = '#22C55E';
-const LIME = '#C6F24E';
+type Tab = 'Program' | 'Workout' | 'Exercise';
+const TABS: Tab[] = ['Program', 'Workout', 'Exercise'];
 
-type Tab = 'Programs' | 'History' | 'Exercises' | 'Discover';
-const TABS: Tab[] = ['Programs', 'History', 'Exercises', 'Discover'];
+function SegmentedTabs({
+  tabs,
+  active,
+  onChange,
+  activeColor,
+}: {
+  tabs: Tab[];
+  active: Tab;
+  onChange: (t: Tab) => void;
+  activeColor: string;
+}) {
+  const activeIdx = tabs.indexOf(active);
+  const offset = useSharedValue(activeIdx);
+  useEffect(() => {
+    offset.value = withSpring(activeIdx, { damping: 22, stiffness: 200 });
+  }, [activeIdx, offset]);
+  const indicatorStyle = useAnimatedStyle(() => ({
+    left: `${(offset.value / tabs.length) * 100}%`,
+  }));
+  return (
+    <View
+      className="flex-row rounded-full p-1 relative"
+      style={{ backgroundColor: '#141414', borderWidth: 1, borderColor: '#1F1F1F' }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            top: 4,
+            bottom: 4,
+            width: `${100 / tabs.length}%`,
+            backgroundColor: activeColor,
+            borderRadius: 9999,
+          },
+          indicatorStyle,
+        ]}
+      />
+      {tabs.map((t) => {
+        const isActive = t === active;
+        return (
+          <Pressable
+            key={t}
+            onPress={() => onChange(t)}
+            className="flex-1 py-2.5 items-center"
+          >
+            <Text
+              className="text-sm font-bold"
+              style={{ color: isActive ? '#0A0A0A' : '#ffffff' }}
+            >
+              {t}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function isTab(v: string | undefined): v is Tab {
+  return v !== undefined && (TABS as string[]).includes(v);
+}
 
 const TAB_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string }> = {
-  Programs: {
-    eyebrow: 'WORKOUT',
+  Program: {
+    eyebrow: 'PROGRAM',
     title: 'Programs',
-    subtitle: 'Preview first, then start.',
+    subtitle: 'Group workouts into a training block.',
   },
-  History: {
-    eyebrow: 'WORKOUT',
-    title: 'History',
-    subtitle: 'Sessions you have logged.',
+  Workout: {
+    eyebrow: 'PROGRAM',
+    title: 'Workouts',
+    subtitle: 'Individual sessions you can add to programs.',
   },
-  Exercises: {
-    eyebrow: 'EXERCISES',
+  Exercise: {
+    eyebrow: 'PROGRAM',
     title: 'Exercise History',
-    subtitle: 'All tracked movements, grouped by muscle.',
-  },
-  Discover: {
-    eyebrow: 'WORKOUT',
-    title: 'Discover',
-    subtitle: 'Starter workouts you can try.',
+    subtitle: 'All tracked movements, grouped by muscle group.',
   },
 };
 
-export default function WorkoutHubScreen() {
-  const [tab, setTab] = useState<Tab>('Programs');
+export default function ProgramHubScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: Tab = isTab(params.tab) ? params.tab : 'Program';
+  const [tab, setTab] = useState<Tab>(initialTab);
+  useEffect(() => {
+    if (isTab(params.tab) && params.tab !== tab) {
+      setTab(params.tab);
+    }
+  }, [params.tab]);
   const copy = TAB_COPY[tab];
+  const LIME = useAccent();
 
   return (
     <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
@@ -54,36 +125,17 @@ export default function WorkoutHubScreen() {
         <HeaderCard eyebrow={copy.eyebrow} title={copy.title} subtitle={copy.subtitle} />
 
         <View className="px-5 mt-4 mb-4">
-          <View className="flex-row flex-wrap gap-2">
-            {TABS.map((t) => {
-              const active = t === tab;
-              return (
-                <Pressable
-                  key={t}
-                  onPress={() => setTab(t)}
-                  className="px-5 py-2.5 rounded-full"
-                  style={{
-                    backgroundColor: active ? LIME : '#141414',
-                    borderWidth: 1,
-                    borderColor: active ? LIME : '#1F1F1F',
-                  }}
-                >
-                  <Text
-                    className="text-sm font-bold"
-                    style={{ color: active ? '#0A0A0A' : '#ffffff' }}
-                  >
-                    {t}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <SegmentedTabs
+            tabs={TABS}
+            active={tab}
+            onChange={setTab}
+            activeColor={LIME}
+          />
         </View>
 
-        {tab === 'Programs' ? <ProgramsTab /> : null}
-        {tab === 'History' ? <HistoryTab /> : null}
-        {tab === 'Exercises' ? <ExercisesTab /> : null}
-        {tab === 'Discover' ? <DiscoverTab /> : null}
+        {tab === 'Program' ? <ProgramsTab /> : null}
+        {tab === 'Workout' ? <WorkoutsTab /> : null}
+        {tab === 'Exercise' ? <ExercisesTab /> : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -98,34 +150,30 @@ function HeaderCard({
   title: string;
   subtitle: string;
 }) {
+  const LIME = useAccent();
   return (
     <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-3">
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            {eyebrow}
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 36 }}>
-            {title}
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            {subtitle}
-          </Text>
-        </View>
-        <View className="w-10 h-10 rounded-2xl items-center justify-center bg-black/20">
-          <Ionicons name="settings-sharp" size={18} color="#0A0A0A" />
-        </View>
-      </View>
+      <Text
+        className="font-bold text-black/70"
+        style={{ fontSize: 11, letterSpacing: 2 }}
+      >
+        {eyebrow}
+      </Text>
+      <Text className="text-black font-bold mt-2" style={{ fontSize: 36 }}>
+        {title}
+      </Text>
+      <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
+        {subtitle}
+      </Text>
     </View>
   );
 }
 
 function ProgramsTab() {
   const router = useRouter();
-  const { programs, workouts, setActiveProgram, deleteProgram } = useStore();
+  const { programs, setActiveProgram, deleteProgram } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   return (
     <>
@@ -133,6 +181,11 @@ function ProgramsTab() {
         title="Your programs"
         subtitle="Tap a program to see its workouts."
         action={{ label: '+ Create', onPress: () => router.push('/programs/new') }}
+        secondaryAction={{
+          label: 'Import',
+          icon: 'cloud-upload-outline',
+          onPress: () => router.push('/programs/import'),
+        }}
       />
       {programs.length === 0 ? (
         <EmptyState
@@ -143,11 +196,16 @@ function ProgramsTab() {
       ) : (
         <View className="px-5 gap-3">
           {programs.map((p, idx) => (
-            <Pressable
+            <Animated.View
               key={p.id}
+              entering={FadeIn.duration(220)}
+              exiting={FadeOut.duration(180)}
+              layout={LinearTransition.springify().damping(18)}
+            >
+            <PressableScale
               onPress={() => router.push(`/programs/${p.id}`)}
               onLongPress={() => deleteProgram(p.id)}
-              className="bg-[#141414] rounded-3xl border border-[#1F1F1F] p-4 active:opacity-80"
+              className="bg-[#141414] rounded-3xl border border-[#1F1F1F] p-4"
             >
               <View className="flex-row items-center gap-4">
                 <View className="w-14 h-14 rounded-2xl items-center justify-center bg-[#1F1F1F]">
@@ -175,26 +233,69 @@ function ProgramsTab() {
                   </Text>
                 </Pressable>
               </View>
-              <View className="flex-row gap-2 mt-3 ml-[72px]">
+              <View className="flex-row items-center gap-2 mt-3 ml-[72px]">
                 {p.isActive ? (
                   <Badge label="ACTIVE" color={NEON} />
                 ) : (
-                  <Pressable onPress={() => setActiveProgram(p.id)}>
-                    <Badge label="SET ACTIVE" color="#6b7280" outline />
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setActiveProgram(p.id);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 active:opacity-70"
+                  >
+                    <Text
+                      className="text-white font-semibold"
+                      style={{ fontSize: 11, letterSpacing: 0.5 }}
+                    >
+                      Set active
+                    </Text>
                   </Pressable>
                 )}
-                {p.isCustom ? <Badge label="CUSTOM" color="#EAB308" /> : null}
+                {p.isCustom ? (
+                  <Badge label="CUSTOM" color="#EAB308" />
+                ) : (
+                  <Badge label="PRESET" color="#60A5FA" />
+                )}
               </View>
-            </Pressable>
+            </PressableScale>
+            </Animated.View>
           ))}
         </View>
       )}
+    </>
+  );
+}
 
+function WorkoutsTab() {
+  const router = useRouter();
+  const { workouts, programs, deleteWorkout } = useStore();
+  const LIME = useAccent();
+
+  const activeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of programs) {
+      if (!p.isActive) continue;
+      for (const id of p.workoutIds) ids.add(id);
+    }
+    return ids;
+  }, [programs]);
+
+  const ordered = useMemo(() => {
+    return [...workouts].sort((a, b) => {
+      const aActive = activeIds.has(a.id);
+      const bActive = activeIds.has(b.id);
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+  }, [workouts, activeIds]);
+
+  return (
+    <>
       <SectionHeader
         title="Your workouts"
-        subtitle="Individual workouts you can add to programs."
+        subtitle="Active program first, then newest."
         action={{ label: '+ Create', onPress: () => router.push('/workouts/new') }}
-        topPad
       />
       {workouts.length === 0 ? (
         <EmptyState
@@ -204,92 +305,47 @@ function ProgramsTab() {
         />
       ) : (
         <View className="px-5 gap-3">
-          {workouts.map((w) => (
-            <Pressable
-              key={w.id}
-              onPress={() => router.push(`/workouts/${w.id}`)}
-              className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
-            >
-              <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
-                <Ionicons name="barbell" size={20} color={LIME} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                  {w.name}
-                </Text>
-                <Text className="text-zinc-500 text-xs mt-0.5">
-                  {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-            </Pressable>
-          ))}
+          {ordered.map((w) => {
+            const isActive = activeIds.has(w.id);
+            return (
+              <Animated.View
+                key={w.id}
+                entering={FadeIn.duration(220)}
+                exiting={FadeOut.duration(180)}
+                layout={LinearTransition.springify().damping(18)}
+              >
+              <PressableScale
+                onPress={() => router.push(`/workouts/${w.id}`)}
+                onLongPress={() => deleteWorkout(w.id)}
+                className="bg-[#141414] rounded-2xl p-4 flex-row items-center gap-4"
+                style={{
+                  borderWidth: 1,
+                  borderColor: isActive ? `${LIME}66` : '#1F1F1F',
+                }}
+              >
+                <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
+                  <Ionicons name="barbell" size={20} color={LIME} />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center flex-wrap gap-2">
+                    <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                      {w.name}
+                    </Text>
+                    {isActive ? <Badge label="ACTIVE" color={LIME} /> : null}
+                  </View>
+                  <Text className="text-zinc-500 text-xs mt-0.5">
+                    {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
+              </PressableScale>
+              </Animated.View>
+            );
+          })}
         </View>
       )}
     </>
   );
-}
-
-function HistoryTab() {
-  const { sessions } = useStore();
-  const sorted = useMemo(
-    () => [...sessions].sort((a, b) => b.date.localeCompare(a.date)),
-    [sessions],
-  );
-
-  if (sorted.length === 0) {
-    return (
-      <EmptyState
-        icon="time-outline"
-        title="No sessions logged yet"
-        body="Finish a workout to see it here."
-      />
-    );
-  }
-
-  return (
-    <View className="px-5 gap-3">
-      {sorted.map((s) => {
-        const totalSets = s.exercises.reduce((a, e) => a + e.sets.length, 0);
-        const volume = s.exercises.reduce(
-          (a, e) => a + e.sets.reduce((sa, st) => sa + st.weight * st.reps, 0),
-          0,
-        );
-        return (
-          <View
-            key={s.id}
-            className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4"
-          >
-            <View className="flex-row items-center justify-between">
-              <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-                {s.workoutName}
-              </Text>
-              <Text className="text-zinc-500 text-xs">{s.date}</Text>
-            </View>
-            <View className="flex-row gap-4 mt-2">
-              <Text className="text-zinc-400 text-xs">
-                {formatDuration(s.durationSeconds)}
-              </Text>
-              <Text className="text-zinc-400 text-xs">
-                {s.exercises.length} exercise{s.exercises.length === 1 ? '' : 's'}
-              </Text>
-              <Text className="text-zinc-400 text-xs">{totalSets} sets</Text>
-              {volume > 0 ? (
-                <Text className="text-zinc-400 text-xs">{Math.round(volume)}kg vol</Text>
-              ) : null}
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function formatDuration(seconds: number) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }
 
 function ExercisesTab() {
@@ -324,12 +380,15 @@ function ExercisesTab() {
   const grouped = useMemo(() => {
     const groups = new Map<string, typeof exercises>();
     for (const ex of filtered) {
-      const key = (ex.category as string) ?? 'Uncategorized';
+      const key = ex.category ?? 'Uncategorized';
       const arr = groups.get(key) ?? [];
       arr.push(ex);
       groups.set(key, arr);
     }
-    const order = [...EXERCISE_CATEGORIES, 'Uncategorized'];
+    const order: (ExerciseCategory | 'Uncategorized')[] = [
+      ...EXERCISE_CATEGORIES,
+      'Uncategorized',
+    ];
     return order
       .map((cat) => ({ cat, items: groups.get(cat) ?? [] }))
       .filter((g) => g.items.length > 0);
@@ -346,17 +405,8 @@ function ExercisesTab() {
   return (
     <View className="px-5">
       <View className="bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5 mb-4">
-        <Text
-          className="text-zinc-500 font-bold"
-          style={{ fontSize: 11, letterSpacing: 1.5 }}
-        >
-          EXERCISES
-        </Text>
-        <Text className="text-white font-bold mt-2" style={{ fontSize: 28 }}>
-          Exercise History
-        </Text>
-        <Text className="text-zinc-500 text-sm mt-1 mb-4">
-          {trackedCount} tracked · grouped by muscle group
+        <Text className="text-zinc-500 text-sm mb-3">
+          {trackedCount} tracked
         </Text>
         <View className="flex-row items-center bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4">
           <Ionicons name="search" size={16} color="#52525B" />
@@ -386,7 +436,9 @@ function ExercisesTab() {
         <View className="gap-3">
           {grouped.map((group) => {
             const color =
-              MUSCLE_COLORS[group.cat as ExerciseCategory] ?? '#71717A';
+              group.cat !== 'Uncategorized'
+                ? MUSCLE_COLORS[group.cat]
+                : '#71717A';
             const open = openGroups.has(group.cat) || query.trim().length > 0;
             return (
               <View
@@ -457,51 +509,20 @@ function ExercisesTab() {
   );
 }
 
-function DiscoverTab() {
-  const router = useRouter();
-  return (
-    <View className="px-5 gap-3">
-      <Text className="text-zinc-500 text-xs mb-1">
-        Starter workouts · tap to preview
-      </Text>
-      {DEMO_WORKOUTS.map((w) => (
-        <Pressable
-          key={w.id}
-          onPress={() => router.push(`/workouts/${w.id}`)}
-          className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
-        >
-          <View
-            style={{ backgroundColor: `${w.color}20` }}
-            className="w-12 h-12 rounded-xl items-center justify-center"
-          >
-            <Ionicons name={w.icon} size={22} color={w.color} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-bold" style={{ fontSize: 16 }}>
-              {w.name}
-            </Text>
-            <Text className="text-zinc-500 text-xs mt-0.5" numberOfLines={1}>
-              {w.description}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
 function SectionHeader({
   title,
   subtitle,
   action,
+  secondaryAction,
   topPad,
 }: {
   title: string;
   subtitle?: string;
   action?: { label: string; onPress: () => void };
+  secondaryAction?: { label: string; onPress: () => void; icon?: React.ComponentProps<typeof Ionicons>['name'] };
   topPad?: boolean;
 }) {
+  const LIME = useAccent();
   return (
     <View
       className="px-5 flex-row items-start justify-between mb-3"
@@ -515,17 +536,37 @@ function SectionHeader({
           <Text className="text-zinc-500 text-sm mt-0.5">{subtitle}</Text>
         ) : null}
       </View>
-      {action ? (
-        <Pressable
-          onPress={action.onPress}
-          className="px-5 py-3 rounded-2xl active:opacity-90"
-          style={{ backgroundColor: LIME }}
-        >
-          <Text className="text-black font-bold" style={{ fontSize: 14 }}>
-            {action.label}
-          </Text>
-        </Pressable>
-      ) : null}
+      <View className="flex-row gap-2">
+        {secondaryAction ? (
+          <Pressable
+            onPress={secondaryAction.onPress}
+            className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 active:opacity-80 flex-row items-center"
+          >
+            {secondaryAction.icon ? (
+              <Ionicons
+                name={secondaryAction.icon}
+                size={14}
+                color="#ffffff"
+                style={{ marginRight: 6 }}
+              />
+            ) : null}
+            <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+              {secondaryAction.label}
+            </Text>
+          </Pressable>
+        ) : null}
+        {action ? (
+          <Pressable
+            onPress={action.onPress}
+            className="px-5 py-3 rounded-2xl active:opacity-90"
+            style={{ backgroundColor: LIME }}
+          >
+            <Text className="text-black font-bold" style={{ fontSize: 14 }}>
+              {action.label}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }

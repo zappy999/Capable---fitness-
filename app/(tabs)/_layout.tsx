@@ -1,13 +1,15 @@
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAccent } from '../../src/store/WorkoutStore';
 
 export default function TabLayout() {
+  const accent = useAccent();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#22C55E',
+        tabBarActiveTintColor: accent,
         tabBarInactiveTintColor: '#52525B',
         tabBarStyle: {
           backgroundColor: '#0D0D0D',
@@ -30,20 +32,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workout"
+        name="program"
         options={{
-          title: 'Workout',
+          title: 'Program',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="barbell" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="health"
-        options={{
-          title: 'Health',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart" size={size} color={color} />
           ),
         }}
       />

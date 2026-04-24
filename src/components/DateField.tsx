@@ -4,8 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
-
-const LIME = '#C6F24E';
+import { useAccent } from '../store/WorkoutStore';
 
 function toISODate(d: Date) {
   const y = d.getFullYear();
@@ -30,6 +29,7 @@ type DateFieldProps = {
 
 export function DateField({ label, value, onChange, placeholder = 'Not set' }: DateFieldProps) {
   const [open, setOpen] = useState(false);
+  const LIME = useAccent();
 
   const handleChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === 'android') {

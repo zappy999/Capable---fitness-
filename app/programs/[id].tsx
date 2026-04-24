@@ -2,15 +2,14 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
-
-const LIME = '#C6F24E';
-const NEON = '#22C55E';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { programs, workouts, setActiveProgram, deleteProgram } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   const program = programs.find((p) => p.id === id);
 
@@ -92,6 +91,41 @@ export default function ProgramDetailScreen() {
               <Text className="text-black/70 text-sm">· to {program.endDate}</Text>
             ) : null}
           </View>
+          {program.phase ||
+          program.durationWeeks ||
+          program.restDays != null ||
+          (program.intensityCycle && program.intensityCycle.length > 0) ? (
+            <View className="flex-row flex-wrap gap-2 mt-3">
+              {program.phase ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.phase}
+                  </Text>
+                </View>
+              ) : null}
+              {program.durationWeeks ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.durationWeeks}w
+                  </Text>
+                </View>
+              ) : null}
+              {program.restDays != null ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.restDays} rest/wk
+                  </Text>
+                </View>
+              ) : null}
+              {program.intensityCycle && program.intensityCycle.length > 0 ? (
+                <View className="px-3 py-1.5 rounded-full bg-black/80">
+                  <Text className="text-white text-xs font-bold">
+                    {program.intensityCycle.join('·')}%
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           <View className="flex-row gap-2 mt-4">
             {program.isActive ? (
               <Pressable

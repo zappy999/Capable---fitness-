@@ -15,15 +15,16 @@ import DraggableFlatList, {
   ScaleDecorator,
   type RenderItemParams,
 } from 'react-native-draggable-flatlist';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import {
   EXERCISE_CATEGORIES,
+  GROUP_TYPES,
   type Exercise,
   type ExerciseCategory,
+  type GroupType,
   type WorkoutExercise,
 } from '../../src/store/types';
-
-const LIME = '#C6F24E';
+import { isSafeHttpUrl } from '../../src/lib/platform';
 
 type Draft = WorkoutExercise;
 
@@ -36,6 +37,7 @@ export default function NewWorkoutScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const editId = typeof params.id === 'string' ? params.id : undefined;
   const { exercises, workouts, addCustomExercise, saveWorkout } = useStore();
+  const LIME = useAccent();
 
   const editing = editId ? workouts.find((w) => w.id === editId) : undefined;
 
@@ -43,6 +45,7 @@ export default function NewWorkoutScreen() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ExerciseCategory | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>(editing?.exercises ?? []);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState<ExerciseCategory | null>(null);
@@ -178,6 +181,20 @@ export default function NewWorkoutScreen() {
                 keyboard="number-pad"
               />
             </View>
+
+            <AdvancedSection
+              item={item}
+              open={expanded.has(item.id)}
+              onToggle={() =>
+                setExpanded((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(item.id)) next.delete(item.id);
+                  else next.add(item.id);
+                  return next;
+                })
+              }
+              patch={(patch) => patchDraft(item.id, patch)}
+            />
           </View>
         </View>
       </ScaleDecorator>
@@ -474,6 +491,231 @@ function NumberField({
         className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
         style={{ paddingVertical: 10, fontSize: 14 }}
       />
+    </View>
+  );
+}
+
+function AdvancedSection({
+  item,
+  open,
+  onToggle,
+  patch,
+}: {
+  item: WorkoutExercise;
+  open: boolean;
+  onToggle: () => void;
+  patch: (p: Partial<WorkoutExercise>) => void;
+}) {
+  const demoUrlInvalid = Boolean(item.demoUrl) && !isSafeHttpUrl(item.demoUrl);
+  const LIME = useAccent();
+
+  return (
+    <View className="mt-3">
+      <Pressable
+        onPress={onToggle}
+        className="flex-row items-center justify-between px-1 py-2 active:opacity-70"
+      >
+        <Text className="text-zinc-400 text-xs font-semibold">
+          {open ? 'Hide advanced' : 'Advanced'}
+        </Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={14}
+          color="#71717A"
+        />
+      </Pressable>
+      {open ? (
+        <View className="gap-3 mt-1">
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Text
+                className="text-zinc-500 font-bold mb-1.5"
+                style={{ fontSize: 11 }}
+              >
+                TEMPO
+              </Text>
+              <TextInput
+                value={item.tempo ?? ''}
+                onChangeText={(v) => patch({ tempo: v || undefined })}
+                placeholder="e.g. 3011"
+                placeholderTextColor="#52525B"
+                className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                style={{ paddingVertical: 10, fontSize: 14 }}
+              />
+            </View>
+            <Pressable
+              onPress={() => patch({ isDropSet: !item.isDropSet })}
+              className="flex-1 flex-row items-center px-3 rounded-xl"
+              style={{
+                paddingVertical: 10,
+                backgroundColor: item.isDropSet ? 'rgba(34,197,94,0.15)' : '#141414',
+                borderWidth: 1,
+                borderColor: item.isDropSet ? LIME : '#1F1F1F',
+              }}
+            >
+              <Ionicons
+                name={item.isDropSet ? 'checkbox' : 'square-outline'}
+                size={16}
+                color={item.isDropSet ? LIME : '#71717A'}
+              />
+              <Text
+                className="font-bold ml-2"
+                style={{
+                  color: item.isDropSet ? LIME : '#ffffff',
+                  fontSize: 13,
+                }}
+              >
+                Drop set
+              </Text>
+            </Pressable>
+          </View>
+
+          <View>
+            <Text
+              className="text-zinc-500 font-bold mb-1.5"
+              style={{ fontSize: 11 }}
+            >
+              GROUP
+            </Text>
+            <View className="flex-row gap-2 flex-wrap">
+              <Pressable
+                onPress={() =>
+                  patch({
+                    groupType: undefined,
+                    supersetGroup: undefined,
+                    emomSeconds: undefined,
+                  })
+                }
+                className="px-3 py-1.5 rounded-full"
+                style={{
+                  backgroundColor: !item.groupType ? LIME : '#141414',
+                  borderWidth: 1,
+                  borderColor: !item.groupType ? LIME : '#1F1F1F',
+                }}
+              >
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: !item.groupType ? '#0A0A0A' : '#ffffff' }}
+                >
+                  None
+                </Text>
+              </Pressable>
+              {GROUP_TYPES.map((g: GroupType) => {
+                const active = item.groupType === g;
+                return (
+                  <Pressable
+                    key={g}
+                    onPress={() =>
+                      patch({
+                        groupType: g,
+                        supersetGroup: item.supersetGroup ?? 'A',
+                      })
+                    }
+                    className="px-3 py-1.5 rounded-full"
+                    style={{
+                      backgroundColor: active ? LIME : '#141414',
+                      borderWidth: 1,
+                      borderColor: active ? LIME : '#1F1F1F',
+                    }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{ color: active ? '#0A0A0A' : '#ffffff' }}
+                    >
+                      {g === 'emom' ? 'EMOM' : g[0].toUpperCase() + g.slice(1)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {item.groupType ? (
+            <View className="flex-row gap-3">
+              <View className="flex-1">
+                <Text
+                  className="text-zinc-500 font-bold mb-1.5"
+                  style={{ fontSize: 11 }}
+                >
+                  GROUP LABEL
+                </Text>
+                <TextInput
+                  value={item.supersetGroup ?? ''}
+                  onChangeText={(v) => patch({ supersetGroup: v || undefined })}
+                  placeholder="A"
+                  placeholderTextColor="#52525B"
+                  className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                  style={{ paddingVertical: 10, fontSize: 14 }}
+                />
+              </View>
+              {item.groupType === 'emom' ? (
+                <View className="flex-1">
+                  <Text
+                    className="text-zinc-500 font-bold mb-1.5"
+                    style={{ fontSize: 11 }}
+                  >
+                    EMOM (s)
+                  </Text>
+                  <TextInput
+                    value={item.emomSeconds ? String(item.emomSeconds) : ''}
+                    onChangeText={(v) => {
+                      const n = Number(v);
+                      patch({
+                        emomSeconds:
+                          Number.isFinite(n) && n > 0 ? n : undefined,
+                      });
+                    }}
+                    keyboardType="number-pad"
+                    placeholder="60"
+                    placeholderTextColor="#52525B"
+                    className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+                    style={{ paddingVertical: 10, fontSize: 14 }}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View>
+            <Text
+              className="text-zinc-500 font-bold mb-1.5"
+              style={{ fontSize: 11 }}
+            >
+              DEMO URL
+            </Text>
+            <TextInput
+              value={item.demoUrl ?? ''}
+              onChangeText={(v) => patch({ demoUrl: v || undefined })}
+              placeholder="https://…"
+              placeholderTextColor="#52525B"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              className="bg-[#141414] border rounded-xl px-3 text-white"
+              style={{
+                paddingVertical: 10,
+                fontSize: 14,
+                borderColor: demoUrlInvalid ? '#F87171' : '#1F1F1F',
+              }}
+            />
+            {demoUrlInvalid ? (
+              <Text className="text-red-400 text-xs mt-1">
+                Must start with http:// or https://
+              </Text>
+            ) : null}
+          </View>
+
+          <TextInput
+            value={item.note ?? ''}
+            onChangeText={(v) => patch({ note: v || undefined })}
+            placeholder="Exercise note (grip, cue, etc.)"
+            placeholderTextColor="#52525B"
+            multiline
+            className="bg-[#141414] border border-[#1F1F1F] rounded-xl px-3 text-white"
+            style={{ paddingVertical: 10, fontSize: 13, minHeight: 40 }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -19,6 +19,9 @@ export type Exercise = {
   isCustom?: boolean;
 };
 
+export const GROUP_TYPES = ['superset', 'circuit', 'emom'] as const;
+export type GroupType = (typeof GROUP_TYPES)[number];
+
 export type WorkoutExercise = {
   id: string;
   exerciseId: string;
@@ -27,6 +30,11 @@ export type WorkoutExercise = {
   restSeconds: number;
   tempo?: string;
   note?: string;
+  isDropSet?: boolean;
+  supersetGroup?: string;
+  groupType?: GroupType;
+  emomSeconds?: number;
+  demoUrl?: string;
 };
 
 export type Workout = {
@@ -45,17 +53,24 @@ export type Program = {
   isActive: boolean;
   isCustom: boolean;
   createdAt: number;
+  phase?: string;
+  durationWeeks?: number;
+  restDays?: number;
+  intensityCycle?: number[];
 };
 
 export type SessionSet = {
   weight: number;
   reps: number;
+  rpe?: number;
+  rir?: number;
 };
 
 export type SessionExercise = {
   id: string;
   exerciseId: string;
   sets: SessionSet[];
+  note?: string;
 };
 
 export type WorkoutSession = {
@@ -65,6 +80,40 @@ export type WorkoutSession = {
   date: string;
   durationSeconds: number;
   exercises: SessionExercise[];
+  notes?: string;
+};
+
+export type PersonalRecordKind = 'heaviest_weight' | 'best_volume';
+
+export type PersonalRecord = {
+  id: string;
+  exerciseId: string;
+  kind: PersonalRecordKind;
+  value: number;
+  weight: number;
+  reps: number;
+  sessionId: string;
+  achievedAt: string;
+};
+
+export type UserSettings = {
+  weightIncrementKg: number;
+  defaultRestSeconds: number;
+  weekStartDay: 'monday' | 'sunday';
+  accentColor: string;
+  timezone?: string;
+  starterProgramsSeeded?: boolean;
+  /** Epoch ms of last time the user exported a backup. Null = never. */
+  lastBackupAt?: number | null;
+  /** Epoch ms of last time the user dismissed the backup nudge. */
+  backupNudgeDismissedAt?: number | null;
+};
+
+export const DEFAULT_SETTINGS: UserSettings = {
+  weightIncrementKg: 2.5,
+  defaultRestSeconds: 90,
+  weekStartDay: 'monday',
+  accentColor: '#22C55E',
 };
 
 export const MUSCLE_COLORS: Record<ExerciseCategory, string> = {

@@ -1,17 +1,17 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WORKOUTS as DEMO_WORKOUTS } from '../../src/data/workouts';
-import { useStore } from '../../src/store/WorkoutStore';
-
-const LIME = '#C6F24E';
-const NEON = '#22C55E';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { isSafeHttpUrl, openExternalUrl } from '../../src/lib/platform';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { workouts, exercises, deleteWorkout } = useStore();
+  const LIME = useAccent();
+  const NEON = LIME;
 
   const userWorkout = workouts.find((w) => w.id === id);
   const demoWorkout = DEMO_WORKOUTS.find((w) => w.id === id);
@@ -32,8 +32,21 @@ export default function WorkoutDetailScreen() {
 
   const handleDelete = () => {
     if (!userWorkout) return;
-    deleteWorkout(userWorkout.id);
-    router.back();
+    Alert.alert(
+      `Delete "${userWorkout.name}"?`,
+      'This removes the workout from any program that includes it. Logged sessions stay.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteWorkout(userWorkout.id);
+            router.back();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -139,32 +152,103 @@ export default function WorkoutDetailScreen() {
           {userWorkout
             ? userWorkout.exercises.map((we, idx) => {
                 const ex = exercises.find((e) => e.id === we.exerciseId);
+                const hasBadges =
+                  we.tempo ||
+                  we.isDropSet ||
+                  we.groupType ||
+                  (we.demoUrl && isSafeHttpUrl(we.demoUrl));
                 return (
                   <View
                     key={we.id}
-                    className="bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] flex-row items-center gap-3"
+                    className="bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]"
                   >
-                    <View className="w-9 h-9 bg-[#1F1F1F] rounded-xl items-center justify-center">
-                      <Text className="text-zinc-400 text-sm font-bold">
-                        {idx + 1}
-                      </Text>
+                    <View className="flex-row items-center gap-3">
+                      <View className="w-9 h-9 bg-[#1F1F1F] rounded-xl items-center justify-center">
+                        <Text className="text-zinc-400 text-sm font-bold">
+                          {idx + 1}
+                        </Text>
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-white text-sm font-bold">
+                          {ex?.name ?? 'Exercise'}
+                        </Text>
+                        <Text className="text-zinc-500 text-xs mt-0.5">
+                          {ex?.category ?? 'Uncategorized'}
+                        </Text>
+                      </View>
+                      <View className="items-end">
+                        <Text className="text-white text-sm font-bold">
+                          {we.sets} × {we.reps}
+                        </Text>
+                        <Text className="text-zinc-600 text-xs mt-0.5">
+                          rest {we.restSeconds}s
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-white text-sm font-bold">
-                        {ex?.name ?? 'Exercise'}
+                    {hasBadges ? (
+                      <View className="flex-row flex-wrap gap-1.5 mt-3 ml-12">
+                        {we.tempo ? (
+                          <View className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                            <Text className="text-zinc-400 text-xs">
+                              tempo {we.tempo}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {we.isDropSet ? (
+                          <View
+                            className="px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'rgba(251,191,36,0.15)' }}
+                          >
+                            <Text
+                              className="text-xs font-bold"
+                              style={{ color: '#FBBF24' }}
+                            >
+                              DROP SET
+                            </Text>
+                          </View>
+                        ) : null}
+                        {we.groupType ? (
+                          <View
+                            className="px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
+                          >
+                            <Text
+                              className="text-xs font-bold"
+                              style={{ color: LIME }}
+                            >
+                              {we.groupType === 'emom'
+                                ? `EMOM ${we.emomSeconds ?? ''}s`.trim()
+                                : we.groupType.toUpperCase()}
+                              {we.supersetGroup ? ` · ${we.supersetGroup}` : ''}
+                            </Text>
+                          </View>
+                        ) : null}
+                        {we.demoUrl && isSafeHttpUrl(we.demoUrl) ? (
+                          <Pressable
+                            onPress={() => openExternalUrl(we.demoUrl!)}
+                            className="px-2 py-0.5 rounded-full flex-row items-center active:opacity-70"
+                            style={{ backgroundColor: 'rgba(96,165,250,0.15)' }}
+                          >
+                            <Ionicons
+                              name="play-circle-outline"
+                              size={12}
+                              color="#60A5FA"
+                            />
+                            <Text
+                              className="text-xs font-bold ml-1"
+                              style={{ color: '#60A5FA' }}
+                            >
+                              Demo
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {we.note ? (
+                      <Text className="text-zinc-500 text-xs mt-2 ml-12 italic">
+                        {we.note}
                       </Text>
-                      <Text className="text-zinc-500 text-xs mt-0.5">
-                        {ex?.category ?? 'Uncategorized'}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-white text-sm font-bold">
-                        {we.sets} × {we.reps}
-                      </Text>
-                      <Text className="text-zinc-600 text-xs mt-0.5">
-                        rest {we.restSeconds}s
-                      </Text>
-                    </View>
+                    ) : null}
                   </View>
                 );
               })
@@ -204,7 +288,7 @@ export default function WorkoutDetailScreen() {
           onPress={() =>
             router.push({
               pathname: '/start-workout',
-              params: { id: (userWorkout?.id ?? demoWorkout?.id) as string },
+              params: { id: userWorkout?.id ?? demoWorkout?.id ?? id },
             })
           }
           className="rounded-2xl py-4 flex-row items-center justify-center gap-2 active:opacity-90"

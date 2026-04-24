@@ -10,13 +10,27 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 import { DEMO_SESSIONS } from '../data/demoSessions';
-import type {
-  Exercise,
-  ExerciseCategory,
-  Program,
-  Workout,
-  WorkoutSession,
+import { STARTER_PROGRAMS, STARTER_WORKOUTS } from '../data/starterPrograms';
+import {
+  DEFAULT_SETTINGS,
+  type Exercise,
+  type ExerciseCategory,
+  type PersonalRecord,
+  type Program,
+  type UserSettings,
+  type Workout,
+  type WorkoutSession,
 } from './types';
+import {
+  buildCoachProgramPayload,
+  buildImportPayload,
+  type ImportPayload,
+  type ImportReport,
+} from '../lib/importBackup';
+import {
+  diffNewlyUnlocked,
+  type AchievementDef,
+} from '../lib/achievements';
 
 const STORAGE_KEY = 'capable.store.v2';
 
@@ -26,6 +40,8 @@ type State = {
   workouts: Workout[];
   programs: Program[];
   sessions: WorkoutSession[];
+  personalRecords: PersonalRecord[];
+  settings: UserSettings;
 };
 
 const initialState: State = {
@@ -34,6 +50,8 @@ const initialState: State = {
   workouts: [],
   programs: [],
   sessions: [],
+  personalRecords: [],
+  settings: DEFAULT_SETTINGS,
 };
 
 type Action =
@@ -47,8 +65,12 @@ type Action =
   | { type: 'UPSERT_PROGRAM'; program: Program }
   | { type: 'DELETE_PROGRAM'; id: string }
   | { type: 'SET_ACTIVE_PROGRAM'; id: string | null }
-  | { type: 'LOG_SESSION'; session: WorkoutSession }
-  | { type: 'DELETE_SESSION'; id: string };
+  | { type: 'LOG_SESSION'; session: WorkoutSession; newPRs: PersonalRecord[] }
+  | { type: 'UPDATE_SESSION'; id: string; patch: Partial<WorkoutSession> }
+  | { type: 'DELETE_SESSION'; id: string }
+  | { type: 'UPDATE_SETTINGS'; patch: Partial<UserSettings> }
+  | { type: 'BULK_IMPORT'; payload: ImportPayload }
+  | { type: 'WIPE' };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -132,9 +154,98 @@ function reducer(state: State, action: Action): State {
         programs: state.programs.map((p) => ({ ...p, isActive: p.id === action.id })),
       };
     case 'LOG_SESSION':
-      return { ...state, sessions: [...state.sessions, action.session] };
+      return {
+        ...state,
+        sessions: [...state.sessions, action.session],
+        personalRecords: [...state.personalRecords, ...action.newPRs],
+      };
+    case 'UPDATE_SESSION':
+      return {
+        ...state,
+        sessions: state.sessions.map((s) =>
+          s.id === action.id ? { ...s, ...action.patch } : s,
+        ),
+      };
     case 'DELETE_SESSION':
-      return { ...state, sessions: state.sessions.filter((s) => s.id !== action.id) };
+      return {
+        ...state,
+        sessions: state.sessions.filter((s) => s.id !== action.id),
+        personalRecords: state.personalRecords.filter(
+          (p) => p.sessionId !== action.id,
+        ),
+      };
+    case 'UPDATE_SETTINGS':
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          ...action.patch,
+        },
+      };
+    case 'BULK_IMPORT': {
+      const {
+        customExercises,
+        workouts: importedWorkouts,
+        sessions: importedSessions,
+        programs: importedPrograms,
+        settings: importedSettings,
+      } = action.payload;
+
+      const mergedExercises = [...state.exercises, ...customExercises];
+
+      const wIds = new Set(importedWorkouts.map((w) => w.id));
+      const mergedWorkouts = [
+        ...state.workouts.filter((w) => !wIds.has(w.id)),
+        ...importedWorkouts,
+      ];
+
+      const sIds = new Set(importedSessions.map((s) => s.id));
+      const mergedSessions = [
+        ...state.sessions.filter((s) => !sIds.has(s.id)),
+        ...importedSessions,
+      ];
+
+      const pIds = new Set((importedPrograms ?? []).map((p) => p.id));
+      const mergedPrograms = [
+        ...state.programs.filter((p) => !pIds.has(p.id)),
+        ...(importedPrograms ?? []),
+      ];
+
+      const chronological = [...mergedSessions].sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
+      const recomputedPRs: PersonalRecord[] = [];
+      const prior: WorkoutSession[] = [];
+      for (const s of chronological) {
+        recomputedPRs.push(...detectPRs(s, prior));
+        prior.push(s);
+      }
+
+      return {
+        ...state,
+        exercises: mergedExercises,
+        workouts: mergedWorkouts,
+        sessions: mergedSessions,
+        programs: mergedPrograms,
+        personalRecords: recomputedPRs,
+        settings: {
+          ...state.settings,
+          ...importedSettings,
+        },
+      };
+    }
+    case 'WIPE':
+      return {
+        hydrated: true,
+        exercises: EXERCISE_LIBRARY,
+        workouts: [],
+        programs: [],
+        sessions: [],
+        personalRecords: [],
+        // Flag intentionally set so starter programs don't reappear on
+        // relaunch — a wipe means a clean slate.
+        settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
+      };
   }
 }
 
@@ -150,6 +261,10 @@ type ProgramInput = {
   workoutIds: string[];
   startDate?: string;
   endDate?: string;
+  phase?: string;
+  durationWeeks?: number;
+  restDays?: number;
+  intensityCycle?: number[];
 };
 
 type SessionInput = {
@@ -169,8 +284,18 @@ type StoreValue = State & {
   saveProgram: (input: ProgramInput) => Program;
   deleteProgram: (id: string) => void;
   setActiveProgram: (id: string | null) => void;
-  logSession: (input: SessionInput) => WorkoutSession;
+  logSession: (input: SessionInput) => {
+    session: WorkoutSession;
+    newPRs: PersonalRecord[];
+    newlyUnlocked: AchievementDef[];
+  };
+  updateSession: (id: string, patch: Partial<WorkoutSession>) => void;
   deleteSession: (id: string) => void;
+  updateSettings: (patch: Partial<UserSettings>) => void;
+  previewImport: (raw: unknown) => ImportPayload;
+  previewCoachImport: (raw: unknown) => ImportPayload;
+  commitImport: (payload: ImportPayload) => ImportReport;
+  wipe: () => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -184,6 +309,68 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
     d.getDate(),
   ).padStart(2, '0')}`;
+}
+
+function detectPRs(
+  session: WorkoutSession,
+  priorSessions: WorkoutSession[],
+): PersonalRecord[] {
+  const records: PersonalRecord[] = [];
+  for (const se of session.exercises) {
+    const priorSets: { weight: number; reps: number }[] = [];
+    for (const ps of priorSessions) {
+      for (const pse of ps.exercises) {
+        if (pse.exerciseId !== se.exerciseId) continue;
+        for (const st of pse.sets) priorSets.push(st);
+      }
+    }
+    const priorMaxWeight = priorSets.reduce(
+      (m, s) => (s.weight > m ? s.weight : m),
+      0,
+    );
+    const priorMaxVolume = priorSets.reduce(
+      (m, s) => (s.weight * s.reps > m ? s.weight * s.reps : m),
+      0,
+    );
+
+    let bestWeightSet = se.sets[0];
+    let bestVolumeSet = se.sets[0];
+    for (const s of se.sets) {
+      if (!bestWeightSet || s.weight > bestWeightSet.weight) bestWeightSet = s;
+      if (!bestVolumeSet || s.weight * s.reps > bestVolumeSet.weight * bestVolumeSet.reps)
+        bestVolumeSet = s;
+    }
+
+    if (bestWeightSet && bestWeightSet.weight > priorMaxWeight && bestWeightSet.weight > 0) {
+      records.push({
+        id: genId('pr'),
+        exerciseId: se.exerciseId,
+        kind: 'heaviest_weight',
+        value: bestWeightSet.weight,
+        weight: bestWeightSet.weight,
+        reps: bestWeightSet.reps,
+        sessionId: session.id,
+        achievedAt: session.date,
+      });
+    }
+    if (
+      bestVolumeSet &&
+      bestVolumeSet.weight * bestVolumeSet.reps > priorMaxVolume &&
+      bestVolumeSet.weight * bestVolumeSet.reps > 0
+    ) {
+      records.push({
+        id: genId('pr'),
+        exerciseId: se.exerciseId,
+        kind: 'best_volume',
+        value: bestVolumeSet.weight * bestVolumeSet.reps,
+        weight: bestVolumeSet.weight,
+        reps: bestVolumeSet.reps,
+        sessionId: session.id,
+        achievedAt: session.date,
+      });
+    }
+  }
+  return records;
 }
 
 export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
@@ -201,9 +388,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
           return;
@@ -222,13 +411,36 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
               ? { ...e, category: storedCategoryOverrides.get(e.id)! }
               : e,
           );
+          const mergedSettings = {
+            ...DEFAULT_SETTINGS,
+            ...(parsed.settings ?? {}),
+          };
+          // One-shot starter-program seed for pre-existing installs. User
+          // deletions after this flag flips are respected forever.
+          let workouts = parsed.workouts ?? [];
+          let programs = parsed.programs ?? [];
+          if (!mergedSettings.starterProgramsSeeded) {
+            const existingWorkoutIds = new Set(workouts.map((w) => w.id));
+            const existingProgramIds = new Set(programs.map((p) => p.id));
+            workouts = [
+              ...workouts,
+              ...STARTER_WORKOUTS.filter((w) => !existingWorkoutIds.has(w.id)),
+            ];
+            programs = [
+              ...programs,
+              ...STARTER_PROGRAMS.filter((p) => !existingProgramIds.has(p.id)),
+            ];
+            mergedSettings.starterProgramsSeeded = true;
+          }
           dispatch({
             type: 'HYDRATE',
             payload: {
               exercises: [...mergedLibrary, ...storedCustom],
-              workouts: parsed.workouts ?? [],
-              programs: parsed.programs ?? [],
+              workouts,
+              programs,
               sessions: parsed.sessions ?? [],
+              personalRecords: parsed.personalRecords ?? [],
+              settings: mergedSettings,
             },
           });
         } catch {
@@ -236,9 +448,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
         }
@@ -249,9 +463,11 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
             type: 'HYDRATE',
             payload: {
               exercises: EXERCISE_LIBRARY,
-              workouts: [],
-              programs: [],
+              workouts: STARTER_WORKOUTS,
+              programs: STARTER_PROGRAMS,
               sessions: DEMO_SESSIONS,
+              personalRecords: [],
+              settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
             },
           });
         }
@@ -275,6 +491,8 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       workouts: state.workouts,
       programs: state.programs,
       sessions: state.sessions,
+      personalRecords: state.personalRecords,
+      settings: state.settings,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(persistable)).catch(() => {});
   }, [state]);
@@ -321,6 +539,10 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           workoutIds: input.workoutIds,
           startDate: input.startDate,
           endDate: input.endDate,
+          phase: input.phase,
+          durationWeeks: input.durationWeeks,
+          restDays: input.restDays,
+          intensityCycle: input.intensityCycle,
           isActive: existing?.isActive ?? false,
           isCustom: existing?.isCustom ?? true,
           createdAt: existing?.createdAt ?? Date.now(),
@@ -331,6 +553,7 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
       deleteProgram: (id) => dispatch({ type: 'DELETE_PROGRAM', id }),
       setActiveProgram: (id) => dispatch({ type: 'SET_ACTIVE_PROGRAM', id }),
       logSession: (input) => {
+        const before = stateRef.current;
         const session: WorkoutSession = {
           id: genId('sess'),
           workoutName: input.workoutName,
@@ -339,10 +562,43 @@ export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
           durationSeconds: input.durationSeconds,
           exercises: input.exercises,
         };
-        dispatch({ type: 'LOG_SESSION', session });
-        return session;
+        const newPRs = detectPRs(session, before.sessions);
+        const newlyUnlocked = diffNewlyUnlocked(
+          {
+            sessions: before.sessions,
+            prs: before.personalRecords,
+          },
+          {
+            sessions: [...before.sessions, session],
+            prs: [...before.personalRecords, ...newPRs],
+          },
+        );
+        dispatch({ type: 'LOG_SESSION', session, newPRs });
+        return { session, newPRs, newlyUnlocked };
       },
+      updateSession: (id, patch) =>
+        dispatch({ type: 'UPDATE_SESSION', id, patch }),
       deleteSession: (id) => dispatch({ type: 'DELETE_SESSION', id }),
+      updateSettings: (patch) => dispatch({ type: 'UPDATE_SETTINGS', patch }),
+      previewImport: (raw) =>
+        buildImportPayload(
+          raw,
+          stateRef.current.exercises.filter((e) => e.isCustom),
+          stateRef.current.settings.defaultRestSeconds,
+        ),
+      previewCoachImport: (raw) =>
+        buildCoachProgramPayload(
+          raw,
+          stateRef.current.exercises.filter((e) => e.isCustom),
+        ),
+      commitImport: (payload) => {
+        dispatch({ type: 'BULK_IMPORT', payload });
+        return payload.report;
+      },
+      wipe: () => {
+        AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+        dispatch({ type: 'WIPE' });
+      },
     }),
     [state],
   );
@@ -354,4 +610,8 @@ export function useStore() {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error('useStore must be used within WorkoutStoreProvider');
   return ctx;
+}
+
+export function useAccent(): string {
+  return useStore().settings.accentColor || DEFAULT_SETTINGS.accentColor;
 }

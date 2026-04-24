@@ -10,16 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useStore } from '../../src/store/WorkoutStore';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import {
   EXERCISE_CATEGORIES,
   MUSCLE_COLORS,
-  type ExerciseCategory,
   type WorkoutSession,
 } from '../../src/store/types';
 import { LineChart, type ChartPoint } from '../../src/components/LineChart';
-
-const LIME = '#C6F24E';
 
 type ChartMode = 'Best Weight' | 'Volume' | 'Est. 1RM';
 const CHART_MODES: ChartMode[] = ['Best Weight', 'Volume', 'Est. 1RM'];
@@ -31,6 +28,7 @@ function estimate1RM(weight: number, reps: number) {
 }
 
 function formatDuration(seconds: number) {
+  if (seconds < 60) return `${Math.max(0, Math.round(seconds))}s`;
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
   if (h > 0) return `${h}h ${m}m`;
@@ -40,9 +38,11 @@ function formatDuration(seconds: number) {
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const LIME = useAccent();
   const {
     exercises,
     sessions,
+    settings,
     updateExerciseCategory,
     mergeExercise,
     deleteExercise,
@@ -70,15 +70,16 @@ export default function ExerciseDetailScreen() {
   }, [exerciseSessions, exercise?.id]);
 
   const bestSet = useMemo(() => {
-    if (allSets.length === 0) return null;
-    return allSets.reduce((best, s) => (s.weight > best.weight ? s : best));
+    const valid = allSets.filter((s) => s.reps > 0);
+    if (valid.length === 0) return null;
+    return valid.reduce((best, s) => (s.weight > best.weight ? s : best));
   }, [allSets]);
 
   const [calcWeight, setCalcWeight] = useState<string>(
     bestSet ? String(bestSet.weight) : '',
   );
   const [calcReps, setCalcReps] = useState<string>(
-    bestSet ? String(bestSet.reps) : '',
+    bestSet ? String(Math.max(1, bestSet.reps)) : '',
   );
   const [chartMode, setChartMode] = useState<ChartMode>('Best Weight');
   const [mergePickerOpen, setMergePickerOpen] = useState(false);
@@ -94,7 +95,8 @@ export default function ExerciseDetailScreen() {
     return exerciseSessions.map((s) => {
       const setsForEx = s.exercises
         .filter((se) => se.exerciseId === exercise.id)
-        .flatMap((se) => se.sets);
+        .flatMap((se) => se.sets)
+        .filter((x) => x.reps > 0);
       let value = 0;
       if (chartMode === 'Best Weight') {
         value = Math.max(0, ...setsForEx.map((x) => x.weight));
@@ -264,7 +266,7 @@ export default function ExerciseDetailScreen() {
                   style={{ fontSize: 16 }}
                 >
                   {estimated > 0
-                    ? roundWeight((estimated * p) / 100)
+                    ? roundWeight((estimated * p) / 100, settings.weightIncrementKg)
                     : '—'}
                 </Text>
               </View>
@@ -304,7 +306,7 @@ export default function ExerciseDetailScreen() {
             </Pressable>
             {EXERCISE_CATEGORIES.map((c) => {
               const active = c === exercise.category;
-              const color = MUSCLE_COLORS[c as ExerciseCategory];
+              const color = MUSCLE_COLORS[c];
               return (
                 <Pressable
                   key={c}
@@ -508,8 +510,10 @@ export default function ExerciseDetailScreen() {
   );
 }
 
-function roundWeight(v: number) {
-  return String(Math.round(v * 2) / 2).replace(/\.0$/, '');
+function roundWeight(v: number, increment: number) {
+  if (!Number.isFinite(increment) || increment <= 0) return String(Math.round(v));
+  const rounded = Math.round(v / increment) * increment;
+  return String(Math.round(rounded * 100) / 100).replace(/\.0+$/, '');
 }
 
 function StatBox({ label, value }: { label: string; value: string }) {
