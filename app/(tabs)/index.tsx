@@ -3,12 +3,23 @@ import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
+import { WEEKLY_ACTIVITY } from '../../src/data/workouts';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
 import { triggerBackupShare } from '../../src/lib/backup';
 import { PressableScale } from '../../src/components/PressableScale';
-import { AnimatedNumber } from '../../src/components/AnimatedNumber';
+import {
+  COLORS,
+  MONO,
+  accentAlpha,
+} from '../../src/design/tokens';
+import {
+  Badge,
+  CardSm,
+  ModernHeader,
+  NumMono,
+  Stat,
+} from '../../src/design/components';
 
 const DAY_MS = 86_400_000;
 const BACKUP_STALE_AFTER_DAYS = 30;
@@ -33,18 +44,8 @@ function shouldShowBackupNudge(opts: {
 }
 
 const MONTH_SHORT = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
 function friendlyDate(iso: string): string {
@@ -60,11 +61,26 @@ function friendlyDate(iso: string): string {
   return `${MONTH_SHORT[m - 1]} ${d}`;
 }
 
+function timeOfDayGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const store = useStore();
-  const { workouts, sessions, programs, settings, updateSettings } = store;
-  const GREEN = useAccent();
+  const {
+    workouts,
+    sessions,
+    programs,
+    exercises,
+    settings,
+    updateSettings,
+  } = store;
+  const accent = useAccent();
+
   const showBackupNudge = useMemo(
     () =>
       shouldShowBackupNudge({
@@ -73,12 +89,9 @@ export default function HomeScreen() {
         lastBackupAt: settings.lastBackupAt,
         dismissedAt: settings.backupNudgeDismissedAt,
       }),
-    [
-      sessions.length,
-      settings.lastBackupAt,
-      settings.backupNudgeDismissedAt,
-    ],
+    [sessions.length, settings.lastBackupAt, settings.backupNudgeDismissedAt],
   );
+
   const handleBackupNow = async () => {
     const ok = await triggerBackupShare({
       exercises: store.exercises,
@@ -94,9 +107,10 @@ export default function HomeScreen() {
       Alert.alert('Export failed', 'Could not share the backup file.');
     }
   };
+
   const handleDismissBackup = () =>
     updateSettings({ backupNudgeDismissedAt: Date.now() });
-  const todaysWorkout = WORKOUTS[0];
+
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
 
@@ -158,56 +172,101 @@ export default function HomeScreen() {
     return { kind: 'empty' as const } as const;
   }, [programs, workouts, sessions]);
 
+  const activeProgramWorkouts = useMemo(() => {
+    const active = programs.find((p) => p.isActive);
+    if (!active) return [] as typeof workouts;
+    return active.workoutIds
+      .map((wid) => workouts.find((w) => w.id === wid))
+      .filter((w): w is (typeof workouts)[number] => Boolean(w));
+  }, [programs, workouts]);
+
+  const recentSessions = useMemo(() => {
+    const withMuscle = sessions
+      .slice(-5)
+      .reverse()
+      .map((s) => {
+        const firstExId = s.exercises[0]?.exerciseId;
+        const ex = firstExId ? exercises.find((e) => e.id === firstExId) : null;
+        const muscle = ex?.category ?? undefined;
+        const volume = s.exercises.reduce(
+          (acc, se) =>
+            acc +
+            se.sets.reduce(
+              (a, set) => a + (set.weight ?? 0) * (set.reps ?? 0),
+              0,
+            ),
+          0,
+        );
+        const setCount = s.exercises.reduce((a, e) => a + e.sets.length, 0);
+        return {
+          id: s.id,
+          name: s.workoutName,
+          date: friendlyDate(s.date),
+          duration: Math.round(s.durationSeconds / 60),
+          volume,
+          setCount,
+          muscle,
+        };
+      });
+    return withMuscle.slice(0, 3);
+  }, [sessions, exercises]);
+
+  const empty = sessions.length === 0 && workouts.length === 0;
+
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-        <View className="mx-5 mt-2 mb-4 rounded-3xl p-6" style={{ backgroundColor: GREEN }}>
-          <View className="flex-row items-start justify-between">
-            <View className="flex-1 pr-3">
-              <Text className="text-black font-bold" style={{ fontSize: 36 }}>
-                Capable
-              </Text>
-              <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-                Workout Tracker
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/settings')}
-              className="w-10 h-10 rounded-2xl items-center justify-center bg-black/20 active:opacity-70"
-            >
-              <Ionicons name="settings-sharp" size={18} color="#0A0A0A" />
-            </Pressable>
-          </View>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
+        <ModernHeader
+          eyebrow="Capable"
+          title={
+            empty ? 'Ready when\nyou are.' : `${timeOfDayGreeting()}.`
+          }
+          badge={sessions.length > 0 ? 'Live' : undefined}
+          accent={accent}
+          onAction={() => router.push('/settings')}
+        />
 
         {showBackupNudge ? (
           <View
-            className="mx-5 mb-4 rounded-3xl p-4 flex-row items-center"
             style={{
+              marginHorizontal: 20,
+              marginBottom: 12,
+              padding: 16,
+              borderRadius: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
               backgroundColor: '#2A1F0A',
               borderWidth: 1,
               borderColor: '#EAB30855',
             }}
           >
             <Ionicons name="cloud-upload-outline" size={22} color="#EAB308" />
-            <View className="flex-1 ml-3">
-              <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text
+                style={{ color: COLORS.text, fontWeight: '700', fontSize: 14 }}
+              >
                 Back up your data
               </Text>
-              <Text className="text-zinc-400 text-xs mt-0.5">
+              <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>
                 {settings.lastBackupAt
                   ? "It's been over a month since your last backup."
                   : "You haven't backed up yet. Save a copy of your progress."}
               </Text>
-              <View className="flex-row gap-2 mt-2">
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 <PressableScale
                   onPress={handleBackupNow}
                   className="px-3 py-1.5 rounded-lg"
                   style={{ backgroundColor: '#EAB308' }}
                 >
                   <Text
-                    className="font-bold text-black"
-                    style={{ fontSize: 12 }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: '#0A0A0A',
+                    }}
                   >
                     Back up now
                   </Text>
@@ -217,8 +276,11 @@ export default function HomeScreen() {
                   className="px-3 py-1.5 rounded-lg bg-white/5"
                 >
                   <Text
-                    className="font-semibold text-zinc-400"
-                    style={{ fontSize: 12 }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: COLORS.muted,
+                    }}
                   >
                     Later
                   </Text>
@@ -228,185 +290,384 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <View className="mx-5 mb-4 rounded-3xl overflow-hidden bg-[#141414] border border-[#1F1F1F] p-5">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <View className="flex-row items-center gap-2 mb-1">
-                <Ionicons name="flame" size={18} color={GREEN} />
-                <Text className="text-zinc-500 text-sm font-semibold" style={{ letterSpacing: 1.2 }}>CURRENT STREAK</Text>
-              </View>
-              <AnimatedNumber
-                value={streak}
-                className="text-white text-4xl font-bold"
-                format={(n) => `${n} days`}
-              />
-              <Text className="text-zinc-500 text-sm mt-1">
-                {streak === 0 ? 'Log a workout to start a streak.' : 'Keep it up!'}
-              </Text>
-            </View>
-            <View className="w-20 h-20 rounded-full items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.12)' }}>
-              <Text className="text-4xl">🔥</Text>
-            </View>
-          </View>
-        </View>
-
-        <View className="px-5 flex-row gap-3 mb-5">
-          <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-            <Ionicons name="time-outline" size={20} color={GREEN} />
-            <AnimatedNumber
-              value={totalMinutes}
-              className="text-white text-xl font-bold mt-2"
-              format={(n) => `${n}m`}
-            />
-            <Text className="text-zinc-500 text-xs">This week</Text>
-          </View>
-          <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-            <Ionicons name="checkmark-circle-outline" size={20} color={GREEN} />
-            <AnimatedNumber
-              value={activeDays}
-              className="text-white text-xl font-bold mt-2"
-              format={(n) => `${n}/7`}
-            />
-            <Text className="text-zinc-500 text-xs">Active days</Text>
-          </View>
-          <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-            <Ionicons name="barbell-outline" size={20} color={GREEN} />
-            <AnimatedNumber
-              value={sessions.length}
-              className="text-white text-xl font-bold mt-2"
-            />
-            <Text className="text-zinc-500 text-xs">Sessions</Text>
-          </View>
-        </View>
-
-        {suggestion.kind === 'empty' ? (
-          <>
-            <View className="px-5 mb-3">
-              <Text className="text-white text-lg font-bold">Today's workout</Text>
-              <Text className="text-zinc-500 text-xs mt-0.5">
-                Ready to crush it?
-              </Text>
-            </View>
-            <PressableScale
-              onPress={() => router.push(`/workouts/${todaysWorkout.id}`)}
-              className="mx-5 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5"
+        {/* Streak card with WeekDots */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 12,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 24,
+            padding: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 6,
+              }}
             >
-              <View className="flex-row items-start justify-between mb-3">
-                <View className="flex-1">
-                  <View
-                    className="self-start px-2.5 py-1 rounded-full mb-2"
-                    style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
-                  >
-                    <Text
-                      className="text-xs font-semibold"
-                      style={{ color: GREEN }}
-                    >
-                      {todaysWorkout.category}
-                    </Text>
-                  </View>
-                  <Text className="text-white text-xl font-bold">
-                    {todaysWorkout.name}
-                  </Text>
-                  <Text className="text-zinc-500 text-xs mt-1">
-                    {todaysWorkout.description}
-                  </Text>
-                </View>
-                <View
-                  className="w-12 h-12 rounded-2xl items-center justify-center"
-                  style={{ backgroundColor: GREEN }}
-                >
-                  <Ionicons name="play" size={20} color="#000" />
-                </View>
-              </View>
-            </PressableScale>
-          </>
-        ) : (
+              <Ionicons name="flame" size={16} color={accent} />
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: COLORS.subtle,
+                  letterSpacing: 0.5,
+                }}
+              >
+                Current streak
+              </Text>
+            </View>
+            <NumMono
+              style={{
+                fontSize: 34,
+                fontWeight: '800',
+                letterSpacing: -1.2,
+                color: COLORS.text,
+              }}
+            >
+              {streak}
+              <Text
+                style={{
+                  fontSize: 17,
+                  fontWeight: '600',
+                  color: COLORS.muted,
+                }}
+              >
+                {' '}days
+              </Text>
+            </NumMono>
+            <Text style={{ fontSize: 13, color: COLORS.subtle, marginTop: 2 }}>
+              {streak === 0
+                ? 'Log a workout to start a streak.'
+                : 'Keep it up.'}
+            </Text>
+          </View>
+          <WeekDots accent={accent} />
+        </View>
+
+        {/* Quick stats */}
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: 12,
+            paddingHorizontal: 20,
+            marginBottom: 20,
+          }}
+        >
+          <Stat
+            icon="time-outline"
+            value={`${totalMinutes}`}
+            suffix="m"
+            label="This week"
+            accent={accent}
+          />
+          <Stat
+            icon="calendar-outline"
+            value={`${activeDays}/7`}
+            label="Active days"
+            accent={accent}
+          />
+          <Stat
+            icon="barbell-outline"
+            value={sessions.length}
+            label="Sessions"
+            accent={accent}
+          />
+        </View>
+
+        {/* Up next */}
+        {suggestion.kind !== 'empty' ? (
           <>
-            <View className="px-5 mb-3">
-              <Text className="text-white text-lg font-bold">
+            <View
+              style={{
+                paddingHorizontal: 20,
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: COLORS.text,
+                  letterSpacing: -0.2,
+                }}
+              >
                 {suggestion.kind === 'program-next' ? 'Up next' : 'Start a workout'}
               </Text>
-              <Text className="text-zinc-500 text-xs mt-0.5">
-                {suggestion.kind === 'program-next'
-                  ? `After ${suggestion.lastDoneName}${suggestion.lastDoneDate ? ` · ${friendlyDate(suggestion.lastDoneDate)}` : ''}`
-                  : suggestion.kind === 'program-first'
-                    ? 'First workout in your active program.'
-                    : 'Pick up where you left off.'}
-              </Text>
+              {suggestion.kind === 'program-next' && suggestion.lastDoneDate ? (
+                <Text style={{ fontSize: 12, color: COLORS.subtle }}>
+                  After {suggestion.lastDoneName} · {friendlyDate(suggestion.lastDoneDate)}
+                </Text>
+              ) : null}
             </View>
             <PressableScale
               onPress={() => router.push(`/workouts/${suggestion.workout.id}`)}
-              className="mx-5 bg-[#141414] rounded-3xl p-5"
               style={{
-                borderWidth: 1,
-                borderColor: suggestion.program ? `${GREEN}55` : '#1F1F1F',
+                marginHorizontal: 20,
+                marginBottom: 20,
+                borderRadius: 24,
+                padding: 20,
+                backgroundColor: COLORS.surface,
+                borderWidth: suggestion.program ? 1.5 : 1,
+                borderColor: suggestion.program
+                  ? accentAlpha(accent, 0.55)
+                  : COLORS.border,
               }}
             >
-              <View className="flex-row items-start justify-between mb-1">
-                <View className="flex-1 pr-3">
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  marginBottom: 14,
+                }}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
                   {suggestion.program ? (
-                    <View
-                      className="self-start px-2.5 py-1 rounded-full mb-2"
-                      style={{ backgroundColor: `${GREEN}22` }}
-                    >
-                      <Text
-                        className="font-bold"
-                        style={{
-                          color: GREEN,
-                          fontSize: 10,
-                          letterSpacing: 1,
-                        }}
-                      >
-                        {suggestion.program.name.toUpperCase()}
-                      </Text>
-                    </View>
+                    <Badge accent={accent} style={{ marginBottom: 10 }}>
+                      {suggestion.program.name.toUpperCase()}
+                    </Badge>
                   ) : null}
-                  <Text className="text-white text-xl font-bold">
+                  <Text
+                    style={{
+                      fontSize: 24,
+                      fontWeight: '800',
+                      color: COLORS.text,
+                      letterSpacing: -0.5,
+                      marginTop: 8,
+                      marginBottom: 2,
+                    }}
+                  >
                     {suggestion.workout.name}
                   </Text>
-                  <Text className="text-zinc-500 text-xs mt-1">
+                  <Text style={{ fontSize: 13, color: COLORS.subtle }}>
                     {suggestion.workout.exercises.length} exercise
                     {suggestion.workout.exercises.length === 1 ? '' : 's'}
                   </Text>
                 </View>
                 <View
-                  className="w-12 h-12 rounded-2xl items-center justify-center"
-                  style={{ backgroundColor: GREEN }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 16,
+                    backgroundColor: COLORS.text,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                 >
-                  <Ionicons name="play" size={20} color="#000" />
+                  <Ionicons
+                    name="play"
+                    size={18}
+                    color={COLORS.onAccent}
+                    style={{ marginLeft: 2 }}
+                  />
                 </View>
               </View>
+
+              {/* Exercise preview row */}
+              {suggestion.workout.exercises.length > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                    paddingTop: 14,
+                    borderTopWidth: 1,
+                    borderTopColor: COLORS.borderSoft,
+                  }}
+                >
+                  {suggestion.workout.exercises.slice(0, 5).map((we, i) => {
+                    const ex = exercises.find((e) => e.id === we.exerciseId);
+                    return (
+                      <View
+                        key={`${we.exerciseId}-${i}`}
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        {i > 0 ? (
+                          <Text
+                            style={{
+                              color: COLORS.ghost,
+                              marginRight: 10,
+                              fontSize: 12,
+                            }}
+                          >
+                            ·
+                          </Text>
+                        ) : null}
+                        <Text style={{ fontSize: 12, color: COLORS.muted }}>
+                          {ex?.name ?? 'Exercise'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
             </PressableScale>
           </>
-        )}
+        ) : null}
 
-        {workouts.length > 1 ? (
+        {/* Recent sessions */}
+        {recentSessions.length > 0 ? (
           <>
-            <View className="px-5 mt-6 mb-3">
-              <Text className="text-white text-lg font-bold">Your workouts</Text>
+            <View
+              style={{
+                paddingHorizontal: 20,
+                marginBottom: 10,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: COLORS.text,
+                  letterSpacing: -0.2,
+                }}
+              >
+                Recent sessions
+              </Text>
+            </View>
+            <View style={{ paddingHorizontal: 20, gap: 8 }}>
+              {recentSessions.map((s) => (
+                <CardSm
+                  key={s.id}
+                  muscle={s.muscle}
+                  onPress={() => router.push(`/sessions/${s.id}`)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      backgroundColor: COLORS.bg,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="barbell-outline" size={18} color={accent} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: COLORS.text,
+                      }}
+                    >
+                      {s.name}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: COLORS.subtle,
+                        marginTop: 2,
+                      }}
+                    >
+                      {s.date} · {s.duration}m ·{' '}
+                      <Text style={{ fontFamily: MONO }}>
+                        {s.volume.toLocaleString()}
+                      </Text>
+                      kg
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={14}
+                    color={COLORS.ghost}
+                  />
+                </CardSm>
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        {/* Your workouts — from active program */}
+        {activeProgramWorkouts.length > 0 ? (
+          <>
+            <View
+              style={{
+                paddingHorizontal: 20,
+                marginTop: 24,
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: '700',
+                  color: COLORS.text,
+                  letterSpacing: -0.2,
+                }}
+              >
+                Your workouts
+              </Text>
+              <Text style={{ fontSize: 12, color: COLORS.subtle }}>
+                From active program
+              </Text>
             </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
             >
-              {workouts.slice(0, 8).map((w) => (
+              {activeProgramWorkouts.slice(0, 8).map((w) => (
                 <PressableScale
                   key={w.id}
                   onPress={() => router.push(`/workouts/${w.id}`)}
-                  className="w-44 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]"
+                  style={{
+                    width: 170,
+                    padding: 14,
+                    borderRadius: 16,
+                    backgroundColor: COLORS.surface,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                  }}
                 >
                   <View
-                    style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
-                    className="w-10 h-10 rounded-xl items-center justify-center mb-3"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      marginBottom: 10,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: accentAlpha(accent, 0.133),
+                    }}
                   >
-                    <Ionicons name="barbell" size={20} color={GREEN} />
+                    <Ionicons name="barbell" size={18} color={accent} />
                   </View>
-                  <Text className="text-white text-sm font-bold" numberOfLines={1}>
+                  <Text
+                    style={{ fontSize: 14, fontWeight: '700', color: COLORS.text }}
+                    numberOfLines={1}
+                  >
                     {w.name}
                   </Text>
-                  <Text className="text-zinc-500 text-xs mt-0.5">
-                    {w.exercises.length} exercise{w.exercises.length === 1 ? '' : 's'}
+                  <Text
+                    style={{ fontSize: 11, color: COLORS.subtle, marginTop: 2 }}
+                  >
+                    {w.exercises.length} exercise
+                    {w.exercises.length === 1 ? '' : 's'}
                   </Text>
                 </PressableScale>
               ))}
@@ -415,5 +676,54 @@ export default function HomeScreen() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function WeekDots({ accent }: { accent: string }) {
+  return (
+    <View
+      style={{
+        width: 84,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 3,
+      }}
+    >
+      {WEEKLY_ACTIVITY.map((d, i) => (
+        <View
+          key={i}
+          style={{
+            width: 10,
+            height: 28,
+            borderRadius: 3,
+            backgroundColor: d.active
+              ? accentAlpha(accent, 0.3 + (Math.min(d.minutes, 80) / 80) * 0.7)
+              : '#1F1F1F',
+          }}
+        />
+      ))}
+      <View
+        style={{
+          width: 84,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginTop: 4,
+        }}
+      >
+        {WEEKLY_ACTIVITY.map((d, i) => (
+          <Text
+            key={i}
+            style={{
+              fontSize: 8,
+              color: COLORS.faint,
+              width: 10,
+              textAlign: 'center',
+            }}
+          >
+            {d.day[0]}
+          </Text>
+        ))}
+      </View>
+    </View>
   );
 }

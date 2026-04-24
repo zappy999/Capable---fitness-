@@ -3,25 +3,47 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { COLORS, accentAlpha } from '../../src/design/tokens';
+import {
+  Badge,
+  CardSm,
+  ModernHeader,
+  NavTop,
+  NumMono,
+} from '../../src/design/components';
 
 export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { programs, workouts, setActiveProgram, deleteProgram } = useStore();
-  const LIME = useAccent();
-  const NEON = LIME;
+  const accent = useAccent();
 
   const program = programs.find((p) => p.id === id);
 
   if (!program) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D] items-center justify-center">
-        <Text className="text-zinc-500">Program not found</Text>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: COLORS.bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ color: COLORS.subtle }}>Program not found</Text>
         <Pressable
           onPress={() => router.back()}
-          className="mt-4 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10"
+          style={{
+            marginTop: 16,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+          }}
         >
-          <Text className="text-white font-bold">Go back</Text>
+          <Text style={{ color: COLORS.text, fontWeight: '700' }}>Go back</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -36,176 +58,280 @@ export default function ProgramDetailScreen() {
     router.back();
   };
 
+  const attributeChips: { label: string }[] = [];
+  if (program.phase) attributeChips.push({ label: program.phase });
+  if (program.durationWeeks)
+    attributeChips.push({ label: `${program.durationWeeks}w block` });
+  if (program.restDays != null)
+    attributeChips.push({ label: `${program.restDays} rest/wk` });
+  if (program.intensityCycle && program.intensityCycle.length > 0)
+    attributeChips.push({
+      label: `${program.intensityCycle.join(' · ')}%`,
+    });
+
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top', 'bottom']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
-        <View className="flex-row gap-2">
-          <Pressable
-            onPress={() => router.push({ pathname: '/programs/new', params: { id: program.id } })}
-            className="px-4 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70 flex-row"
-          >
-            <Ionicons name="create-outline" size={14} color="#ffffff" />
-            <Text className="text-white font-bold ml-1.5" style={{ fontSize: 13 }}>
-              Edit
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={handleDelete}
-            className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-          >
-            <Ionicons name="trash-outline" size={16} color="#F87171" />
-          </Pressable>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
+      <NavTop
+        onBack={() => router.back()}
+        right={
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/programs/new',
+                  params: { id: program.id },
+                })
+              }
+              style={{
+                paddingHorizontal: 12,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: COLORS.surface,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Ionicons name="create-outline" size={14} color={COLORS.text} />
+              <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}>
+                Edit
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={handleDelete}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: COLORS.surface,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="trash-outline" size={16} color="#F87171" />
+            </Pressable>
+          </View>
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
+        <ModernHeader
+          eyebrow="Program"
+          badge={program.isActive ? 'ACTIVE' : undefined}
+          title={program.name}
+          sub={[
+            `${programWorkouts.length} workout${programWorkouts.length === 1 ? '' : 's'}`,
+            program.startDate ? `from ${program.startDate}` : null,
+            program.endDate ? `to ${program.endDate}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+          accent={accent}
+          back
+          action={false}
+          dropMark
+        />
+
+        {/* Active / meta card */}
+        <View style={{ paddingHorizontal: 20 }}>
+          <View
+            style={{
+              backgroundColor: COLORS.surface,
+              borderWidth: program.isActive ? 1.5 : 1,
+              borderColor: program.isActive
+                ? accentAlpha(accent, 0.55)
+                : COLORS.border,
+              borderRadius: 20,
+              padding: 16,
+              marginBottom: 12,
+            }}
           >
-            PROGRAM
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 34 }}>
-            {program.name}
-          </Text>
-          <View className="flex-row gap-4 mt-3">
-            <Text className="text-black/70 text-sm">
-              {programWorkouts.length} workout{programWorkouts.length === 1 ? '' : 's'}
-            </Text>
-            {program.startDate ? (
-              <Text className="text-black/70 text-sm">
-                · from {program.startDate}
-              </Text>
-            ) : null}
-            {program.endDate ? (
-              <Text className="text-black/70 text-sm">· to {program.endDate}</Text>
-            ) : null}
-          </View>
-          {program.phase ||
-          program.durationWeeks ||
-          program.restDays != null ||
-          (program.intensityCycle && program.intensityCycle.length > 0) ? (
-            <View className="flex-row flex-wrap gap-2 mt-3">
-              {program.phase ? (
-                <View className="px-3 py-1.5 rounded-full bg-black/80">
-                  <Text className="text-white text-xs font-bold">
-                    {program.phase}
-                  </Text>
-                </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                gap: 6,
+                marginBottom: attributeChips.length > 0 ? 14 : 0,
+              }}
+            >
+              {program.isActive ? (
+                <Badge accent={accent}>ACTIVE</Badge>
               ) : null}
-              {program.durationWeeks ? (
-                <View className="px-3 py-1.5 rounded-full bg-black/80">
-                  <Text className="text-white text-xs font-bold">
-                    {program.durationWeeks}w
-                  </Text>
-                </View>
-              ) : null}
-              {program.restDays != null ? (
-                <View className="px-3 py-1.5 rounded-full bg-black/80">
-                  <Text className="text-white text-xs font-bold">
-                    {program.restDays} rest/wk
-                  </Text>
-                </View>
-              ) : null}
-              {program.intensityCycle && program.intensityCycle.length > 0 ? (
-                <View className="px-3 py-1.5 rounded-full bg-black/80">
-                  <Text className="text-white text-xs font-bold">
-                    {program.intensityCycle.join('·')}%
-                  </Text>
-                </View>
-              ) : null}
+              {program.isCustom ? (
+                <Badge accent={accent} variant="yellow">
+                  CUSTOM
+                </Badge>
+              ) : (
+                <Badge accent={accent} variant="blue">
+                  PRESET
+                </Badge>
+              )}
+              {attributeChips.map((c) => (
+                <Badge key={c.label} accent={accent} variant="muted">
+                  {c.label}
+                </Badge>
+              ))}
             </View>
-          ) : null}
-          <View className="flex-row gap-2 mt-4">
-            {program.isActive ? (
-              <Pressable
-                onPress={() => setActiveProgram(null)}
-                className="px-4 py-2 rounded-full bg-black/80 active:opacity-80"
+            <Pressable
+              onPress={() =>
+                setActiveProgram(program.isActive ? null : program.id)
+              }
+              style={{
+                alignSelf: 'flex-start',
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                borderRadius: 12,
+                backgroundColor: program.isActive
+                  ? 'rgba(255,255,255,0.05)'
+                  : COLORS.text,
+                borderWidth: 1,
+                borderColor: program.isActive
+                  ? 'rgba(255,255,255,0.1)'
+                  : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  color: program.isActive ? COLORS.text : COLORS.onAccent,
+                  fontWeight: '700',
+                  fontSize: 13,
+                  letterSpacing: -0.1,
+                }}
               >
-                <Text
-                  className="font-bold"
-                  style={{ color: NEON, fontSize: 11, letterSpacing: 1 }}
-                >
-                  ACTIVE · TAP TO UNSET
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={() => setActiveProgram(program.id)}
-                className="px-4 py-2 rounded-full bg-black/80 active:opacity-80"
-              >
-                <Text
-                  className="font-bold text-white"
-                  style={{ fontSize: 11, letterSpacing: 1 }}
-                >
-                  SET ACTIVE
-                </Text>
-              </Pressable>
-            )}
+                {program.isActive ? 'Unset active' : 'Set active'}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <View className="px-5 mt-6 mb-3 flex-row items-center justify-between">
-          <Text className="text-white font-bold" style={{ fontSize: 20 }}>
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginTop: 12,
+            marginBottom: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: COLORS.text,
+              letterSpacing: -0.2,
+            }}
+          >
             Workouts
           </Text>
           <Pressable
             onPress={() => router.push('/workouts/new')}
-            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 12,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.1)',
+            }}
           >
-            <Text className="text-white font-bold" style={{ fontSize: 13 }}>
+            <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}>
               + New workout
             </Text>
           </Pressable>
         </View>
 
         {programWorkouts.length === 0 ? (
-          <View className="mx-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] py-8 px-6 items-center">
-            <Ionicons name="barbell-outline" size={22} color="#71717A" />
-            <Text className="text-white font-bold mt-3" style={{ fontSize: 16 }}>
+          <View
+            style={{
+              marginHorizontal: 20,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 24,
+              paddingVertical: 32,
+              paddingHorizontal: 24,
+              alignItems: 'center',
+            }}
+          >
+            <Ionicons name="barbell-outline" size={22} color={COLORS.subtle} />
+            <Text
+              style={{
+                marginTop: 12,
+                fontSize: 16,
+                fontWeight: '700',
+                color: COLORS.text,
+              }}
+            >
               No workouts in this program
             </Text>
-            <Text className="text-zinc-500 text-sm text-center mt-1">
+            <Text
+              style={{
+                fontSize: 13,
+                color: COLORS.subtle,
+                textAlign: 'center',
+                marginTop: 4,
+              }}
+            >
               Edit this program to add workouts.
             </Text>
           </View>
         ) : (
-          <View className="px-5 gap-3">
+          <View style={{ paddingHorizontal: 20, gap: 8 }}>
             {programWorkouts.map((w, idx) => (
-              <Pressable
+              <CardSm
                 key={w.id}
                 onPress={() => router.push(`/workouts/${w.id}`)}
-                className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center gap-4 active:opacity-80"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                }}
               >
-                <View className="w-12 h-12 rounded-xl items-center justify-center bg-[#1F1F1F]">
-                  <Text
-                    className="font-bold"
-                    style={{ color: LIME, fontSize: 15 }}
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    backgroundColor: COLORS.bg,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <NumMono
+                    style={{ color: accent, fontSize: 15, fontWeight: '800' }}
                   >
                     {String(idx + 1).padStart(2, '0')}
-                  </Text>
+                  </NumMono>
                 </View>
-                <View className="flex-1">
-                  <Text className="text-white font-bold" style={{ fontSize: 16 }}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: COLORS.text,
+                    }}
+                  >
                     {w.name}
                   </Text>
-                  <Text className="text-zinc-500 text-xs mt-0.5">
+                  <Text
+                    style={{ fontSize: 11, color: COLORS.subtle, marginTop: 2 }}
+                  >
                     {w.exercises.length} exercise
                     {w.exercises.length === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color="#3F3F46" />
-              </Pressable>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.ghost} />
+              </CardSm>
             ))}
           </View>
         )}

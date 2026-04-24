@@ -10,6 +10,12 @@ import {
   longestStreak,
   type AchievementStatus,
 } from '../../src/lib/achievements';
+import {
+  COLORS,
+  MONO,
+  muscleColor,
+} from '../../src/design/tokens';
+import { ModernHeader, NumMono } from '../../src/design/components';
 
 function mondayISO(iso: string) {
   const d = new Date(iso);
@@ -59,17 +65,28 @@ function buildWeeks(sessions: WorkoutSession[], weeks: number): WeekBucket[] {
   return buckets;
 }
 
+function formatVolume(kg: number): { value: string; suffix: string } {
+  if (kg >= 1000) return { value: (kg / 1000).toFixed(1), suffix: 'k kg' };
+  return { value: String(Math.round(kg)), suffix: 'kg' };
+}
+
 export default function StatsScreen() {
   const router = useRouter();
   const { programs, workouts, exercises, sessions, personalRecords } = useStore();
-  const LIME = useAccent();
-  const NEON = LIME;
+  const accent = useAccent();
 
   const customExercises = exercises.filter((e) => e.isCustom).length;
 
   const weeks = useMemo(() => buildWeeks(sessions, 8), [sessions]);
   const maxVolume = Math.max(...weeks.map((w) => w.volume), 1);
   const maxCount = Math.max(...weeks.map((w) => w.count), 1);
+  const totalVolume8wk = weeks.reduce((a, w) => a + w.volume, 0);
+  const thisWeekVol = weeks[weeks.length - 1]?.volume ?? 0;
+  const prevWeekVol = weeks[weeks.length - 2]?.volume ?? 0;
+  const deltaPct =
+    prevWeekVol > 0
+      ? Math.round(((thisWeekVol - prevWeekVol) / prevWeekVol) * 100)
+      : 0;
 
   const streak = useMemo(
     () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
@@ -85,110 +102,322 @@ export default function StatsScreen() {
     [sessions, personalRecords],
   );
 
+  // Muscle split over last 4 weeks by volume
+  const muscleSplit = useMemo(() => {
+    const fourWeeksAgo = weeks[Math.max(0, weeks.length - 4)]?.weekStart;
+    const totals: Record<string, number> = {};
+    let grand = 0;
+    for (const s of sessions) {
+      if (fourWeeksAgo && s.date < fourWeeksAgo) continue;
+      for (const se of s.exercises) {
+        const ex = exercises.find((e) => e.id === se.exerciseId);
+        const cat = ex?.category ?? 'Other';
+        const v = se.sets.reduce((a, st) => a + st.weight * st.reps, 0);
+        totals[cat] = (totals[cat] ?? 0) + v;
+        grand += v;
+      }
+    }
+    if (grand === 0) return [] as Array<{ name: string; pct: number }>;
+    return Object.entries(totals)
+      .map(([name, v]) => ({ name, pct: Math.round((v / grand) * 100) }))
+      .filter((d) => d.pct > 0)
+      .sort((a, b) => b.pct - a.pct);
+  }, [sessions, exercises, weeks]);
+
+  const volFmt = formatVolume(totalVolume8wk);
+  const topPR = [...personalRecords].sort((a, b) =>
+    b.achievedAt.localeCompare(a.achievedAt),
+  )[0];
+  const topPRExercise = topPR
+    ? exercises.find((e) => e.id === topPR.exerciseId)
+    : null;
+
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
+        <ModernHeader
+          eyebrow="Stats"
+          badge={
+            deltaPct !== 0 ? `${deltaPct > 0 ? '+' : ''}${deltaPct}% · 1 wk` : undefined
+          }
+          title="Progress"
+          sub="Your training in numbers."
+          accent={accent}
+          onAction={() => router.push('/settings')}
+        />
+
+        {/* 2-column stat grid */}
+        <View style={{ paddingHorizontal: 20, gap: 10 }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <StatBig
+              label="Total volume · 8 wk"
+              value={volFmt.value}
+              suffix={volFmt.suffix}
+              trend={deltaPct !== 0 ? `${deltaPct > 0 ? '+' : ''}${deltaPct}%` : undefined}
+              accent={accent}
+              icon="trending-up-outline"
+            />
+            <StatBig
+              label={topPRExercise ? `Best 1RM · ${topPRExercise.name}` : 'Best 1RM'}
+              value={
+                topPR
+                  ? String(Math.round(topPR.weight * (1 + topPR.reps / 30)))
+                  : '—'
+              }
+              suffix="kg"
+              accent={accent}
+              icon="trophy-outline"
+              valueAccent
+            />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <SmallStat
+              label="Sessions"
+              value={String(sessions.length)}
+              icon="barbell-outline"
+              accent={accent}
+              onPress={() => router.push('/sessions')}
+            />
+            <SmallStat
+              label="PRs"
+              value={String(personalRecords.length)}
+              icon="trophy-outline"
+              accent={accent}
+              onPress={() => router.push('/prs')}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <SmallStat
+              label="Streak"
+              value={`${streak}d`}
+              icon="flame"
+              accent="#F97316"
+            />
+            <SmallStat
+              label="Programs"
+              value={String(programs.length)}
+              icon="albums-outline"
+              accent={accent}
+              onPress={() => router.push('/program?tab=Program')}
+            />
+          </View>
+        </View>
+
+        {/* Volume chart card */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 16,
+            marginBottom: 12,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 24,
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              marginBottom: 14,
+            }}
           >
-            STATS
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 36 }}>
-            Progress
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            Your training in numbers.
-          </Text>
-        </View>
-
-        <View className="px-5 mt-5 flex-row gap-3">
-          <StatCard
-            label="Sessions"
-            value={String(sessions.length)}
-            icon="time-outline"
-            onPress={() => router.push('/sessions')}
-          />
-          <StatCard
-            label="PRs"
-            value={String(personalRecords.length)}
-            icon="trophy-outline"
-            onPress={() => router.push('/prs')}
-          />
-        </View>
-        <View className="px-5 mt-3 flex-row gap-3">
-          <StatCard
-            label="Programs"
-            value={String(programs.length)}
-            icon="albums-outline"
-            onPress={() => router.push('/program?tab=Program')}
-          />
-          <StatCard
-            label="Workouts"
-            value={String(workouts.length)}
-            icon="barbell-outline"
-            onPress={() => router.push('/program?tab=Workout')}
-          />
-        </View>
-        <View className="px-5 mt-3 flex-row gap-3">
-          <StatCard
-            label="In library"
-            value={String(exercises.length)}
-            icon="list-outline"
-            onPress={() => router.push('/exercises')}
-          />
-          <StatCard
-            label="Custom"
-            value={String(customExercises)}
-            icon="create-outline"
-            onPress={() => router.push('/exercises?custom=1')}
-          />
-        </View>
-        <View className="px-5 mt-3 flex-row gap-3">
-          <StatCard
-            label="Longest streak"
-            value={`${streak}d`}
-            icon="flame-outline"
-          />
-          <View className="flex-1" />
-        </View>
-
-        <View className="mx-5 mt-6 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
-          <Text className="text-white text-base font-bold mb-3">Weekly volume</Text>
+            <View>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: COLORS.subtle,
+                  letterSpacing: -0.1,
+                }}
+              >
+                Weekly volume
+              </Text>
+              <NumMono
+                style={{
+                  fontSize: 26,
+                  fontWeight: '800',
+                  letterSpacing: -0.5,
+                  color: COLORS.text,
+                  marginTop: 4,
+                }}
+              >
+                {formatVolume(thisWeekVol).value}
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: COLORS.muted,
+                  }}
+                >
+                  {' '}
+                  {formatVolume(thisWeekVol).suffix}
+                </Text>
+              </NumMono>
+            </View>
+            {deltaPct !== 0 ? (
+              <Text style={{ fontSize: 12, color: accent, fontWeight: '700' }}>
+                {deltaPct > 0 ? '+' : ''}
+                {deltaPct}% {deltaPct > 0 ? '↑' : '↓'}
+              </Text>
+            ) : null}
+          </View>
           <WeekBars
             weeks={weeks}
             valueFor={(w) => w.volume}
             maxValue={maxVolume}
-            color={LIME}
+            color={accent}
             unit="kg"
           />
         </View>
 
-        <View className="mx-5 mt-4 bg-[#141414] rounded-2xl p-5 border border-[#1F1F1F]">
-          <Text className="text-white text-base font-bold mb-3">
-            Workouts per week
-          </Text>
-          <WeekBars
-            weeks={weeks}
-            valueFor={(w) => w.count}
-            maxValue={maxCount}
-            color={NEON}
-            integer
+        {/* Muscle split card */}
+        {muscleSplit.length > 0 ? (
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 12,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 24,
+              padding: 20,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: COLORS.subtle,
+                letterSpacing: -0.1,
+                marginBottom: 14,
+              }}
+            >
+              Muscle split · 4 wk
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                height: 12,
+                borderRadius: 3,
+                overflow: 'hidden',
+                marginBottom: 14,
+              }}
+            >
+              {muscleSplit.map((d) => (
+                <View
+                  key={d.name}
+                  style={{
+                    flex: d.pct,
+                    backgroundColor: muscleColor(d.name),
+                  }}
+                />
+              ))}
+            </View>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                rowGap: 8,
+              }}
+            >
+              {muscleSplit.map((d) => (
+                <View
+                  key={d.name}
+                  style={{
+                    width: '50%',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: muscleColor(d.name),
+                    }}
+                  />
+                  <Text
+                    style={{ fontSize: 12, color: COLORS.muted, flex: 1 }}
+                  >
+                    {d.name}
+                  </Text>
+                  <NumMono
+                    style={{ fontSize: 12, fontWeight: '700', color: COLORS.text }}
+                  >
+                    {d.pct}%
+                  </NumMono>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {/* Library links */}
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: 10,
+            paddingHorizontal: 20,
+            marginBottom: 12,
+          }}
+        >
+          <SmallStat
+            label="In library"
+            value={String(exercises.length)}
+            icon="list-outline"
+            accent={accent}
+            onPress={() => router.push('/exercises')}
+          />
+          <SmallStat
+            label="Custom"
+            value={String(customExercises)}
+            icon="create-outline"
+            accent={accent}
+            onPress={() => router.push('/exercises?custom=1')}
+          />
+          <SmallStat
+            label="Workouts"
+            value={String(workouts.length)}
+            icon="barbell-outline"
+            accent={accent}
+            onPress={() => router.push('/program?tab=Workout')}
           />
         </View>
 
-        <View className="mx-5 mt-6 mb-2 flex-row items-center justify-between">
-          <Text className="text-white text-lg font-bold">Achievements</Text>
-          <Text className="text-zinc-500 text-xs">
-            {achievements.filter((a) => a.unlocked).length} / {achievements.length}{' '}
-            unlocked
+        {/* Achievements */}
+        <View
+          style={{
+            paddingHorizontal: 20,
+            marginTop: 8,
+            marginBottom: 10,
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: COLORS.text,
+              letterSpacing: -0.2,
+            }}
+          >
+            Achievements
           </Text>
+          <NumMono style={{ fontSize: 12, color: COLORS.subtle }}>
+            {achievements.filter((a) => a.unlocked).length} / {achievements.length}
+          </NumMono>
         </View>
-        <View className="px-5 gap-3">
+        <View style={{ paddingHorizontal: 20, gap: 8 }}>
           {achievements.map((a) => (
             <AchievementCard key={a.def.id} achievement={a} />
           ))}
@@ -198,44 +427,134 @@ export default function StatsScreen() {
   );
 }
 
-function StatCard({
+function StatBig({
+  label,
+  value,
+  suffix,
+  trend,
+  icon,
+  accent,
+  valueAccent,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  trend?: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  accent: string;
+  valueAccent?: boolean;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 16,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Ionicons name={icon} size={18} color={accent} />
+        {trend ? (
+          <Text style={{ fontSize: 11, color: accent, fontWeight: '700' }}>
+            {trend}
+          </Text>
+        ) : null}
+      </View>
+      <NumMono
+        style={{
+          fontSize: 26,
+          fontWeight: '800',
+          letterSpacing: -0.5,
+          color: valueAccent ? accent : COLORS.text,
+          marginTop: 6,
+        }}
+      >
+        {value}
+        {suffix ? (
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: COLORS.muted,
+            }}
+          >
+            {' '}
+            {suffix}
+          </Text>
+        ) : null}
+      </NumMono>
+      <Text
+        style={{
+          fontSize: 11,
+          color: COLORS.subtle,
+          marginTop: 2,
+          letterSpacing: -0.1,
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function SmallStat({
   label,
   value,
   icon,
+  accent,
   onPress,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
+  accent: string;
   onPress?: () => void;
 }) {
-  const LIME = useAccent();
-  const body = (
-    <>
-      <View className="flex-row items-center justify-between">
-        <Ionicons name={icon} size={20} color={LIME} />
-        {onPress ? (
-          <Ionicons name="chevron-forward" size={14} color="#3F3F46" />
-        ) : null}
-      </View>
-      <Text className="text-white text-xl font-bold mt-2">{value}</Text>
-      <Text className="text-zinc-500 text-xs">{label}</Text>
-    </>
-  );
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F] active:opacity-80"
-      >
-        {body}
-      </Pressable>
-    );
-  }
+  const Wrap: any = onPress ? Pressable : View;
   return (
-    <View className="flex-1 bg-[#141414] rounded-2xl p-4 border border-[#1F1F1F]">
-      {body}
-    </View>
+    <Wrap
+      onPress={onPress}
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 16,
+      }}
+    >
+      <Ionicons name={icon} size={18} color={accent} />
+      <NumMono
+        style={{
+          fontSize: 20,
+          fontWeight: '800',
+          color: COLORS.text,
+          marginTop: 6,
+          letterSpacing: -0.4,
+        }}
+      >
+        {value}
+      </NumMono>
+      <Text
+        style={{
+          fontSize: 11,
+          color: COLORS.subtle,
+          marginTop: 2,
+          letterSpacing: -0.1,
+        }}
+      >
+        {label}
+      </Text>
+    </Wrap>
   );
 }
 
@@ -245,49 +564,78 @@ function WeekBars({
   maxValue,
   color,
   unit,
-  integer,
 }: {
   weeks: WeekBucket[];
   valueFor: (w: WeekBucket) => number;
   maxValue: number;
   color: string;
   unit?: string;
-  integer?: boolean;
 }) {
   return (
     <View>
-      <View className="flex-row items-end justify-between h-24">
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          height: 96,
+          gap: 6,
+        }}
+      >
         {weeks.map((w) => {
           const v = valueFor(w);
-          const pct = (v / maxValue) * 100;
+          const pct = maxValue > 0 ? (v / maxValue) * 100 : 0;
           return (
-            <View key={w.weekStart} className="items-center flex-1">
-              <View className="h-20 w-full items-center justify-end mb-2">
+            <View
+              key={w.weekStart}
+              style={{
+                flex: 1,
+                flexDirection: 'column',
+                alignItems: 'center',
+                height: '100%',
+              }}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                }}
+              >
                 <View
                   style={{
-                    height: `${Math.max(pct, v > 0 ? 4 : 0)}%`,
+                    width: '80%',
+                    height: `${Math.max(pct, v > 0 ? 4 : 2)}%`,
                     backgroundColor: v > 0 ? color : '#2A2A2A',
+                    borderTopLeftRadius: 6,
+                    borderTopRightRadius: 6,
+                    borderBottomLeftRadius: 2,
+                    borderBottomRightRadius: 2,
                   }}
-                  className="w-7 rounded-t-lg"
                 />
               </View>
-              <Text className="text-zinc-600 text-[10px] font-medium">
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: COLORS.faint,
+                  fontWeight: '500',
+                  marginTop: 6,
+                }}
+              >
                 {w.weekStart.slice(5)}
               </Text>
             </View>
           );
         })}
       </View>
-      <View className="flex-row justify-between mt-2">
-        <Text className="text-zinc-600 text-[10px]">
-          max{' '}
-          {integer
-            ? maxValue
-            : unit
-              ? `${Math.round(maxValue)}${unit}`
-              : Math.round(maxValue)}
+      {unit ? (
+        <Text style={{ fontSize: 10, color: COLORS.faint, marginTop: 6 }}>
+          peak {Math.round(maxValue).toLocaleString()}
+          {unit}
         </Text>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -297,55 +645,77 @@ function AchievementCard({ achievement }: { achievement: AchievementStatus }) {
   const pct = Math.min(1, progress / def.target);
   return (
     <View
-      className="bg-[#141414] rounded-2xl border border-[#1F1F1F] p-4 flex-row items-center"
-      style={{ opacity: unlocked ? 1 : 0.7 }}
+      style={{
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        opacity: unlocked ? 1 : 0.75,
+      }}
     >
       <View
-        className="w-12 h-12 rounded-2xl items-center justify-center"
         style={{
-          backgroundColor: unlocked ? def.color + '25' : '#1F1F1F',
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: unlocked ? `${def.color}22` : '#1F1F1F',
         }}
       >
         <Ionicons
           name={def.icon}
-          size={22}
-          color={unlocked ? def.color : '#71717A'}
+          size={18}
+          color={unlocked ? def.color : COLORS.subtle}
         />
       </View>
-      <View className="flex-1 ml-4">
-        <View className="flex-row items-center gap-2">
-          <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.text }}>
             {def.title}
           </Text>
           {unlocked ? (
             <Ionicons name="checkmark-circle" size={14} color={def.color} />
           ) : null}
         </View>
-        <Text className="text-zinc-500 text-xs mt-0.5">{def.description}</Text>
-        {unlocked ? (
-          <Text
-            className="mt-2 font-semibold"
-            style={{ color: def.color, fontSize: 12 }}
-          >
-            Unlocked
-          </Text>
-        ) : (
+        <Text style={{ fontSize: 12, color: COLORS.subtle, marginTop: 2 }}>
+          {def.description}
+        </Text>
+        {!unlocked ? (
           <>
-            <View className="h-1.5 bg-[#1F1F1F] rounded-full overflow-hidden mt-2">
+            <View
+              style={{
+                height: 4,
+                backgroundColor: '#1F1F1F',
+                borderRadius: 2,
+                marginTop: 8,
+                overflow: 'hidden',
+              }}
+            >
               <View
                 style={{
                   height: '100%',
                   width: `${pct * 100}%`,
                   backgroundColor: def.color,
-                  borderRadius: 9999,
+                  borderRadius: 2,
                 }}
               />
             </View>
-            <Text className="text-zinc-500 text-xs mt-1">
+            <NumMono
+              style={{
+                fontSize: 10,
+                color: COLORS.subtle,
+                marginTop: 4,
+              }}
+            >
               {Math.min(progress, def.target)} / {def.target}
-            </Text>
+            </NumMono>
           </>
-        )}
+        ) : null}
       </View>
     </View>
   );

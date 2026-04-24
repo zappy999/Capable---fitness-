@@ -174,7 +174,7 @@ export default function NewProgramScreen() {
         </Text>
       </View>
 
-      <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+      <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
         <Text className="text-white font-bold mb-3" style={{ fontSize: 14 }}>
           Program name
         </Text>
@@ -252,7 +252,7 @@ export default function NewProgramScreen() {
         />
       </View>
 
-      <View className="mx-5 mt-5 bg-[#141414] rounded-3xl border border-[#1F1F1F] p-5">
+      <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
         <Text className="text-white font-bold" style={{ fontSize: 20 }}>
           Add Workouts
         </Text>
@@ -340,7 +340,7 @@ export default function NewProgramScreen() {
         ) : null}
       </View>
       {picked.length === 0 ? (
-        <View className="mx-5 bg-[#141414] rounded-2xl border border-[#1F1F1F] py-5 px-5 mb-3">
+        <View className="mx-5 bg-[#1A1A1A] rounded-2xl border border-[#1F1F1F] py-5 px-5 mb-3">
           <Text className="text-zinc-500 text-sm italic text-center">
             Tap workouts above to add them to this program.
           </Text>
@@ -354,7 +354,7 @@ export default function NewProgramScreen() {
       <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
         <Pressable
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
+          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
         >
           <Ionicons name="close" size={18} color="#ffffff" />
         </Pressable>

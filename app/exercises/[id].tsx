@@ -17,6 +17,19 @@ import {
   type WorkoutSession,
 } from '../../src/store/types';
 import { LineChart, type ChartPoint } from '../../src/components/LineChart';
+import {
+  COLORS,
+  MONO,
+  accentAlpha,
+  muscleColor,
+} from '../../src/design/tokens';
+import {
+  Badge,
+  CardSm,
+  ModernHeader,
+  NavTop,
+  NumMono,
+} from '../../src/design/components';
 
 type ChartMode = 'Best Weight' | 'Volume' | 'Est. 1RM';
 const CHART_MODES: ChartMode[] = ['Best Weight', 'Volume', 'Est. 1RM'];
@@ -35,10 +48,18 @@ function formatDuration(seconds: number) {
   return `${m}m`;
 }
 
+function friendlyDate(iso: string): string {
+  const parts = iso.slice(0, 10).split('-');
+  if (parts.length !== 3) return iso;
+  const [, m, d] = parts.map(Number);
+  const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${MONTH[m - 1]} ${d}`;
+}
+
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const LIME = useAccent();
+  const accent = useAccent();
   const {
     exercises,
     sessions,
@@ -103,7 +124,10 @@ export default function ExerciseDetailScreen() {
       } else if (chartMode === 'Volume') {
         value = setsForEx.reduce((a, x) => a + x.weight * x.reps, 0);
       } else {
-        value = Math.max(0, ...setsForEx.map((x) => estimate1RM(x.weight, x.reps)));
+        value = Math.max(
+          0,
+          ...setsForEx.map((x) => estimate1RM(x.weight, x.reps)),
+        );
       }
       return { label: s.date.slice(5), value: Math.round(value * 10) / 10 };
     });
@@ -111,13 +135,23 @@ export default function ExerciseDetailScreen() {
 
   if (!exercise) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0D0D0D] items-center justify-center">
-        <Text className="text-zinc-500">Exercise not found</Text>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Text style={{ color: COLORS.subtle }}>Exercise not found</Text>
         <Pressable
           onPress={() => router.back()}
-          className="mt-4 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10"
+          style={{
+            marginTop: 16,
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+          }}
         >
-          <Text className="text-white font-bold">Go back</Text>
+          <Text style={{ color: COLORS.text, fontWeight: '700' }}>Go back</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -125,8 +159,10 @@ export default function ExerciseDetailScreen() {
 
   const totalSets = allSets.length;
   const sessionsCount = exerciseSessions.length;
+  const mainMuscle = exercise.category;
+  const muscleHex = muscleColor(mainMuscle);
 
-  const percentages = [60, 70, 75, 80, 85, 90, 95];
+  const percentages = [70, 75, 80, 85];
 
   const mergeCandidates = exercises.filter((e) => e.id !== exercise.id);
 
@@ -135,170 +171,346 @@ export default function ExerciseDetailScreen() {
     router.back();
   };
 
+  const estimatedRounded = estimated > 0 ? Math.round(estimated * 10) / 10 : null;
+
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top', 'bottom']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
-        {exercise.isCustom ? (
-          <Pressable
-            onPress={handleDelete}
-            className="w-10 h-10 rounded-full bg-[#141414] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-          >
-            <Ionicons name="trash-outline" size={16} color="#F87171" />
-          </Pressable>
-        ) : (
-          <View className="w-10 h-10" />
-        )}
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
+      <NavTop
+        onBack={() => router.back()}
+        right={
+          mainMuscle ? (
+            <Text
+              style={{
+                fontSize: 11,
+                color: COLORS.subtle,
+                letterSpacing: 1,
+                fontWeight: '700',
+                textTransform: 'uppercase',
+              }}
+            >
+              {mainMuscle}
+            </Text>
+          ) : exercise.isCustom ? (
+            <Pressable
+              onPress={handleDelete}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: COLORS.surface,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="trash-outline" size={16} color="#F87171" />
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View className="mx-5 mt-2 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5">
+        {/* Title card */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginTop: 8,
+            marginBottom: 16,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 24,
+            padding: 20,
+          }}
+        >
           <Text
-            className="text-zinc-500 font-bold"
-            style={{ fontSize: 11, letterSpacing: 1.5 }}
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: COLORS.subtle,
+              letterSpacing: -0.1,
+            }}
           >
             EXERCISE DETAIL
           </Text>
-          <Text className="text-white font-bold mt-2" style={{ fontSize: 30 }}>
-            {exercise.name}
-          </Text>
-          <Text className="text-zinc-500 text-sm mt-1">
-            All logged sessions for this exercise.
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              marginTop: 8,
+            }}
+          >
+            {mainMuscle ? (
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: muscleHex,
+                }}
+              />
+            ) : null}
+            <Text
+              style={{
+                fontSize: 30,
+                fontWeight: '800',
+                letterSpacing: -0.6,
+                color: COLORS.text,
+              }}
+            >
+              {exercise.name}
+            </Text>
+          </View>
+          <Text style={{ fontSize: 13, color: COLORS.subtle, marginTop: 6 }}>
+            {sessionsCount} session{sessionsCount === 1 ? '' : 's'} · {totalSets}{' '}
+            sets tracked
           </Text>
         </View>
 
-        <View className="mx-5 mt-4 flex-row gap-3">
-          <StatBox label="Sessions" value={String(sessionsCount)} />
-          <StatBox label="Total Sets" value={String(totalSets)} />
-          <StatBox
-            label="Best Set"
-            value={bestSet ? `${bestSet.weight}×${bestSet.reps}` : '—'}
+        {/* Stat row */}
+        <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: 12 }}>
+          <MiniStat
+            label="Best set"
+            value={bestSet ? String(bestSet.weight) : '—'}
+            suffix={bestSet ? `× ${bestSet.reps}` : undefined}
+          />
+          <MiniStat
+            label="Est. 1RM"
+            value={bestSet ? String(Math.round(estimate1RM(bestSet.weight, bestSet.reps))) : '—'}
+            suffix="kg"
+            valueColor={accent}
+          />
+          <MiniStat
+            label="Sessions"
+            value={String(sessionsCount)}
           />
         </View>
 
-        <View className="mx-5 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-white font-bold" style={{ fontSize: 18 }}>
+        {/* Progression chart */}
+        {chartData.length > 0 ? (
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 12,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 24,
+              padding: 20,
+            }}
+          >
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              {CHART_MODES.map((m) => {
+                const active = m === chartMode;
+                return (
+                  <Pressable
+                    key={m}
+                    onPress={() => setChartMode(m)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 999,
+                      backgroundColor: 'transparent',
+                      borderWidth: 1,
+                      borderColor: active ? accent : COLORS.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '700',
+                        color: active ? accent : COLORS.muted,
+                      }}
+                    >
+                      {m}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <LineChart
+              data={chartData}
+              color={accent}
+              yLabel={
+                chartMode === 'Volume'
+                  ? 'Volume (kg)'
+                  : chartMode === 'Est. 1RM'
+                    ? 'Estimated 1RM (kg)'
+                    : 'Best Weight (kg)'
+              }
+            />
+          </View>
+        ) : null}
+
+        {/* 1RM calculator */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 12,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 24,
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 14,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text }}>
               1RM Calculator
             </Text>
             <Text
-              className="text-zinc-500 font-bold"
-              style={{ fontSize: 11, letterSpacing: 1 }}
+              style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: COLORS.subtle,
+                letterSpacing: 1,
+              }}
             >
               EPLEY
             </Text>
           </View>
-          <View className="flex-row gap-3 mb-3">
-            <View className="flex-1">
-              <Text
-                className="text-zinc-500 font-bold mb-1.5"
-                style={{ fontSize: 11, letterSpacing: 1 }}
-              >
-                WEIGHT (KG)
-              </Text>
-              <TextInput
-                value={calcWeight}
-                onChangeText={setCalcWeight}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor="#52525B"
-                className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
-                style={{ paddingVertical: 14, fontSize: 18, fontWeight: '700' }}
-              />
-            </View>
-            <View className="flex-1">
-              <Text
-                className="text-zinc-500 font-bold mb-1.5"
-                style={{ fontSize: 11, letterSpacing: 1 }}
-              >
-                REPS
-              </Text>
-              <TextInput
-                value={calcReps}
-                onChangeText={setCalcReps}
-                keyboardType="number-pad"
-                placeholder="0"
-                placeholderTextColor="#52525B"
-                className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 text-white"
-                style={{ paddingVertical: 14, fontSize: 18, fontWeight: '700' }}
-              />
-            </View>
+
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+            <CalcField label="WEIGHT" value={calcWeight} onChange={setCalcWeight} />
+            <CalcField label="REPS" value={calcReps} onChange={setCalcReps} numeric />
           </View>
 
-          <View className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl p-4 flex-row items-center justify-between">
-            <View>
+          <View
+            style={{
+              backgroundColor: COLORS.bg,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 14,
+              padding: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
               <Text
-                className="text-zinc-500 font-bold"
-                style={{ fontSize: 11, letterSpacing: 1 }}
+                style={{
+                  fontSize: 10,
+                  fontWeight: '700',
+                  color: COLORS.subtle,
+                  letterSpacing: 1,
+                }}
               >
                 ESTIMATED 1RM
               </Text>
-              <Text className="text-zinc-500 text-xs mt-1">From your best set</Text>
+              <Text style={{ fontSize: 11, color: COLORS.subtle, marginTop: 2 }}>
+                From your best set
+              </Text>
             </View>
-            <Text style={{ color: LIME, fontSize: 34, fontWeight: '800' }}>
-              {estimated > 0 ? `${Math.round(estimated * 10) / 10}kg` : '—'}
-            </Text>
+            <NumMono
+              style={{
+                fontSize: 28,
+                fontWeight: '800',
+                color: accent,
+                letterSpacing: -0.5,
+              }}
+            >
+              {estimatedRounded != null ? `${estimatedRounded}kg` : '—'}
+            </NumMono>
           </View>
 
-          <View className="flex-row flex-wrap gap-2 mt-3">
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: 6,
+              marginTop: 12,
+            }}
+          >
             {percentages.map((p) => (
               <View
                 key={p}
-                className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-xl px-3 py-2"
-                style={{ minWidth: 74 }}
+                style={{
+                  flex: 1,
+                  backgroundColor: COLORS.bg,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  borderRadius: 10,
+                  padding: 10,
+                }}
               >
                 <Text
-                  className="text-zinc-500 font-bold"
-                  style={{ fontSize: 11 }}
+                  style={{
+                    fontSize: 10,
+                    color: COLORS.subtle,
+                    fontWeight: '700',
+                  }}
                 >
                   {p}%
                 </Text>
-                <Text
-                  className="text-white font-bold"
-                  style={{ fontSize: 16 }}
+                <NumMono
+                  style={{ fontSize: 14, fontWeight: '800', color: COLORS.text, marginTop: 2 }}
                 >
-                  {estimated > 0
-                    ? roundWeight((estimated * p) / 100, settings.weightIncrementKg)
+                  {estimatedRounded != null
+                    ? roundWeight((estimatedRounded * p) / 100, settings.weightIncrementKg)
                     : '—'}
-                </Text>
+                </NumMono>
               </View>
             ))}
           </View>
         </View>
 
-        <View className="mx-5 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5">
-          <Text className="text-white font-bold" style={{ fontSize: 18 }}>
+        {/* Manage */}
+        <View
+          style={{
+            marginHorizontal: 20,
+            marginBottom: 12,
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 24,
+            padding: 20,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text }}>
             Manage
           </Text>
 
           <Text
-            className="text-zinc-500 font-bold mt-4 mb-2"
-            style={{ fontSize: 11, letterSpacing: 1 }}
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: COLORS.subtle,
+              letterSpacing: 1,
+              marginTop: 16,
+              marginBottom: 8,
+            }}
           >
             MUSCLE GROUP
           </Text>
-          <View className="flex-row flex-wrap gap-2">
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             <Pressable
               onPress={() => updateExerciseCategory(exercise.id, null)}
-              className="px-3 py-1.5 rounded-full"
               style={{
-                backgroundColor: exercise.category === null ? LIME : '#0D0D0D',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: exercise.category === null ? accent : COLORS.bg,
                 borderWidth: 1,
-                borderColor: exercise.category === null ? LIME : '#1F1F1F',
+                borderColor: exercise.category === null ? accent : COLORS.border,
               }}
             >
               <Text
-                className="text-xs font-semibold"
                 style={{
-                  color: exercise.category === null ? '#0A0A0A' : '#ffffff',
+                  fontSize: 12,
+                  fontWeight: '600',
+                  color: exercise.category === null ? COLORS.onAccent : COLORS.text,
                 }}
               >
                 None
@@ -311,19 +523,32 @@ export default function ExerciseDetailScreen() {
                 <Pressable
                   key={c}
                   onPress={() => updateExerciseCategory(exercise.id, c)}
-                  className="px-3 py-1.5 rounded-full flex-row items-center"
                   style={{
-                    backgroundColor: active ? LIME : '#0D0D0D',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    backgroundColor: active ? accent : COLORS.bg,
                     borderWidth: 1,
-                    borderColor: active ? LIME : '#1F1F1F',
+                    borderColor: active ? accent : COLORS.border,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
                 >
                   <View
-                    style={{ backgroundColor: color, width: 6, height: 6, borderRadius: 3, marginRight: 6 }}
+                    style={{
+                      backgroundColor: color,
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                    }}
                   />
                   <Text
-                    className="text-xs font-semibold"
-                    style={{ color: active ? '#0A0A0A' : '#ffffff' }}
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '600',
+                      color: active ? COLORS.onAccent : COLORS.text,
+                    }}
                   >
                     {c}
                   </Text>
@@ -333,112 +558,172 @@ export default function ExerciseDetailScreen() {
           </View>
 
           <Text
-            className="text-zinc-500 font-bold mt-5 mb-2"
-            style={{ fontSize: 11, letterSpacing: 1 }}
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: COLORS.subtle,
+              letterSpacing: 1,
+              marginTop: 20,
+              marginBottom: 8,
+            }}
           >
             MERGE WITH ANOTHER EXERCISE
           </Text>
-          <Text className="text-zinc-500 text-sm mb-3">
+          <Text style={{ fontSize: 13, color: COLORS.subtle, marginBottom: 12 }}>
             Same exercise under a different name? Move all logged sets from another
             exercise into this one.
           </Text>
           <Pressable
             onPress={() => setMergePickerOpen(true)}
-            className="self-start bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 py-3 active:opacity-70"
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: COLORS.bg,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 14,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}
           >
-            <Text className="text-white font-bold" style={{ fontSize: 13 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text }}>
               Pick exercise to merge in…
             </Text>
           </Pressable>
+
+          {exercise.isCustom ? (
+            <Pressable
+              onPress={handleDelete}
+              style={{
+                alignSelf: 'flex-start',
+                marginTop: 14,
+                backgroundColor: 'rgba(248,113,113,0.08)',
+                borderWidth: 1,
+                borderColor: 'rgba(248,113,113,0.3)',
+                borderRadius: 14,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Ionicons name="trash-outline" size={14} color="#F87171" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#F87171' }}>
+                Delete custom exercise
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
-        <View className="mx-5 mt-4 bg-[#141414] border border-[#1F1F1F] rounded-3xl p-5">
-          <View className="flex-row flex-wrap gap-2 mb-4">
-            {CHART_MODES.map((m) => {
-              const active = m === chartMode;
-              return (
-                <Pressable
-                  key={m}
-                  onPress={() => setChartMode(m)}
-                  className="px-4 py-2 rounded-full"
-                  style={{
-                    backgroundColor: active ? 'transparent' : '#0D0D0D',
-                    borderWidth: 1,
-                    borderColor: active ? LIME : '#1F1F1F',
-                  }}
-                >
-                  <Text
-                    className="text-sm font-bold"
-                    style={{ color: active ? LIME : '#A1A1AA' }}
-                  >
-                    {m}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <LineChart
-            data={chartData}
-            color={LIME}
-            yLabel={
-              chartMode === 'Volume'
-                ? 'Volume (kg)'
-                : chartMode === 'Est. 1RM'
-                  ? 'Estimated 1RM (kg)'
-                  : 'Best Weight (kg)'
-            }
-          />
+        {/* History */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 10 }}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: '700',
+              color: COLORS.text,
+              letterSpacing: -0.2,
+            }}
+          >
+            History
+          </Text>
         </View>
-
-        <View className="mx-5 mt-4 gap-3">
+        <View style={{ paddingHorizontal: 20, gap: 8 }}>
           {[...exerciseSessions].reverse().map((s) => {
             const setsForEx = s.exercises
               .filter((se) => se.exerciseId === exercise.id)
               .flatMap((se) => se.sets);
+            const best = setsForEx.reduce(
+              (a, b) => (b.weight > a ? b.weight : a),
+              0,
+            );
             return (
-              <View
-                key={s.id}
-                className="bg-[#141414] border border-[#1F1F1F] rounded-3xl p-4"
-              >
-                <View className="flex-row items-center justify-between">
+              <CardSm key={s.id}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                  }}
+                >
                   <View>
-                    <Text className="text-white font-bold" style={{ fontSize: 18 }}>
-                      {s.date}
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }}>
+                      {friendlyDate(s.date)}
                     </Text>
-                    <Text className="text-zinc-500 text-xs mt-1">
+                    <Text style={{ fontSize: 11, color: COLORS.subtle, marginTop: 2 }}>
                       {s.workoutName}
                       {s.durationSeconds > 0
                         ? ` · ${formatDuration(s.durationSeconds)}`
                         : ''}
                     </Text>
                   </View>
-                  <Text className="text-zinc-500 text-xs">
+                  <Text style={{ fontSize: 11, color: COLORS.subtle }}>
                     {setsForEx.length} set{setsForEx.length === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <View className="flex-row flex-wrap gap-2 mt-3">
-                  {setsForEx.map((st, i) => (
-                    <View
-                      key={i}
-                      className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-xl px-3 py-1.5"
-                    >
-                      <Text className="text-white text-sm font-semibold">
-                        {st.weight} × {st.reps}
-                      </Text>
-                    </View>
-                  ))}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    marginTop: 10,
+                  }}
+                >
+                  {setsForEx.map((st, i) => {
+                    const isTop = st.weight === best && best > 0;
+                    return (
+                      <View
+                        key={i}
+                        style={{
+                          backgroundColor: isTop
+                            ? accentAlpha(accent, 0.133)
+                            : COLORS.bg,
+                          borderWidth: 1,
+                          borderColor: isTop
+                            ? accentAlpha(accent, 0.22)
+                            : COLORS.border,
+                          borderRadius: 10,
+                          paddingVertical: 5,
+                          paddingHorizontal: 10,
+                        }}
+                      >
+                        <NumMono
+                          style={{ fontSize: 13, fontWeight: '700', color: COLORS.text }}
+                        >
+                          {st.weight}
+                          <Text style={{ color: COLORS.subtle }}> × {st.reps}</Text>
+                        </NumMono>
+                      </View>
+                    );
+                  })}
                 </View>
-              </View>
+              </CardSm>
             );
           })}
           {exerciseSessions.length === 0 ? (
-            <View className="bg-[#141414] border border-[#1F1F1F] rounded-3xl py-8 px-6 items-center">
-              <Ionicons name="time-outline" size={22} color="#71717A" />
-              <Text className="text-white font-bold mt-3" style={{ fontSize: 16 }}>
+            <View
+              style={{
+                backgroundColor: COLORS.surface,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: 24,
+                paddingVertical: 32,
+                paddingHorizontal: 24,
+                alignItems: 'center',
+              }}
+            >
+              <Ionicons name="time-outline" size={22} color={COLORS.subtle} />
+              <Text style={{ marginTop: 12, fontSize: 16, fontWeight: '700', color: COLORS.text }}>
                 No history yet
               </Text>
-              <Text className="text-zinc-500 text-sm text-center mt-1">
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: COLORS.subtle,
+                  textAlign: 'center',
+                  marginTop: 4,
+                }}
+              >
                 Log a session containing this exercise to see it here.
               </Text>
             </View>
@@ -463,21 +748,37 @@ export default function ExerciseDetailScreen() {
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: '#141414',
+              backgroundColor: COLORS.surface,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               maxHeight: '80%',
             }}
           >
-            <View className="p-5 flex-row items-center justify-between border-b border-[#1F1F1F]">
-              <Text className="text-white font-bold" style={{ fontSize: 18 }}>
+            <View
+              style={{
+                padding: 20,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.border,
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: '700', color: COLORS.text }}>
                 Merge into {exercise.name}
               </Text>
               <Pressable
                 onPress={() => setMergePickerOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/5 items-center justify-center"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <Ionicons name="close" size={16} color="#ffffff" />
+                <Ionicons name="close" size={16} color={COLORS.text} />
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
@@ -488,18 +789,27 @@ export default function ExerciseDetailScreen() {
                     mergeExercise(e.id, exercise.id);
                     setMergePickerOpen(false);
                   }}
-                  className="bg-[#0D0D0D] border border-[#1F1F1F] rounded-2xl px-4 py-3 flex-row items-center active:opacity-70"
+                  style={{
+                    backgroundColor: COLORS.bg,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    borderRadius: 14,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}
                 >
-                  <View className="flex-1">
-                    <Text className="text-white font-bold" style={{ fontSize: 15 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: COLORS.text }}>
                       {e.name}
                     </Text>
-                    <Text className="text-zinc-500 text-xs mt-0.5">
+                    <Text style={{ fontSize: 11, color: COLORS.subtle, marginTop: 2 }}>
                       {e.category ?? 'Uncategorized'}
                       {e.isCustom ? ' · Custom' : ''}
                     </Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color="#71717A" />
+                  <Ionicons name="arrow-forward" size={16} color={COLORS.subtle} />
                 </Pressable>
               ))}
             </ScrollView>
@@ -510,19 +820,101 @@ export default function ExerciseDetailScreen() {
   );
 }
 
+function CalcField({
+  label,
+  value,
+  onChange,
+  numeric,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  numeric?: boolean;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text
+        style={{
+          fontSize: 10,
+          fontWeight: '700',
+          color: COLORS.subtle,
+          letterSpacing: 1,
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        keyboardType={numeric ? 'number-pad' : 'decimal-pad'}
+        placeholder="0"
+        placeholderTextColor={COLORS.faint}
+        style={{
+          backgroundColor: COLORS.bg,
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          borderRadius: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          fontSize: 20,
+          fontWeight: '800',
+          color: COLORS.text,
+          fontFamily: MONO,
+        }}
+      />
+    </View>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  suffix,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  valueColor?: string;
+}) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+      }}
+    >
+      <Text style={{ fontSize: 11, color: COLORS.subtle, letterSpacing: -0.1 }}>
+        {label}
+      </Text>
+      <NumMono
+        style={{
+          fontSize: 18,
+          fontWeight: '800',
+          color: valueColor ?? COLORS.text,
+          marginTop: 6,
+          letterSpacing: -0.3,
+        }}
+      >
+        {value}
+        {suffix ? (
+          <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.muted }}>
+            {' '}
+            {suffix}
+          </Text>
+        ) : null}
+      </NumMono>
+    </View>
+  );
+}
+
 function roundWeight(v: number, increment: number) {
   if (!Number.isFinite(increment) || increment <= 0) return String(Math.round(v));
   const rounded = Math.round(v / increment) * increment;
   return String(Math.round(rounded * 100) / 100).replace(/\.0+$/, '');
-}
-
-function StatBox({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-1 bg-[#141414] border border-[#1F1F1F] rounded-2xl p-4">
-      <Text className="text-zinc-500 text-xs">{label}</Text>
-      <Text className="text-white font-bold mt-1" style={{ fontSize: 20 }}>
-        {value}
-      </Text>
-    </View>
-  );
 }
