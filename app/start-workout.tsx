@@ -118,6 +118,7 @@ type SwipeableSetCardProps = {
   onChangeWeight: (v: number) => void;
   onChangeReps: (v: number) => void;
   onComplete: () => void;
+  onOpenMore: () => void;
 };
 
 function SwipeableSetCard({
@@ -132,6 +133,7 @@ function SwipeableSetCard({
   onChangeWeight,
   onChangeReps,
   onComplete,
+  onOpenMore,
 }: SwipeableSetCardProps) {
   const NEON = useAccent();
   const translateX = useSharedValue(0);
@@ -273,6 +275,16 @@ function SwipeableSetCard({
                 </Text>
               </View>
             ) : null}
+            {typeof set.rir === 'number' ? (
+              <View
+                style={{ backgroundColor: 'rgba(59,130,246,0.18)' }}
+                className="px-2.5 py-1 rounded-full"
+              >
+                <Text style={{ color: '#60A5FA', fontSize: 11, letterSpacing: 0.5 }} className="font-bold">
+                  RIR {set.rir}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           <View className="flex-row gap-4">
@@ -375,7 +387,10 @@ function SwipeableSetCard({
                 Swipe right to complete →
               </Animated.Text>
             )}
-            <Pressable className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70">
+            <Pressable
+              onPress={onOpenMore}
+              className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+            >
               <Text className="text-white font-bold" style={{ fontSize: 13 }}>
                 More
               </Text>
@@ -619,6 +634,7 @@ export default function StartWorkoutScreen() {
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
+  const [moreMenuSetIdx, setMoreMenuSetIdx] = useState<number | null>(null);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
 
   const prefillFirstSets = (exs: ExerciseLog[]): ExerciseLog[] =>
@@ -1200,6 +1216,7 @@ export default function StartWorkoutScreen() {
                   onChangeWeight={(weight) => updateSet(activeIdx, i, { weight })}
                   onChangeReps={(reps) => updateSet(activeIdx, i, { reps })}
                   onComplete={() => completeSet(activeIdx, i)}
+                  onOpenMore={() => setMoreMenuSetIdx(i)}
                 />
               </Animated.View>
             ))}
@@ -1528,6 +1545,108 @@ export default function StartWorkoutScreen() {
           </Pressable>
         </Pressable>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={moreMenuSetIdx !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMoreMenuSetIdx(null)}
+      >
+        <Pressable
+          onPress={() => setMoreMenuSetIdx(null)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#141414',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: 32,
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white font-bold" style={{ fontSize: 18 }}>
+                Set {(moreMenuSetIdx ?? 0) + 1} · {active.name}
+              </Text>
+              <Pressable
+                onPress={() => setMoreMenuSetIdx(null)}
+                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
+              >
+                <Ionicons name="close" size={16} color="#ffffff" />
+              </Pressable>
+            </View>
+
+            <Text
+              className="text-gray-500 font-bold mb-2"
+              style={{ fontSize: 11, letterSpacing: 1.5 }}
+            >
+              RIR · REPS IN RESERVE
+            </Text>
+            <View className="flex-row flex-wrap gap-2 mb-5">
+              {[0, 1, 2, 3, 4, 5].map((n) => {
+                const selected =
+                  moreMenuSetIdx !== null &&
+                  active.sets[moreMenuSetIdx]?.rir === n;
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => {
+                      if (moreMenuSetIdx === null) return;
+                      updateSet(activeIdx, moreMenuSetIdx, { rir: n });
+                    }}
+                    style={{
+                      backgroundColor: selected ? NEON : 'rgba(255,255,255,0.05)',
+                      borderColor: selected ? NEON : 'rgba(255,255,255,0.10)',
+                    }}
+                    className="px-4 py-2.5 rounded-xl border active:opacity-80 min-w-[48px] items-center"
+                  >
+                    <Text
+                      style={{
+                        color: selected ? '#000000' : '#ffffff',
+                        fontSize: 14,
+                      }}
+                      className="font-bold"
+                    >
+                      {n === 5 ? '5+' : n}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => {
+                  if (moreMenuSetIdx === null) return;
+                  updateSet(activeIdx, moreMenuSetIdx, { rir: undefined });
+                }}
+                className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 active:opacity-80"
+              >
+                <Text className="text-gray-300 font-bold" style={{ fontSize: 14 }}>
+                  Clear
+                </Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              onPress={() => {
+                setMoreMenuSetIdx(null);
+                setNoteDraft(active.note ?? '');
+                setNoteEditOpen(true);
+              }}
+              className="flex-row items-center gap-3 px-4 py-4 rounded-2xl bg-white/5 border border-white/10 active:opacity-80"
+            >
+              <Ionicons name="create-outline" size={18} color="#ffffff" />
+              <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+                {active.note ? 'Edit exercise note' : 'Add exercise note'}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
