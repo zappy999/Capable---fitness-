@@ -103,6 +103,10 @@ export type UserSettings = {
   accentColor: string;
   timezone?: string;
   starterProgramsSeeded?: boolean;
+  /** Epoch ms of last time the user exported a backup. Null = never. */
+  lastBackupAt?: number | null;
+  /** Epoch ms of last time the user dismissed the backup nudge. */
+  backupNudgeDismissedAt?: number | null;
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {

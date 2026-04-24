@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { UserSettings } from '../../src/store/types';
-import { shareJsonAsFile } from '../../src/lib/platform';
+import { triggerBackupShare } from '../../src/lib/backup';
 
 const ACCENT_OPTIONS = [
   '#22C55E',
@@ -35,18 +35,17 @@ export default function SettingsScreen() {
   const patch = (p: Partial<UserSettings>) => updateSettings(p);
 
   const handleExport = async () => {
-    const dump = {
-      exportedAt: new Date().toISOString(),
-      version: 'capable.store.v2',
-      exercises: store.exercises.filter((e) => e.isCustom),
+    const ok = await triggerBackupShare({
+      exercises: store.exercises,
       workouts: store.workouts,
       programs: store.programs,
       sessions: store.sessions,
       personalRecords: store.personalRecords,
       settings: store.settings,
-    };
-    const ok = await shareJsonAsFile(dump, 'capable-backup');
-    if (!ok) {
+    });
+    if (ok) {
+      updateSettings({ lastBackupAt: Date.now() });
+    } else {
       Alert.alert('Export failed', 'Could not share the backup file.');
     }
   };

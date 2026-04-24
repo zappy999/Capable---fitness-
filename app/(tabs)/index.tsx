@@ -1,11 +1,34 @@
 import { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { WORKOUTS, WEEKLY_ACTIVITY } from '../../src/data/workouts';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
+import { triggerBackupShare } from '../../src/lib/backup';
+
+const DAY_MS = 86_400_000;
+const BACKUP_STALE_AFTER_DAYS = 30;
+const BACKUP_DISMISS_SNOOZE_DAYS = 7;
+const BACKUP_MIN_SESSIONS = 5;
+
+function shouldShowBackupNudge(opts: {
+  now: number;
+  sessionCount: number;
+  lastBackupAt: number | null | undefined;
+  dismissedAt: number | null | undefined;
+}) {
+  if (opts.sessionCount < BACKUP_MIN_SESSIONS) return false;
+  const staleThreshold = opts.now - BACKUP_STALE_AFTER_DAYS * DAY_MS;
+  const backupIsStale =
+    !opts.lastBackupAt || opts.lastBackupAt < staleThreshold;
+  if (!backupIsStale) return false;
+  const snoozeThreshold = opts.now - BACKUP_DISMISS_SNOOZE_DAYS * DAY_MS;
+  const snoozeExpired =
+    !opts.dismissedAt || opts.dismissedAt < snoozeThreshold;
+  return snoozeExpired;
+}
 
 const MONTH_SHORT = [
   'Jan',
@@ -37,8 +60,40 @@ function friendlyDate(iso: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { workouts, sessions, programs } = useStore();
+  const store = useStore();
+  const { workouts, sessions, programs, settings, updateSettings } = store;
   const GREEN = useAccent();
+  const showBackupNudge = useMemo(
+    () =>
+      shouldShowBackupNudge({
+        now: Date.now(),
+        sessionCount: sessions.length,
+        lastBackupAt: settings.lastBackupAt,
+        dismissedAt: settings.backupNudgeDismissedAt,
+      }),
+    [
+      sessions.length,
+      settings.lastBackupAt,
+      settings.backupNudgeDismissedAt,
+    ],
+  );
+  const handleBackupNow = async () => {
+    const ok = await triggerBackupShare({
+      exercises: store.exercises,
+      workouts: store.workouts,
+      programs: store.programs,
+      sessions: store.sessions,
+      personalRecords: store.personalRecords,
+      settings: store.settings,
+    });
+    if (ok) {
+      updateSettings({ lastBackupAt: Date.now() });
+    } else {
+      Alert.alert('Export failed', 'Could not share the backup file.');
+    }
+  };
+  const handleDismissBackup = () =>
+    updateSettings({ backupNudgeDismissedAt: Date.now() });
   const todaysWorkout = WORKOUTS[0];
   const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
   const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
@@ -122,6 +177,54 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+
+        {showBackupNudge ? (
+          <View
+            className="mx-5 mb-4 rounded-3xl p-4 flex-row items-center"
+            style={{
+              backgroundColor: '#2A1F0A',
+              borderWidth: 1,
+              borderColor: '#EAB30855',
+            }}
+          >
+            <Ionicons name="cloud-upload-outline" size={22} color="#EAB308" />
+            <View className="flex-1 ml-3">
+              <Text className="text-white font-bold" style={{ fontSize: 14 }}>
+                Back up your data
+              </Text>
+              <Text className="text-zinc-400 text-xs mt-0.5">
+                {settings.lastBackupAt
+                  ? "It's been over a month since your last backup."
+                  : "You haven't backed up yet. Save a copy of your progress."}
+              </Text>
+              <View className="flex-row gap-2 mt-2">
+                <Pressable
+                  onPress={handleBackupNow}
+                  className="px-3 py-1.5 rounded-lg active:opacity-70"
+                  style={{ backgroundColor: '#EAB308' }}
+                >
+                  <Text
+                    className="font-bold text-black"
+                    style={{ fontSize: 12 }}
+                  >
+                    Back up now
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleDismissBackup}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 active:opacity-70"
+                >
+                  <Text
+                    className="font-semibold text-zinc-400"
+                    style={{ fontSize: 12 }}
+                  >
+                    Later
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View className="mx-5 mb-4 rounded-3xl overflow-hidden bg-[#141414] border border-[#1F1F1F] p-5">
           <View className="flex-row items-center justify-between">
