@@ -319,6 +319,18 @@ export default function SessionDetailScreen() {
                                 {s.weight}
                                 <Text style={{ color: COLORS.subtle }}> × {s.reps}</Text>
                               </NumMono>
+                              {typeof s.rir === 'number' ? (
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '700',
+                                    color: '#60A5FA',
+                                    letterSpacing: 0.3,
+                                  }}
+                                >
+                                  R{s.rir}
+                                </Text>
+                              ) : null}
                               {isPR ? (
                                 <Ionicons name="trophy" size={10} color={accent} />
                               ) : null}

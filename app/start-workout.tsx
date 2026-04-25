@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -658,13 +658,20 @@ function CircularRestTimer({
   );
 }
 
-type SourceKind = 'user' | 'demo' | 'fallback';
+type SourceKind = 'user' | 'demo' | 'fallback' | 'missing';
+
+type ResolvedSource = {
+  kind: SourceKind;
+  name: string;
+  workoutId?: string;
+  exercises: ExerciseLog[];
+};
 
 function resolveSource(
   id: string | undefined,
   userWorkouts: Workout[],
   library: { id: string; name: string }[],
-): { kind: SourceKind; name: string; workoutId?: string; exercises: ExerciseLog[] } {
+): ResolvedSource {
   if (id) {
     const user = userWorkouts.find((w) => w.id === id);
     if (user) {
@@ -714,6 +721,10 @@ function resolveSource(
         })),
       };
     }
+    // An id was supplied but matches neither user nor demo data. The
+    // screen should render a "Workout not found" state instead of
+    // silently substituting the fallback.
+    return { kind: 'missing', name: 'Workout not found', exercises: [] };
   }
   return {
     kind: 'fallback',
@@ -754,6 +765,17 @@ export default function StartWorkoutScreen() {
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [restTotal, setRestTotal] = useState<number | null>(null);
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
+  // Monotonically incremented for every rest start; the async notification
+  // promise compares its captured version against the latest before
+  // committing the id, so a notification scheduled for a rest that was
+  // already cancelled / restarted gets cancelled instead of leaking.
+  const restVersionRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
   const [moreMenuSetIdx, setMoreMenuSetIdx] = useState<number | null>(null);
@@ -852,10 +874,15 @@ export default function StartWorkoutScreen() {
 
   useEffect(() => {
     if (hydrating) return;
+    const sourceKey = `${source.kind}:${source.workoutId ?? 'fallback'}`;
+    // If our state hasn't been hydrated for this exact source yet (e.g.
+    // source just switched and the load effect hasn't run yet), skip the
+    // write so we don't clobber the new draft key with stale exercises.
+    if (loadedFor !== sourceKey) return;
     const key = draftKey(source.kind, source.workoutId);
     const draft: DraftSnapshot = { startedAt, activeIdx, exercises };
     AsyncStorage.setItem(key, JSON.stringify(draft)).catch(() => {});
-  }, [exercises, activeIdx, startedAt, hydrating, source.kind, source.workoutId]);
+  }, [exercises, activeIdx, startedAt, hydrating, loadedFor, source.kind, source.workoutId]);
 
   const clearDraft = () => {
     return AsyncStorage.removeItem(
@@ -970,6 +997,10 @@ export default function StartWorkoutScreen() {
       haptic('success');
       setRestRemaining(null);
       setRestTotal(null);
+      // Bumping the version invalidates any in-flight schedule promise so
+      // its resolution cancels rather than re-installing an id.
+      restVersionRef.current++;
+      cancelNotification(restNotificationId);
       setRestNotificationId(null);
       return;
     }
@@ -1035,14 +1066,24 @@ export default function StartWorkoutScreen() {
     setRestTotal(seconds);
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
+    const myVersion = ++restVersionRef.current;
     scheduleRestNotification(seconds, 'Ready for your next set').then((id) => {
-      if (id) setRestNotificationId(id);
+      if (!id) return;
+      // If this resolution is for an old or cancelled rest, or the screen
+      // unmounted, immediately cancel the OS notification so it doesn't
+      // fire orphaned later.
+      if (!mountedRef.current || myVersion !== restVersionRef.current) {
+        cancelNotification(id);
+        return;
+      }
+      setRestNotificationId(id);
     });
   };
 
   const stopRest = () => {
     setRestRemaining(null);
     setRestTotal(null);
+    restVersionRef.current++;
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
   };
@@ -1127,6 +1168,60 @@ export default function StartWorkoutScreen() {
         }}
         onShare={() => shareWorkoutSummary(summary)}
       />
+    );
+  }
+
+  if (source.kind === 'missing') {
+    return (
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: COLORS.bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+        edges={['top', 'bottom']}
+      >
+        <Ionicons name="alert-circle-outline" size={36} color={COLORS.subtle} />
+        <Text
+          style={{
+            color: COLORS.text,
+            fontSize: 17,
+            fontWeight: '700',
+            marginTop: 12,
+          }}
+        >
+          Workout not found
+        </Text>
+        <Text
+          style={{
+            color: COLORS.subtle,
+            fontSize: 13,
+            textAlign: 'center',
+            marginTop: 6,
+            maxWidth: 260,
+            lineHeight: 18,
+          }}
+        >
+          The workout you tried to start no longer exists. It may have been
+          deleted or the link is stale.
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            marginTop: 16,
+            paddingHorizontal: 18,
+            paddingVertical: 10,
+            borderRadius: 12,
+            backgroundColor: COLORS.text,
+          }}
+        >
+          <Text style={{ color: COLORS.onAccent, fontWeight: '800', fontSize: 14 }}>
+            Go back
+          </Text>
+        </Pressable>
+      </SafeAreaView>
     );
   }
 

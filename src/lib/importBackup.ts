@@ -59,6 +59,41 @@ function parseNumOr(v: unknown, fallback: number): number {
   return fallback;
 }
 
+// ── Defensive caps for untrusted import payloads ───────────────────────
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+// IANA timezone identifiers are <= 64 chars in practice (e.g. "America/Argentina/ComodRivadavia").
+const MAX_TZ_LEN = 64;
+// Per-array hard caps. The app is a personal tracker so these are
+// generous, but they prevent a hostile JSON file from exhausting memory
+// or AsyncStorage.
+const MAX_EXERCISES = 2000;
+const MAX_WORKOUTS = 500;
+const MAX_SESSIONS = 5000;
+const MAX_PROGRAMS = 200;
+// Per-string caps on imported text (names, notes, etc.).
+const MAX_NAME_LEN = 200;
+const MAX_NOTE_LEN = 2000;
+
+function safeString(v: unknown, max = MAX_NAME_LEN): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const trimmed = v.trim();
+  if (trimmed.length === 0) return undefined;
+  return trimmed.slice(0, max);
+}
+
+function isValidHexColor(v: unknown): v is string {
+  return typeof v === 'string' && HEX_COLOR.test(v);
+}
+
+function isValidTimezone(v: unknown): v is string {
+  return typeof v === 'string' && v.length > 0 && v.length <= MAX_TZ_LEN;
+}
+
+function capArray<T>(arr: T[] | undefined, cap: number): T[] {
+  if (!arr) return [];
+  return arr.length > cap ? arr.slice(0, cap) : arr;
+}
+
 function parseOptNum(v: unknown): number | undefined {
   if (v === undefined || v === null) return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -130,9 +165,12 @@ function buildFromWeb(
   for (const n of sourceLibrary) {
     if (typeof n === 'string' && n.trim()) allNames.add(n);
   }
-  const sourcePrograms = Array.isArray(backup.programs)
-    ? (backup.programs as Record<string, unknown>[])
-    : [];
+  const sourcePrograms = capArray(
+    Array.isArray(backup.programs)
+      ? (backup.programs as Record<string, unknown>[])
+      : undefined,
+    MAX_PROGRAMS,
+  );
   for (const p of sourcePrograms) {
     const pex = Array.isArray(p?.exercises)
       ? (p.exercises as Record<string, unknown>[])
@@ -141,9 +179,12 @@ function buildFromWeb(
       if (typeof ex?.name === 'string') allNames.add(ex.name);
     }
   }
-  const sourceHistory = Array.isArray(backup.history)
-    ? (backup.history as Record<string, unknown>[])
-    : [];
+  const sourceHistory = capArray(
+    Array.isArray(backup.history)
+      ? (backup.history as Record<string, unknown>[])
+      : undefined,
+    MAX_SESSIONS,
+  );
   for (const h of sourceHistory) {
     const session = (h?.session ?? {}) as Record<string, unknown>;
     for (const name of Object.keys(session)) allNames.add(name);
@@ -276,8 +317,27 @@ function buildFromNative(
   const libIds = new Set(EXERCISE_LIBRARY.map((e) => e.id));
   const existingCustomIds = new Set(currentCustomExercises.map((e) => e.id));
 
+  // Hard-cap any oversized array up front so a hostile JSON file can't
+  // exhaust memory or AsyncStorage.
+  const exercisesIn = capArray(
+    backup.exercises as Record<string, unknown>[] | undefined,
+    MAX_EXERCISES,
+  );
+  const workoutsIn = capArray(
+    backup.workouts as Record<string, unknown>[] | undefined,
+    MAX_WORKOUTS,
+  );
+  const sessionsIn = capArray(
+    backup.sessions as Record<string, unknown>[] | undefined,
+    MAX_SESSIONS,
+  );
+  const programsIn = capArray(
+    backup.programs as Record<string, unknown>[] | undefined,
+    MAX_PROGRAMS,
+  );
+
   const newCustom: Exercise[] = [];
-  for (const e of (backup.exercises ?? []) as Record<string, unknown>[]) {
+  for (const e of exercisesIn) {
     if (typeof e?.id !== 'string' || typeof e?.name !== 'string') continue;
     if (libIds.has(e.id) || existingCustomIds.has(e.id)) continue;
     newCustom.push({
@@ -289,7 +349,7 @@ function buildFromNative(
   }
 
   const workouts: Workout[] = [];
-  for (const w of (backup.workouts ?? []) as Record<string, unknown>[]) {
+  for (const w of workoutsIn) {
     if (typeof w?.id !== 'string' || typeof w?.name !== 'string') continue;
     if (!Array.isArray(w?.exercises)) continue;
     workouts.push({
@@ -301,7 +361,7 @@ function buildFromNative(
   }
 
   const sessions: WorkoutSession[] = [];
-  for (const s of (backup.sessions ?? []) as Record<string, unknown>[]) {
+  for (const s of sessionsIn) {
     if (typeof s?.id !== 'string' || typeof s?.workoutName !== 'string') continue;
     if (typeof s?.date !== 'string') {
       warnings.push(`Session ${s?.id ?? '?'} skipped: missing date`);
@@ -323,22 +383,32 @@ function buildFromNative(
   const settings: Partial<UserSettings> = {};
   const importedSettings = backup.settings as Record<string, unknown> | undefined;
   if (importedSettings) {
-    if (typeof importedSettings.weightIncrementKg === 'number') {
+    if (
+      typeof importedSettings.weightIncrementKg === 'number' &&
+      Number.isFinite(importedSettings.weightIncrementKg) &&
+      importedSettings.weightIncrementKg > 0 &&
+      importedSettings.weightIncrementKg <= 100
+    ) {
       settings.weightIncrementKg = importedSettings.weightIncrementKg;
     }
-    if (typeof importedSettings.defaultRestSeconds === 'number') {
+    if (
+      typeof importedSettings.defaultRestSeconds === 'number' &&
+      Number.isFinite(importedSettings.defaultRestSeconds) &&
+      importedSettings.defaultRestSeconds >= 0 &&
+      importedSettings.defaultRestSeconds <= 24 * 60 * 60
+    ) {
       settings.defaultRestSeconds = importedSettings.defaultRestSeconds;
     }
-    if (typeof importedSettings.timezone === 'string') {
+    if (isValidTimezone(importedSettings.timezone)) {
       settings.timezone = importedSettings.timezone;
     }
-    if (typeof importedSettings.accentColor === 'string') {
+    if (isValidHexColor(importedSettings.accentColor)) {
       settings.accentColor = importedSettings.accentColor;
     }
   }
 
   const programs: Program[] = [];
-  for (const p of (backup.programs ?? []) as Record<string, unknown>[]) {
+  for (const p of programsIn) {
     if (typeof p?.id !== 'string' || typeof p?.name !== 'string') continue;
     if (!Array.isArray(p?.workoutIds)) continue;
     programs.push({
@@ -406,9 +476,12 @@ export function buildCoachProgramPayload(
     return id;
   };
 
-  const rawWorkouts = Array.isArray(data.workouts)
-    ? (data.workouts as Record<string, unknown>[])
-    : [];
+  const rawWorkouts = capArray(
+    Array.isArray(data.workouts)
+      ? (data.workouts as Record<string, unknown>[])
+      : undefined,
+    MAX_WORKOUTS,
+  );
 
   const workouts: Workout[] = [];
   for (const w of rawWorkouts) {
