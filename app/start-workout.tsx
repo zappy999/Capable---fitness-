@@ -58,11 +58,15 @@ import Animated, {
   interpolate,
   LinearTransition,
   runOnJS,
+  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const SWIPE_THRESHOLD = 110;
 
@@ -220,6 +224,78 @@ function SwipeableSetCard({
       ? 'rgba(34,197,94,0.3)'
       : 'rgba(255,255,255,0.08)';
   const cardBg = isDone ? 'rgba(34,197,94,0.05)' : '#101010';
+
+  // Completed set: render a compact chip row instead of the full editor.
+  // Tapping anywhere (including the More button) still opens the More sheet.
+  if (isDone) {
+    const hasWeight = set.weight > 0;
+    const hasReps = set.reps > 0;
+    const repText =
+      hasWeight && hasReps ? `${set.weight} × ${set.reps}` : '—';
+    return (
+      <Pressable
+        onPress={onOpenMore}
+        style={{
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: 'rgba(34,197,94,0.22)',
+          backgroundColor: 'rgba(34,197,94,0.06)',
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        }}
+      >
+        <Ionicons name="checkmark-circle" size={16} color={NEON} />
+        <Text
+          style={{
+            color: '#9ca3af',
+            fontSize: 12,
+            fontWeight: '700',
+            letterSpacing: 0.4,
+          }}
+        >
+          SET {setIdx + 1}
+        </Text>
+        <Text
+          style={{
+            color: '#ffffff',
+            fontSize: 14,
+            fontWeight: '700',
+            fontFamily: MONO,
+          }}
+        >
+          {repText}
+        </Text>
+        {typeof set.rir === 'number' ? (
+          <View
+            style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 999,
+              backgroundColor: 'rgba(59,130,246,0.18)',
+              borderWidth: 1,
+              borderColor: 'rgba(59,130,246,0.3)',
+            }}
+          >
+            <Text
+              style={{
+                color: '#60A5FA',
+                fontSize: 10,
+                fontWeight: '700',
+                letterSpacing: 0.5,
+              }}
+            >
+              RIR {set.rir}
+            </Text>
+          </View>
+        ) : null}
+        <View style={{ flex: 1 }} />
+        <Ionicons name="ellipsis-horizontal" size={16} color="#52525B" />
+      </Pressable>
+    );
+  }
 
   return (
     <View style={{ position: 'relative', borderRadius: 16, overflow: 'hidden' }}>
@@ -505,39 +581,79 @@ function formatRest(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function RestProgressBar({
+function CircularRestTimer({
   restRemaining,
   restTotal,
   color,
+  size = 56,
+  stroke = 4,
 }: {
   restRemaining: number;
   restTotal: number | null;
   color: string;
+  size?: number;
+  stroke?: number;
 }) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
   const progress = useSharedValue(
-    restTotal ? restRemaining / restTotal : 0,
+    restTotal ? Math.max(0, restRemaining / restTotal) : 1,
   );
   useEffect(() => {
     const target = restTotal ? Math.max(0, restRemaining / restTotal) : 0;
-    // ~1s tween matches the 1Hz countdown tick so the bar drains smoothly
-    // rather than stepping.
+    // ~1s tween matches the 1Hz countdown tick so the ring drains smoothly.
     progress.value = withTiming(target, { duration: 950 });
   }, [restRemaining, restTotal, progress]);
-  const animatedStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
   }));
+
   return (
-    <View className="h-1 bg-white/10 rounded-full overflow-hidden">
-      <Animated.View
-        style={[
-          {
-            height: '100%',
-            backgroundColor: color,
-            borderRadius: 9999,
-          },
-          animatedStyle,
-        ]}
-      />
+    <View
+      style={{
+        width: size,
+        height: size,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Svg
+        width={size}
+        height={size}
+        style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.1)"
+          strokeWidth={stroke}
+          fill="transparent"
+        />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          fill="transparent"
+          strokeDasharray={`${circumference} ${circumference}`}
+          animatedProps={animatedProps}
+        />
+      </Svg>
+      <Text
+        style={{
+          color: '#ffffff',
+          fontSize: 14,
+          fontWeight: '800',
+          fontFamily: MONO,
+          letterSpacing: -0.3,
+        }}
+      >
+        {formatRest(restRemaining)}
+      </Text>
     </View>
   );
 }
@@ -1335,38 +1451,87 @@ export default function StartWorkoutScreen() {
 
       <View className="absolute bottom-0 left-0 right-0 bg-black border-t border-white/10 pt-3 pb-6 px-4">
         {restRemaining !== null ? (
-          <View className="mb-3">
-            <View className="flex-row items-center justify-center gap-2 mb-2">
-              <Text className="font-bold" style={{ color: NEON, fontSize: 15 }}>
-                Rest: {formatRest(restRemaining)}
+          <View
+            style={{
+              marginBottom: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 14,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 18,
+              backgroundColor: 'rgba(34,197,94,0.06)',
+              borderWidth: 1,
+              borderColor: 'rgba(34,197,94,0.25)',
+            }}
+          >
+            <CircularRestTimer
+              restRemaining={restRemaining}
+              restTotal={restTotal}
+              color={NEON}
+            />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  color: NEON,
+                  fontSize: 11,
+                  fontWeight: '800',
+                  letterSpacing: 1,
+                }}
+              >
+                RESTING
               </Text>
+              <Text
+                style={{
+                  color: '#9ca3af',
+                  fontSize: 12,
+                  marginTop: 2,
+                }}
+              >
+                {restTotal ? `of ${formatRest(restTotal)}` : 'counting down'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
               <Pressable
                 onPress={() => {
                   setRestRemaining((r) => (r === null ? null : r + 30));
                   setRestTotal((t) => (t === null ? null : t + 30));
                 }}
-                className="px-3 py-1.5 rounded-full active:opacity-70"
-                style={{ borderWidth: 1, borderColor: NEON }}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: NEON,
+                }}
               >
-                <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
+                <Text
+                  style={{ color: NEON, fontSize: 12, fontWeight: '800' }}
+                >
                   +30s
                 </Text>
               </Pressable>
               <Pressable
                 onPress={stopRest}
-                className="px-3 py-1.5 rounded-full active:opacity-70"
-                style={{ borderWidth: 1, borderColor: NEON }}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.2)',
+                }}
               >
-                <Text className="font-bold" style={{ color: NEON, fontSize: 13 }}>
+                <Text
+                  style={{
+                    color: '#ffffff',
+                    fontSize: 12,
+                    fontWeight: '800',
+                  }}
+                >
                   Skip
                 </Text>
               </Pressable>
             </View>
-            <RestProgressBar
-              restRemaining={restRemaining}
-              restTotal={restTotal}
-              color={NEON}
-            />
           </View>
         ) : (
           <View className="flex-row items-center justify-center mb-3">

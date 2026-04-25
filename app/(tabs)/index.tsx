@@ -518,6 +518,103 @@ export default function HomeScreen() {
           </>
         ) : null}
 
+        {/* First-run empty hero */}
+        {suggestion.kind === 'empty' && recentSessions.length === 0 ? (
+          <View
+            style={{
+              marginHorizontal: 20,
+              marginBottom: 20,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              borderRadius: 24,
+              paddingVertical: 32,
+              paddingHorizontal: 24,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: accentAlpha(accent, 0.133),
+                borderWidth: 1,
+                borderColor: accentAlpha(accent, 0.22),
+                marginBottom: 14,
+              }}
+            >
+              <Ionicons name="barbell" size={24} color={accent} />
+            </View>
+            <Text
+              style={{
+                fontSize: 17,
+                fontWeight: '800',
+                color: COLORS.text,
+                letterSpacing: -0.2,
+              }}
+            >
+              Your first workout
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: COLORS.subtle,
+                textAlign: 'center',
+                marginTop: 4,
+                marginBottom: 16,
+                lineHeight: 18,
+              }}
+            >
+              Build a workout to start tracking sets, reps, and PRs.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <PressableScale
+                onPress={() => router.push('/workouts/new')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: COLORS.text,
+                }}
+              >
+                <Text
+                  style={{
+                    color: COLORS.onAccent,
+                    fontWeight: '800',
+                    fontSize: 13,
+                  }}
+                >
+                  Create workout
+                </Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => router.push('/program?tab=Program')}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                }}
+              >
+                <Text
+                  style={{
+                    color: COLORS.text,
+                    fontWeight: '700',
+                    fontSize: 13,
+                  }}
+                >
+                  Browse programs
+                </Text>
+              </PressableScale>
+            </View>
+          </View>
+        ) : null}
+
         {/* Recent sessions */}
         {recentSessions.length > 0 ? (
           <>
@@ -680,6 +777,8 @@ export default function HomeScreen() {
 }
 
 function WeekDots({ accent }: { accent: string }) {
+  // Mon-indexed today (WEEKLY_ACTIVITY is Mon..Sun)
+  const todayIdx = (new Date().getDay() + 6) % 7;
   return (
     <View
       style={{
@@ -689,19 +788,28 @@ function WeekDots({ accent }: { accent: string }) {
         gap: 3,
       }}
     >
-      {WEEKLY_ACTIVITY.map((d, i) => (
-        <View
-          key={i}
-          style={{
-            width: 10,
-            height: 28,
-            borderRadius: 3,
-            backgroundColor: d.active
-              ? accentAlpha(accent, 0.3 + (Math.min(d.minutes, 80) / 80) * 0.7)
-              : '#1F1F1F',
-          }}
-        />
-      ))}
+      {WEEKLY_ACTIVITY.map((d, i) => {
+        const isToday = i === todayIdx;
+        return (
+          <View
+            key={i}
+            style={{
+              width: 10,
+              height: 28,
+              borderRadius: 3,
+              backgroundColor: d.active
+                ? accentAlpha(accent, 0.3 + (Math.min(d.minutes, 80) / 80) * 0.7)
+                : '#1F1F1F',
+              borderWidth: isToday ? 1 : 0,
+              borderColor: isToday
+                ? d.active
+                  ? COLORS.text
+                  : accentAlpha(accent, 0.6)
+                : 'transparent',
+            }}
+          />
+        );
+      })}
       <View
         style={{
           width: 84,
@@ -710,19 +818,23 @@ function WeekDots({ accent }: { accent: string }) {
           marginTop: 4,
         }}
       >
-        {WEEKLY_ACTIVITY.map((d, i) => (
-          <Text
-            key={i}
-            style={{
-              fontSize: 8,
-              color: COLORS.faint,
-              width: 10,
-              textAlign: 'center',
-            }}
-          >
-            {d.day[0]}
-          </Text>
-        ))}
+        {WEEKLY_ACTIVITY.map((d, i) => {
+          const isToday = i === todayIdx;
+          return (
+            <Text
+              key={i}
+              style={{
+                fontSize: 8,
+                color: isToday ? COLORS.text : COLORS.faint,
+                fontWeight: isToday ? '700' : '400',
+                width: 10,
+                textAlign: 'center',
+              }}
+            >
+              {d.day[0]}
+            </Text>
+          );
+        })}
       </View>
     </View>
   );

@@ -130,6 +130,7 @@ function ProgramsTab() {
           icon="albums-outline"
           title="No programs yet"
           body="Create a program to group workouts into a training block."
+          accent={accent}
         />
       ) : (
         <View style={{ paddingHorizontal: 20, gap: 10 }}>
@@ -305,6 +306,7 @@ function WorkoutsTab() {
           icon="barbell-outline"
           title="No workouts yet"
           body="Create a workout to add exercises, sets, and reps."
+          accent={accent}
         />
       ) : (
         <View style={{ paddingHorizontal: 20, gap: 8 }}>
@@ -484,6 +486,7 @@ function ExercisesTab() {
               : 'Try a different search term.'
           }
           inline
+          accent={accent}
         />
       ) : (
         <View style={{ gap: 8 }}>
@@ -675,12 +678,15 @@ function EmptyState({
   title,
   body,
   inline,
+  accent,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   title: string;
   body: string;
   inline?: boolean;
+  accent?: string;
 }) {
+  const tint = accent ?? COLORS.muted;
   return (
     <View
       style={{
@@ -696,18 +702,27 @@ function EmptyState({
     >
       <View
         style={{
-          width: 48,
-          height: 48,
-          borderRadius: 14,
-          backgroundColor: '#1F1F1F',
+          width: 52,
+          height: 52,
+          borderRadius: 16,
+          backgroundColor: accent ? accentAlpha(tint, 0.133) : '#1F1F1F',
+          borderWidth: 1,
+          borderColor: accent ? accentAlpha(tint, 0.22) : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
-        <Ionicons name={icon} size={22} color={COLORS.subtle} />
+        <Ionicons name={icon} size={22} color={accent ?? COLORS.subtle} />
       </View>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: COLORS.text }}>
+      <Text
+        style={{
+          fontSize: 16,
+          fontWeight: '700',
+          color: COLORS.text,
+          letterSpacing: -0.1,
+        }}
+      >
         {title}
       </Text>
       <Text
@@ -716,6 +731,7 @@ function EmptyState({
           color: COLORS.subtle,
           textAlign: 'center',
           marginTop: 4,
+          lineHeight: 18,
         }}
       >
         {body}
