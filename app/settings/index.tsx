@@ -11,9 +11,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
+import Constants from 'expo-constants';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { UserSettings } from '../../src/store/types';
 import { triggerBackupShare } from '../../src/lib/backup';
+import { openExternalUrl } from '../../src/lib/platform';
+
+// External links surfaced in the About section.
+// Swap these for the hosted privacy/support URLs once you pick a host
+// (see docs/APP_STORE_CHECKLIST.md).
+const PRIVACY_URL =
+  'https://github.com/zappy999/Capable---fitness-/blob/main/PRIVACY.md';
+const SUPPORT_URL =
+  'https://github.com/zappy999/Capable---fitness-/blob/main/SUPPORT.md';
 
 const ACCENT_OPTIONS = [
   '#22C55E',
@@ -289,6 +299,45 @@ export default function SettingsScreen() {
           </Pressable>
         </Section>
 
+        <Section title="About">
+          <View className="-mx-1">
+            <AboutRow
+              icon="information-circle-outline"
+              label="No account needed"
+              description="Capable runs entirely on this device. There is no server, no analytics, and no sign-in."
+            />
+            <AboutRow
+              icon="shield-checkmark-outline"
+              label="Privacy policy"
+              description="What Capable does and doesn't collect."
+              onPress={() => openExternalUrl(PRIVACY_URL)}
+              external
+            />
+            <AboutRow
+              icon="help-circle-outline"
+              label="Support"
+              description="Report a bug or ask a question."
+              onPress={() => openExternalUrl(SUPPORT_URL)}
+              external
+            />
+            <View
+              className="flex-row items-center py-2.5"
+            >
+              <Ionicons name="cube-outline" size={18} color="#A1A1AA" />
+              <View className="flex-1 ml-3">
+                <Text className="text-white font-semibold">Version</Text>
+              </View>
+              <Text className="text-zinc-400" style={{ fontSize: 13 }}>
+                {`${Constants.expoConfig?.version ?? '—'} (${
+                  Constants.expoConfig?.ios?.buildNumber ??
+                  Constants.expoConfig?.android?.versionCode ??
+                  '1'
+                })`}
+              </Text>
+            </View>
+          </View>
+        </Section>
+
         <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
           <Text
             className="font-bold mb-3"
@@ -319,6 +368,47 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function AboutRow({
+  icon,
+  label,
+  description,
+  onPress,
+  external,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  description?: string;
+  onPress?: () => void;
+  external?: boolean;
+}) {
+  const Wrapper: React.ElementType = onPress ? Pressable : View;
+  return (
+    <Wrapper
+      onPress={onPress}
+      className={`flex-row items-center py-2.5 ${
+        onPress ? 'active:opacity-70' : ''
+      }`}
+    >
+      <Ionicons name={icon} size={18} color="#A1A1AA" />
+      <View className="flex-1 ml-3">
+        <Text className="text-white font-semibold">{label}</Text>
+        {description ? (
+          <Text className="text-zinc-500" style={{ fontSize: 12, marginTop: 2 }}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      {onPress ? (
+        <Ionicons
+          name={external ? 'open-outline' : 'chevron-forward'}
+          size={16}
+          color="#3F3F46"
+        />
+      ) : null}
+    </Wrapper>
   );
 }
 

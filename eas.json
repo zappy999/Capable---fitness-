@@ -27,6 +27,7 @@
   "submit": {
     "production": {
       "ios": {
+        "_comment": "Fill in once the App Store Connect record exists. ascAppId is the numeric App ID from App Store Connect (e.g. 1234567890). appleTeamId is your Apple Developer Team ID (e.g. ABCDE12345). See docs/APP_STORE_CHECKLIST.md.",
         "ascAppId": "REPLACE_ME_APP_STORE_CONNECT_APP_ID",
         "appleTeamId": "REPLACE_ME_APPLE_TEAM_ID"
       }

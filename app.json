@@ -8,20 +8,22 @@
     "scheme": "capable",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0D0D0D"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tompearce.capable",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationCategoryType": "public.app-category.healthcare-fitness",
+        "NSUserNotificationsUsageDescription": "Capable schedules a local notification when your rest timer ends so you don't have to keep the app open between sets."
       }
     },
     "android": {
       "package": "com.tompearce.capable",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
@@ -36,6 +38,14 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0D0D"
+        }
+      ],
       [
         "expo-notifications",
         {
