@@ -1,5 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import {
   COLORS,
@@ -257,18 +262,59 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   accent: string;
 }) {
+  const [width, setWidth] = useState(0);
+  const tx = useSharedValue(0);
+
+  // Inner padding in the track; each tab pill fills 1 / tabs.length of the inner width.
+  const PAD = 4;
+  const innerW = Math.max(0, width - PAD * 2);
+  const tabW = tabs.length > 0 ? innerW / tabs.length : 0;
+  const idx = Math.max(0, tabs.indexOf(active));
+
+  useEffect(() => {
+    tx.value = withSpring(idx * tabW, {
+      damping: 18,
+      stiffness: 180,
+      mass: 0.6,
+    });
+  }, [idx, tabW, tx]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: tx.value }],
+  }));
+
   return (
     <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={{
         flexDirection: 'row',
         backgroundColor: COLORS.surface,
         borderWidth: 1,
         borderColor: COLORS.border,
         borderRadius: 999,
-        padding: 4,
+        padding: PAD,
         marginHorizontal: 20,
+        position: 'relative',
       }}
     >
+      {/* Animated accent pill */}
+      {tabW > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: 'absolute',
+              top: PAD,
+              left: PAD,
+              height: 36,
+              width: tabW,
+              borderRadius: 999,
+              backgroundColor: accent,
+            },
+            pillStyle,
+          ]}
+        />
+      ) : null}
       {tabs.map((t) => {
         const on = t === active;
         return (
@@ -277,10 +323,10 @@ export function Segmented<T extends string>({
             onPress={() => onChange(t)}
             style={{
               flex: 1,
-              paddingVertical: 10,
+              height: 36,
               borderRadius: 999,
               alignItems: 'center',
-              backgroundColor: on ? accent : 'transparent',
+              justifyContent: 'center',
             }}
           >
             <Text
