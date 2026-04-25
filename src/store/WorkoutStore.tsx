@@ -78,17 +78,28 @@ function reducer(state: State, action: Action): State {
       return { ...action.payload, hydrated: true };
     case 'ADD_EXERCISE':
       return { ...state, exercises: [...state.exercises, action.exercise] };
-    case 'DELETE_EXERCISE':
+    case 'DELETE_EXERCISE': {
+      const survivingSessions = state.sessions
+        .map((s) => ({
+          ...s,
+          exercises: s.exercises.filter((se) => se.exerciseId !== action.id),
+        }))
+        .filter((s) => s.exercises.length > 0);
+      const survivingSessionIds = new Set(survivingSessions.map((s) => s.id));
       return {
         ...state,
         exercises: state.exercises.filter((e) => e.id !== action.id),
-        sessions: state.sessions
-          .map((s) => ({
-            ...s,
-            exercises: s.exercises.filter((se) => se.exerciseId !== action.id),
-          }))
-          .filter((s) => s.exercises.length > 0),
+        sessions: survivingSessions,
+        // Drop PRs that referenced the deleted exercise (would render as
+        // ghost rows in the PR log) AND PRs whose owning session was
+        // dropped because it became empty.
+        personalRecords: state.personalRecords.filter(
+          (p) =>
+            p.exerciseId !== action.id &&
+            survivingSessionIds.has(p.sessionId),
+        ),
       };
+    }
     case 'UPDATE_EXERCISE_CATEGORY':
       return {
         ...state,
@@ -370,7 +381,16 @@ function detectPRs(
       });
     }
   }
-  return records;
+  // Dedupe per (exerciseId, kind), keeping the highest-value record.
+  // Defends against the same exerciseId appearing twice in one session,
+  // which the loop above would otherwise emit twice independently.
+  const bestByKey = new Map<string, PersonalRecord>();
+  for (const r of records) {
+    const key = `${r.exerciseId}::${r.kind}`;
+    const prev = bestByKey.get(key);
+    if (!prev || r.value > prev.value) bestByKey.set(key, r);
+  }
+  return Array.from(bestByKey.values());
 }
 
 export function WorkoutStoreProvider({ children }: { children: ReactNode }) {
