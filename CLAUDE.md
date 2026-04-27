@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Work on a feature branch, never directly on `main`. Merge to `main` only when work is ready, via a PR on GitHub.
 
-- Current working branch: `claude/dev-setup-v2`
 - All commits go to the feature branch.
 - Before starting each session, pull the latest: `git pull origin <branch-name>`.
 - If `main` moves ahead during the work, periodically merge or rebase `main` into the feature branch to avoid a big merge conflict at the end.
 - When done, open a PR from the feature branch into `main` on GitHub and merge.
+- **Pushing**: pushing to a feature branch is fine without explicit "ok to push?" confirmation. Pushing (or merging) to `main` requires explicit authorization every time.
 
 ## Current Work (session handoff)
 
