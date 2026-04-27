@@ -61,12 +61,19 @@ they'll have once you flip the switch.
 ## 3. Wire EAS submit (~2 min)
 
 Edit [`eas.json`](../eas.json) → `submit.production.ios` and replace
-the two placeholders:
+the two placeholders. EAS validates this file against a strict schema,
+so don't add a comment field — just swap the values.
 
-```jsonc
-"ascAppId": "1234567890",         // numeric ID from App Store Connect
-"appleTeamId": "ABCDE12345"        // Team ID from developer.apple.com
+```json
+"ascAppId": "1234567890",
+"appleTeamId": "ABCDE12345"
 ```
+
+- **`ascAppId`** — the numeric App ID shown on the App Store Connect
+  app's "App Information" page (e.g. `1234567890`).
+- **`appleTeamId`** — your 10-character Apple Developer Team ID,
+  visible at <https://developer.apple.com/account>
+  (e.g. `ABCDE12345`).
 
 ## 4. Fill in App Store Connect metadata (~30 min)
 
