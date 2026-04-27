@@ -16,17 +16,29 @@ Work on a feature branch, never directly on `main`. Merge to `main` only when wo
 
 Keep this section up to date at the end of each session so the next one starts with context. Remove items once they land or are dropped.
 
-**In flight on `claude/dev-setup-v2`:**
+**App Store submission — paused at step 11.**
 
-- Active workout polish in `app/start-workout.tsx`:
-  - Note editor modal — keyboard now lifts the sheet (`KeyboardAvoidingView`, iOS `padding`) and dismisses on Save/Cancel/Delete/backdrop. Done.
-  - "More" button on each set card now opens a bottom sheet with a 0–5+ RIR picker and an entry point to the exercise note editor. Per-set RIR is stored on `SetLog.rir` and shown as a blue chip on the set card. Done.
+Where we are in [docs/APP_STORE_CHECKLIST.md](docs/APP_STORE_CHECKLIST.md):
 
-**Known gaps / likely next steps:**
+- ✅ 0 Apple Developer Program enrollment (approved)
+- ✅ 1 Privacy + Support pages hosted on GitHub Pages
+- ✅ 2 App Store Connect record created. App Store ID is `6763996819`.
+- ✅ 3 EAS submit wired (`eas.json` `ascAppId` + `appleTeamId` filled in)
+- ✅ 4–9 EAS CLI installed, project initialized, bundle ID registered, preview build succeeded, **production build submitted to App Store Connect via `eas submit`** (after fixing a wrong ascAppId — see PR `claude/fix-asc-app-id` if not yet merged).
+- 🟡 10 Production build is in TestFlight processing / available for the internal tester group. Beta App Description + "What to Test" copy was drafted in chat — paste it into ASC → TestFlight → Beta App Information when next online.
+- ⏸ **11 Fill in App Store Connect listing form** (next session). All paste-ready copy for every field is in [docs/APP_STORE_LISTING.md](docs/APP_STORE_LISTING.md). Open ASC → Capable → "1.0 Prepare for Submission" side by side with that doc.
+- ⏸ Screenshots — required for step 11. Sizes + `xcrun simctl` capture commands in `APP_STORE_LISTING.md`. Owner is on Windows so this needs a Mac (or an iPhone) — ask user how they want to handle.
+- ⏸ 12 Submit for review.
 
-- `SetLog.rir` is only on the in-progress draft — confirm whether `LOG_SESSION` carries RIR through to `WorkoutSession` and the history UI. If not, thread it through `src/store/WorkoutStore.tsx` (reducer + session mapping) and surface it in `app/sessions/[id].tsx`.
-- No per-set notes yet (notes are per-exercise). If needed, extend `SetLog` with `note?: string` and add a note input to the More sheet.
-- "Delete set" is not in the More sheet; easy to add alongside the RIR picker if desired.
+**Open PRs to check before next session:**
+
+- `claude/fix-asc-app-id` — corrects `ascAppId` in `eas.json` from `20036241213` → `6763996819` (the wrong number unblocked nothing on its own; the working tree was patched first so submit could proceed). Merge to get main in sync.
+
+**Known gaps / unrelated next steps (post App Store):**
+
+- Per-set notes (notes are per-exercise today). If needed, extend `SetLog` with `note?: string` and add a note input to the More sheet.
+- "Delete set" not in the More sheet; easy to add alongside the RIR picker.
+- Audit Mediums still untouched (segmented onLayout race, longestStreak malformed-date guard, length caps on imported strings, etc.).
 
 ## Commands
 
