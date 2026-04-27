@@ -70,35 +70,21 @@ the two placeholders:
 
 ## 4. Fill in App Store Connect metadata (~30 min)
 
-In App Store Connect → Capable → 1.0.0 Prepare for Submission:
+All the paste-ready copy lives in
+[**APP_STORE_LISTING.md**](./APP_STORE_LISTING.md) — open it side by
+side with the App Store Connect form. It covers:
 
-- [ ] **Promotional Text** (up to 170 chars; can change between updates).
-- [ ] **Description** — pitch the app. Suggested skeleton:
-
-  > Capable is a tap-efficient workout tracker for lifters. Build
-  > workouts, group them into a program, and log sets fast — heavy
-  > weight, mono numbers, and a swipe-to-complete set card. Your data
-  > lives entirely on your device. No account, no servers, no
-  > analytics.
-
-- [ ] **Keywords** (100-char comma-separated). Suggestions:
-  `lifting, gym, workout tracker, sets, reps, PR, program, rest
-  timer, Capable, fitness, strength`.
-- [ ] **Support URL** — from step 1.
-- [ ] **Marketing URL** — optional.
-- [ ] **Privacy Policy URL** — from step 1. Required.
-- [ ] **Category:** Health & Fitness (primary).
-- [ ] **Age Rating** — answer the questionnaire. Capable should
-  qualify as 4+ (no objectionable content).
-- [ ] **App Privacy** — declare "Data Not Collected." Capable doesn't
-  collect anything per [PRIVACY.md](../PRIVACY.md).
-- [ ] **App Review Information** — leave demo account blank
-  (no account needed). Notes for reviewer:
-
-  > Capable does not require an account. To exercise the rest-timer
-  > notification path: create a workout from the Program tab, start it
-  > from Home, complete a set with the swipe gesture, and tap "Start
-  > rest" — a local notification fires when the timer ends.
+- App name + subtitle (with fallbacks if `Capable` is taken)
+- Promotional Text (170 char)
+- Description (~1700 char)
+- Keywords (89/100 char)
+- "What's New in This Version" for 1.0
+- All four URLs (privacy, support, marketing, source)
+- Category, age rating answers, pricing
+- App Privacy "nutrition labels" — every category set to Not Collected
+- App Review notes (no-account flow, how to test the rest-timer
+  notification path, all the disclosures the reviewer needs)
+- Screenshot sizing table with `xcrun simctl` capture commands
 
 ## 5. Screenshots (~30-45 min)
 
