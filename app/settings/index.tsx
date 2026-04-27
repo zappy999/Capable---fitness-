@@ -17,13 +17,11 @@ import type { UserSettings } from '../../src/store/types';
 import { triggerBackupShare } from '../../src/lib/backup';
 import { openExternalUrl } from '../../src/lib/platform';
 
-// External links surfaced in the About section.
-// Swap these for the hosted privacy/support URLs once you pick a host
-// (see docs/APP_STORE_CHECKLIST.md).
-const PRIVACY_URL =
-  'https://github.com/zappy999/Capable---fitness-/blob/main/PRIVACY.md';
-const SUPPORT_URL =
-  'https://github.com/zappy999/Capable---fitness-/blob/main/SUPPORT.md';
+// External links surfaced in the About section. Hosted via GitHub
+// Pages out of docs/ on the main branch. Source lives in
+// docs/privacy.md and docs/support.md.
+const PRIVACY_URL = 'https://zappy999.github.io/Capable---fitness-/privacy/';
+const SUPPORT_URL = 'https://zappy999.github.io/Capable---fitness-/support/';
 
 const ACCENT_OPTIONS = [
   '#22C55E',

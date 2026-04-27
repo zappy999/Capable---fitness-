@@ -23,18 +23,23 @@ run from this machine.
   eas login
   ```
 
-## 1. Host the privacy policy and support page (~10 min)
+## 1. Publish the privacy policy and support page (~5 min)
 
-Apple requires both as public URLs.
+The pages are already authored under `docs/` (this folder) and the
+in-app Settings → About links already point at the GitHub Pages URLs
+they'll have once you flip the switch.
 
-- [ ] Pick a host. Easiest options:
-  - GitHub Pages on this repo (rename `PRIVACY.md` to `index.md` in a
-    `gh-pages` branch, or use `docs/` folder + Pages settings).
-  - A Notion page set to public.
-  - A page on your existing domain.
-- [ ] Make sure the URL renders the contents of [PRIVACY.md](../PRIVACY.md)
-  and [SUPPORT.md](../SUPPORT.md).
-- [ ] Copy both URLs — you'll paste them into App Store Connect in step 4.
+- [ ] Go to <https://github.com/zappy999/Capable---fitness-/settings/pages>.
+- [ ] Under **Build and deployment**:
+  - **Source:** Deploy from a branch
+  - **Branch:** `main` · folder `/docs` · **Save**
+- [ ] Wait ~1-2 minutes. Refresh the Pages settings page until it
+  shows the live URL near the top:
+  `https://zappy999.github.io/Capable---fitness-/`
+- [ ] Verify both pages load:
+  - <https://zappy999.github.io/Capable---fitness-/privacy/>
+  - <https://zappy999.github.io/Capable---fitness-/support/>
+- [ ] These are the URLs you'll paste into App Store Connect in step 4.
 
 ## 2. Create the App Store Connect record (~15 min)
 
