@@ -56,6 +56,19 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "079bd896-04f0-4406-bbef-db4007791b93"
+      }
+    },
+    "owner": "zappy9999",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/079bd896-04f0-4406-bbef-db4007791b93"
     }
   }
 }
