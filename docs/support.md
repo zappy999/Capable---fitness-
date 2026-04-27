@@ -6,7 +6,7 @@ permalink: /support/
 
 # Capable — Support
 
-Need help with Capable? Email **tomp99@proton.me** and include:
+Need help with Capable? Email **capablefitness@proton.me** and include:
 
 1. The version of Capable you're on (Settings → About).
 2. Your device and iOS / Android version.
