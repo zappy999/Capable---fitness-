@@ -56,4 +56,4 @@ version ships.
 
 ## Contact
 
-Questions about privacy can be sent to **tomp99@proton.me**.
+Questions about privacy can be sent to **capablefitness@proton.me**.
