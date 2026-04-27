@@ -1,0 +1,798 @@
+---
+layout: null
+permalink: /preview/
+title: Capable — preview
+description: A tap-efficient workout tracker for lifters. Local-first, no account, no analytics.
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>{{ page.title }}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="description" content="{{ page.description }}" />
+<meta property="og:title" content="{{ page.title }}" />
+<meta property="og:description" content="{{ page.description }}" />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#0D0D0D" />
+<style>
+  :root {
+    --bg: #0D0D0D;
+    --surface: #1A1A1A;
+    --surface-2: #141414;
+    --border: #1F1F1F;
+    --border-soft: #27272A;
+    --text: #FAFAFA;
+    --muted: #A1A1AA;
+    --subtle: #71717A;
+    --ghost: #3F3F46;
+    --accent: #22C55E;
+    --on-accent: #0A0A0A;
+    --rir: #60A5FA;
+    --pr: #FBBF24;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  a { color: inherit; }
+  .mono {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    letter-spacing: -0.02em;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Top nav ─────────────────────────────────────────── */
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(13, 13, 13, 0.72);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .top .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .brand-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--accent);
+    display: grid;
+    place-items: center;
+    color: var(--on-accent);
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .brand-name {
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    font-size: 16px;
+  }
+  .top nav {
+    display: flex;
+    gap: 22px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .top nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .top nav a:hover { color: var(--text); }
+
+  /* ── Hero ──────────────────────────────────────────── */
+  .hero {
+    padding: 96px 0 48px;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.13);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 22px;
+  }
+  .eyebrow .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+  }
+  h1.hero-title {
+    margin: 0;
+    font-size: clamp(44px, 6.4vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    font-weight: 800;
+  }
+  h1.hero-title em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .hero-sub {
+    margin: 18px 0 28px;
+    font-size: clamp(15px, 1.4vw, 18px);
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 520px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform 120ms ease, opacity 120ms ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: var(--text);
+    color: var(--on-accent);
+  }
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+  }
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
+  .availability {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--subtle);
+  }
+
+  /* ── Phone mockup ─────────────────────────────────── */
+  .phone {
+    justify-self: center;
+    width: 320px;
+    height: 660px;
+    border-radius: 48px;
+    border: 12px solid #0a0a0a;
+    background: var(--bg);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset,
+      0 40px 80px -32px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+    position: relative;
+  }
+  .phone::after {
+    /* dynamic island */
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 102px;
+    height: 28px;
+    border-radius: 999px;
+    background: #050505;
+  }
+  .phone-content {
+    padding: 56px 18px 18px;
+    color: var(--text);
+    height: 100%;
+    overflow: hidden;
+  }
+  .phone-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  .phone-eyebrow .mini-mark {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    display: grid;
+    place-items: center;
+    color: var(--on-accent);
+    font-size: 10px;
+    font-weight: 900;
+  }
+  .phone-eyebrow .pill {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.13);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    color: var(--accent);
+    font-size: 9px;
+  }
+  .phone-title {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    margin: 4px 0 16px;
+  }
+  .card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .card.up-next {
+    border-width: 1.5px;
+    border-color: rgba(34, 197, 94, 0.55);
+  }
+  .label {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .row.split { justify-content: space-between; }
+  .num {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+  .num .suffix {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .stat-tile {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
+  .stat-tile .label { display: block; margin-bottom: 4px; }
+
+  .set-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    background: rgba(34, 197, 94, 0.06);
+    font-size: 12px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+  .set-chip .check {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 900;
+  }
+  .set-chip .rir {
+    color: var(--rir);
+    font-weight: 800;
+    font-size: 10px;
+  }
+
+  .week-dots {
+    display: flex;
+    gap: 3px;
+    margin-top: 6px;
+  }
+  .week-dots .day {
+    width: 10px;
+    height: 28px;
+    border-radius: 3px;
+    background: var(--border);
+  }
+  .week-dots .day.on { background: rgba(34, 197, 94, 0.85); }
+  .week-dots .day.med { background: rgba(34, 197, 94, 0.55); }
+  .week-dots .day.today { outline: 1px solid var(--text); outline-offset: -1px; }
+
+  /* ── Sections ─────────────────────────────────────── */
+  section { padding: 64px 0; }
+  .section-eyebrow {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+  }
+  h2 {
+    font-size: clamp(28px, 3.6vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+    max-width: 720px;
+  }
+  .section-sub {
+    color: var(--muted);
+    max-width: 640px;
+    line-height: 1.55;
+    font-size: 16px;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 36px;
+  }
+  .feature {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 22px;
+    padding: 22px;
+  }
+  .feature-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: rgba(34, 197, 94, 0.13);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    display: grid;
+    place-items: center;
+    margin-bottom: 14px;
+  }
+  .feature h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .feature p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  /* Privacy callout */
+  .privacy-card {
+    margin-top: 24px;
+    border-radius: 28px;
+    padding: 36px;
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(34, 197, 94, 0.10), transparent 55%),
+      var(--surface);
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+  .privacy-card h2 { margin-top: 0; }
+  .badge-list {
+    display: grid;
+    gap: 10px;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-soft);
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .badge .check {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.18);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 11px;
+  }
+  .badge strong { color: var(--text); font-weight: 700; }
+
+  /* FAQ */
+  .faq {
+    margin-top: 28px;
+    display: grid;
+    gap: 10px;
+  }
+  details {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 16px 20px;
+  }
+  details > summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::after {
+    content: '＋';
+    color: var(--subtle);
+    font-weight: 400;
+  }
+  details[open] > summary::after { content: '－'; }
+  details > p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 12px 0 0;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 36px 0 56px;
+    margin-top: 24px;
+    color: var(--subtle);
+    font-size: 12.5px;
+  }
+  footer .row.split {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+  footer .links {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 800px) {
+    .hero { grid-template-columns: 1fr; padding: 64px 0 32px; }
+    .phone { width: 280px; height: 580px; }
+    .features { grid-template-columns: 1fr; }
+    .privacy-card { grid-template-columns: 1fr; padding: 28px; }
+    .top nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap row">
+    <a class="brand" href="./">
+      <span class="brand-mark">C</span>
+      <span class="brand-name">Capable</span>
+    </a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+      <a href="./support/">Support</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ── Hero ── -->
+  <section class="hero">
+    <div>
+      <div class="eyebrow"><span class="dot"></span>Coming soon to iOS</div>
+      <h1 class="hero-title">Lifting tracker that<br/>gets out of <em>your way.</em></h1>
+      <p class="hero-sub">
+        Capable is a tap-efficient workout tracker for people who actually log
+        every set. Build workouts, group them into a program, and run them
+        with a swipe-to-complete card and a circular rest timer. No account,
+        no analytics, no servers — your data lives entirely on your phone.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#waitlist">Join the TestFlight</a>
+        <a class="btn btn-ghost" href="#features">See it in action</a>
+      </div>
+      <div class="availability">iPhone · Designed for iOS 17+</div>
+    </div>
+
+    <div class="phone" aria-hidden="true">
+      <div class="phone-content">
+        <div class="phone-eyebrow">
+          <span class="mini-mark">C</span>
+          <span>Capable</span>
+          <span class="pill">LIVE</span>
+        </div>
+        <div class="phone-title">Good morning,<br/>Alex.</div>
+
+        <div class="card up-next">
+          <div class="label" style="color:#22C55E;margin-bottom:8px">UP NEXT · PUSH / PULL</div>
+          <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">Lower body · Heavy</div>
+          <div style="color:var(--subtle);font-size:11px;margin-top:4px;">After Upper Pull · 2 days ago</div>
+        </div>
+
+        <div class="card">
+          <div class="row split" style="margin-bottom:8px;">
+            <span class="label">STREAK</span>
+            <span class="num">12<span class="suffix">days</span></span>
+          </div>
+          <div class="week-dots">
+            <span class="day on"></span>
+            <span class="day med"></span>
+            <span class="day"></span>
+            <span class="day on"></span>
+            <span class="day med"></span>
+            <span class="day on today"></span>
+            <span class="day"></span>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <span class="label">8 WK VOLUME</span>
+            <span class="num">27.2<span class="suffix">k kg</span></span>
+          </div>
+          <div class="stat-tile">
+            <span class="label">BEST 1RM</span>
+            <span class="num" style="color:var(--accent)">117<span class="suffix" style="color:var(--accent)">kg</span></span>
+          </div>
+        </div>
+
+        <div>
+          <span class="set-chip">
+            <span class="check">✓</span>
+            <span class="num" style="font-size:13px;">100<span class="suffix">× 8</span></span>
+            <span class="rir">R2</span>
+          </span>
+          <span class="set-chip">
+            <span class="check">✓</span>
+            <span class="num" style="font-size:13px;">102.5<span class="suffix">× 6</span></span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ── -->
+  <section id="features">
+    <p class="section-eyebrow">What it does</p>
+    <h2>Everything for a working set, nothing for the algorithm.</h2>
+    <p class="section-sub">
+      Capable is opinionated about three things — speed of logging, clarity
+      of what's next, and storytelling around long-term progress. Every
+      pixel earns its place.
+    </p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">
+          <!-- swipe icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+        <h3>Swipe to log</h3>
+        <p>
+          The set card is one tap to edit, one swipe to complete. RIR, drop
+          sets, supersets, tempo — all behind a "More" sheet that doesn't
+          slow down the rep counter.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </div>
+        <h3>Persistent rest timer</h3>
+        <p>
+          A circular drain timer lives in the bottom bar so you can put the
+          phone down between sets. A local notification fires when it's
+          done. No background tab, no missed reps.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
+        </div>
+        <h3>Programs that travel</h3>
+        <p>
+          Group workouts into a program. Capable shows you what's up next on
+          the home screen and rolls forward through the week. Edit on the
+          fly without losing your spot.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6"/></svg>
+        </div>
+        <h3>Stats that mean something</h3>
+        <p>
+          Weekly volume, muscle split, longest streak, est. 1RM trend,
+          unlocked achievements. All derived from your sets, no opaque
+          score, no leaderboard.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <h3>PRs that earn a chip</h3>
+        <p>
+          Heaviest weight and best volume PRs are detected automatically and
+          surface as a small trophy on the set chip — not a confetti modal.
+        </p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12c0 5-4 9-9 9s-9-4-9-9 4-9 9-9c2.5 0 4.7 1 6.4 2.6"/><path d="M21 4v5h-5"/></svg>
+        </div>
+        <h3>Backup, not sync</h3>
+        <p>
+          Export your data to JSON whenever you want. Re-import on a new
+          phone. No cloud account in the loop, no third-party servers
+          touching your training history.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Privacy callout ── -->
+  <section id="privacy">
+    <div class="privacy-card">
+      <div>
+        <p class="section-eyebrow">Privacy is the feature</p>
+        <h2>Your reps are nobody else's business.</h2>
+        <p class="section-sub">
+          Capable doesn't collect, transmit, or share any personal data.
+          Everything you log lives in the operating system's secure local
+          storage. There is no account to make, no analytics SDK to sandbox,
+          no server we could be subpoenaed for.
+        </p>
+        <a class="btn btn-ghost" style="margin-top:18px;" href="./privacy/">
+          Read the full privacy policy →
+        </a>
+      </div>
+      <div class="badge-list">
+        <div class="badge"><span class="check">✓</span><span><strong>No account.</strong> Open the app and start.</span></div>
+        <div class="badge"><span class="check">✓</span><span><strong>No analytics.</strong> Zero third-party SDKs.</span></div>
+        <div class="badge"><span class="check">✓</span><span><strong>No server.</strong> Your data never leaves your device.</span></div>
+        <div class="badge"><span class="check">✓</span><span><strong>Local backup.</strong> Export anytime as JSON.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FAQ ── -->
+  <section id="faq">
+    <p class="section-eyebrow">FAQ</p>
+    <h2>Common questions.</h2>
+    <div class="faq">
+      <details>
+        <summary>When is it on the App Store?</summary>
+        <p>
+          Capable is currently in private TestFlight. The 1.0 build is in
+          App Review — drop your email below if you want early access.
+        </p>
+      </details>
+      <details>
+        <summary>Will it sync across my devices?</summary>
+        <p>
+          Not at launch — Capable is local-only by design. You can move your
+          data manually with the JSON export / import flow in Settings. A
+          future iCloud-backed sync is on the table only if it can be done
+          without a server.
+        </p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>
+          Capable will ship as a free app at launch. If we ever charge it'll
+          be a one-time unlock — no subscriptions for tracking your own
+          training.
+        </p>
+      </details>
+      <details>
+        <summary>Why not Hevy / Strong / Apple Fitness?</summary>
+        <p>
+          They're all good. Capable's bet is a tighter, opinionated UI that
+          treats data density and tap efficiency as design problems, plus a
+          firm "no analytics, no servers" stance.
+        </p>
+      </details>
+      <details>
+        <summary>Can I help test it?</summary>
+        <p>
+          Yes. Email <a href="mailto:capablefitness@proton.me">capablefitness@proton.me</a>
+          with your Apple ID and we'll send a TestFlight invite.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── Final CTA ── -->
+  <section id="waitlist" style="padding-top:24px;padding-bottom:80px;">
+    <div style="border:1px solid var(--border);background:var(--surface);border-radius:28px;padding:36px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center;">
+      <div>
+        <p class="section-eyebrow" style="margin-bottom:10px;">Want in?</p>
+        <h2 style="margin-bottom:6px;">Get the TestFlight link.</h2>
+        <p class="section-sub">Drop us a line — we'll add you to the next round.</p>
+      </div>
+      <a class="btn btn-primary" href="mailto:capablefitness@proton.me?subject=TestFlight%20invite">
+        Email us →
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap row split">
+    <div>
+      <div class="brand" style="margin-bottom:8px;">
+        <span class="brand-mark">C</span>
+        <span class="brand-name">Capable</span>
+      </div>
+      <div>© 2026 · Capable. Built for lifters.</div>
+    </div>
+    <div class="links">
+      <a href="./privacy/">Privacy</a>
+      <a href="./support/">Support</a>
+      <a href="https://github.com/zappy999/Capable---fitness-">Source</a>
+      <a href="mailto:capablefitness@proton.me">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
