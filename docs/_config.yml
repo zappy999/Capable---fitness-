@@ -1,0 +1,24 @@
+# GitHub Pages configuration for the Capable site.
+#
+# Publishes the docs/ folder of the main branch as a static site, used
+# to host the privacy policy and support page that the App Store record
+# requires.
+#
+# To enable: in the repo on GitHub → Settings → Pages →
+#   Source: Deploy from a branch
+#   Branch: main · folder /docs · Save
+# Then wait ~1-2 minutes; the site appears at:
+#   https://zappy999.github.io/Capable---fitness-/
+
+title: Capable
+description: A local-first iOS workout tracker.
+theme: jekyll-theme-cayman
+
+# Pretty URLs without the .html suffix: /privacy/ instead of /privacy.html.
+permalink: pretty
+
+# Don't publish the internal submission checklist as part of the site.
+# It stays in the repo for our own reference but isn't part of the
+# public Pages output.
+exclude:
+  - APP_STORE_CHECKLIST.md
