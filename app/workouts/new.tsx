@@ -25,6 +25,8 @@ import {
   type WorkoutExercise,
 } from '../../src/store/types';
 import { isSafeHttpUrl } from '../../src/lib/platform';
+import { COLORS } from '../../src/design/tokens';
+import { ModernHeader, NavTop } from '../../src/design/components';
 
 type Draft = WorkoutExercise;
 
@@ -203,20 +205,15 @@ export default function NewWorkoutScreen() {
 
   const header = (
     <>
-      <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-        <Text
-          className="font-bold text-black/70"
-          style={{ fontSize: 11, letterSpacing: 2 }}
-        >
-          WORKOUT
-        </Text>
-        <Text className="text-black font-bold mt-2" style={{ fontSize: 34 }}>
-          {editing ? 'Edit Workout' : 'New Workout'}
-        </Text>
-        <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-          Search and add exercises, add custom ones, and reorder them.
-        </Text>
-      </View>
+      <ModernHeader
+        eyebrow="Workout"
+        title={editing ? 'Edit workout' : 'New workout'}
+        sub="Search and add exercises, add custom ones, and reorder them."
+        accent={LIME}
+        back
+        action={false}
+        dropMark
+      />
 
       <View className="mx-5 mt-5 bg-[#1A1A1A] rounded-3xl border border-[#1F1F1F] p-5">
         <Text className="text-white font-bold mb-3" style={{ fontSize: 14 }}>
@@ -421,32 +418,35 @@ export default function NewWorkoutScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top', 'bottom']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="close" size={18} color="#ffffff" />
-        </Pressable>
-        <Pressable
-          disabled={!canSave}
-          onPress={handleSave}
-          className="px-5 py-2.5 rounded-2xl"
-          style={{ backgroundColor: canSave ? LIME : '#1F1F1F' }}
-        >
-          <Text
-            className="font-bold"
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
+      <NavTop
+        onBack={() => router.back()}
+        right={
+          <Pressable
+            disabled={!canSave}
+            onPress={handleSave}
             style={{
-              color: canSave ? '#0A0A0A' : '#52525B',
-              fontSize: 14,
-              letterSpacing: 0.5,
+              paddingHorizontal: 18,
+              height: 38,
+              borderRadius: 19,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: canSave ? COLORS.text : '#1F1F1F',
             }}
           >
-            {editing ? 'Save changes' : 'Save'}
-          </Text>
-        </Pressable>
-      </View>
+            <Text
+              style={{
+                color: canSave ? COLORS.onAccent : '#52525B',
+                fontWeight: '800',
+                fontSize: 13,
+                letterSpacing: -0.1,
+              }}
+            >
+              {editing ? 'Save changes' : 'Save'}
+            </Text>
+          </Pressable>
+        }
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
