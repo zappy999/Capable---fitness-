@@ -61,7 +61,7 @@ export default function SettingsScreen() {
   const handleWipe = () => {
     Alert.alert(
       'Wipe all data?',
-      'This deletes every workout, program, session, PR, custom exercise, and setting on this device. The built-in exercise library stays. This cannot be undone.',
+      'This deletes your sessions, PRs, custom exercises, and settings on this device. The built-in exercise library and starter programs stay. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {

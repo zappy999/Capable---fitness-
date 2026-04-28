@@ -249,12 +249,14 @@ function reducer(state: State, action: Action): State {
       return {
         hydrated: true,
         exercises: EXERCISE_LIBRARY,
-        workouts: [],
-        programs: [],
+        // Wipe intentionally restores the built-in starter content so
+        // the user lands in the same state as a fresh install rather
+        // than an empty Programs tab. starterProgramsSeeded stays true
+        // because we just put them there — no need to seed again.
+        workouts: STARTER_WORKOUTS,
+        programs: STARTER_PROGRAMS,
         sessions: [],
         personalRecords: [],
-        // Flag intentionally set so starter programs don't reappear on
-        // relaunch — a wipe means a clean slate.
         settings: { ...DEFAULT_SETTINGS, starterProgramsSeeded: true },
       };
   }
