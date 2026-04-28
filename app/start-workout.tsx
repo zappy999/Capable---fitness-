@@ -229,10 +229,11 @@ function SwipeableSetCard({
   // Completed set: render a compact chip row instead of the full editor.
   // Tapping anywhere (including the More button) still opens the More sheet.
   if (isDone) {
-    const hasWeight = set.weight > 0;
+    // A set with reps but no weight is a legitimate bodyweight set
+    // (pull-ups, push-ups, etc.) — show "0 × 10" rather than "—".
+    // Only fall back to "—" when neither value is set.
     const hasReps = set.reps > 0;
-    const repText =
-      hasWeight && hasReps ? `${set.weight} × ${set.reps}` : '—';
+    const repText = hasReps ? `${set.weight} × ${set.reps}` : '—';
     return (
       <Pressable
         onPress={onOpenMore}
