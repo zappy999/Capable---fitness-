@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>{% if page.title %}{{ page.title }} — Capable{% else %}Capable{% endif %}</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+{% if page.description %}<meta name="description" content="{{ page.description }}" />{% endif %}
+<meta name="theme-color" content="#0D0D0D" />
+<style>
+  :root {
+    --bg: #0D0D0D;
+    --surface: #1A1A1A;
+    --surface-2: #141414;
+    --border: #1F1F1F;
+    --border-soft: #27272A;
+    --text: #FAFAFA;
+    --muted: #A1A1AA;
+    --subtle: #71717A;
+    --ghost: #3F3F46;
+    --accent: #22C55E;
+    --on-accent: #0A0A0A;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ── Top nav (matches /preview/) ────────────────────── */
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(13, 13, 13, 0.72);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .top .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .brand-mark {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background: var(--accent);
+    display: grid;
+    place-items: center;
+    color: var(--on-accent);
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .brand-name {
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    font-size: 16px;
+  }
+  .top nav {
+    display: flex;
+    gap: 22px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .top nav a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .top nav a:hover { color: var(--text); text-decoration: none; }
+
+  /* ── Page hero ─────────────────────────────────────── */
+  .page-hero {
+    padding: 64px 0 24px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.13);
+    border: 1px solid rgba(34, 197, 94, 0.22);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+  }
+  h1.page-title {
+    margin: 0 0 6px;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    font-weight: 800;
+  }
+  .page-sub {
+    color: var(--subtle);
+    font-size: 14px;
+    margin: 0;
+  }
+
+  /* ── Markdown content ─────────────────────────────── */
+  .content {
+    padding: 8px 0 64px;
+  }
+  .content h1,
+  .content h2 {
+    font-size: clamp(22px, 3vw, 28px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 36px 0 12px;
+  }
+  .content h3 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 28px 0 8px;
+  }
+  .content h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 24px 0 6px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  /* Hide the H1 inside markdown if it duplicates the page-title hero */
+  .content > h1:first-child { display: none; }
+  .content p,
+  .content li {
+    color: var(--muted);
+    font-size: 15.5px;
+    line-height: 1.7;
+  }
+  .content p strong,
+  .content li strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .content em {
+    color: var(--subtle);
+    font-style: normal;
+    display: block;
+    font-size: 12.5px;
+    margin: -4px 0 18px;
+    letter-spacing: 0.02em;
+  }
+  .content ul,
+  .content ol {
+    padding-left: 22px;
+  }
+  .content li {
+    margin: 6px 0;
+  }
+  .content li::marker {
+    color: var(--ghost);
+  }
+  .content code {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.92em;
+    padding: 2px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+  }
+  .content pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    overflow-x: auto;
+  }
+  .content pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  .content blockquote {
+    margin: 18px 0;
+    padding: 14px 18px;
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    border-radius: 0 14px 14px 0;
+    color: var(--muted);
+  }
+  .content hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+  .content a {
+    color: var(--accent);
+    word-break: break-word;
+  }
+
+  /* ── Footer (mirrors /preview/) ───────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0 56px;
+    color: var(--subtle);
+    font-size: 12.5px;
+  }
+  footer .row {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+  footer .links {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 600px) {
+    .top nav { gap: 14px; font-size: 12px; }
+    .page-hero { padding: 48px 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="row">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-mark">C</span>
+      <span class="brand-name">Capable</span>
+    </a>
+    <nav>
+      <a href="{{ '/preview/' | relative_url }}">Preview</a>
+      <a href="{{ '/privacy/' | relative_url }}">Privacy</a>
+      <a href="{{ '/support/' | relative_url }}">Support</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap page-hero">
+  {% if page.eyebrow %}<div class="eyebrow"><span>{{ page.eyebrow }}</span></div>{% endif %}
+  {% if page.title %}<h1 class="page-title">{{ page.title }}</h1>{% endif %}
+  {% if page.subtitle %}<p class="page-sub">{{ page.subtitle }}</p>{% endif %}
+</div>
+
+<main class="wrap content">
+  {{ content }}
+</main>
+
+<footer>
+  <div class="row">
+    <div>
+      <div class="brand" style="margin-bottom:8px;">
+        <span class="brand-mark">C</span>
+        <span class="brand-name">Capable</span>
+      </div>
+      <div>© 2026 · Capable. Built for lifters.</div>
+    </div>
+    <div class="links">
+      <a href="{{ '/preview/' | relative_url }}">Preview</a>
+      <a href="{{ '/privacy/' | relative_url }}">Privacy</a>
+      <a href="{{ '/support/' | relative_url }}">Support</a>
+      <a href="https://github.com/zappy999/Capable---fitness-">Source</a>
+      <a href="mailto:capablefitness@proton.me">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

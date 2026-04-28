@@ -12,13 +12,15 @@
 
 title: Capable
 description: A local-first iOS workout tracker.
-theme: jekyll-theme-cayman
+
+# All public pages use the custom dark layout in _layouts/dark.html.
+# preview.html is a self-contained one-pager with its own inline CSS
+# (layout: null in its front matter).
 
 # Pretty URLs without the .html suffix: /privacy/ instead of /privacy.html.
 permalink: pretty
 
-# Don't publish the internal submission checklist as part of the site.
-# It stays in the repo for our own reference but isn't part of the
-# public Pages output.
+# Don't publish internal docs as part of the site.
 exclude:
   - APP_STORE_CHECKLIST.md
+  - APP_STORE_LISTING.md

@@ -1,6 +1,8 @@
 ---
-layout: default
+layout: dark
 title: Support
+eyebrow: Support
+subtitle: How to reach us, and answers to a few common questions.
 permalink: /support/
 ---
 
