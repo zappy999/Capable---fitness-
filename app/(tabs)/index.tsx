@@ -3,7 +3,6 @@ import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { WEEKLY_ACTIVITY } from '../../src/data/workouts';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import { longestStreak } from '../../src/lib/achievements';
 import { triggerBackupShare } from '../../src/lib/backup';
@@ -111,8 +110,35 @@ export default function HomeScreen() {
   const handleDismissBackup = () =>
     updateSettings({ backupNudgeDismissedAt: Date.now() });
 
-  const totalMinutes = WEEKLY_ACTIVITY.reduce((s, d) => s + d.minutes, 0);
-  const activeDays = WEEKLY_ACTIVITY.filter((d) => d.active).length;
+  // Compute Mon-Sun activity for the current week from real sessions.
+  // sessions[].date is yyyy-mm-dd in local time; we bucket by exact match.
+  const weeklyActivity = useMemo(() => {
+    const DAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const now = new Date();
+    const todayIdx = (now.getDay() + 6) % 7; // Mon = 0, Sun = 6
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(now.getDate() - todayIdx);
+    return DAY_ABBR.map((day, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
+      const minutes = sessions
+        .filter((s) => s.date === iso)
+        .reduce((a, s) => a + s.durationSeconds / 60, 0);
+      return {
+        day,
+        minutes: Math.round(minutes),
+        active: minutes > 0,
+      };
+    });
+  }, [sessions]);
+
+  const totalMinutes = weeklyActivity.reduce((s, d) => s + d.minutes, 0);
+  const activeDays = weeklyActivity.filter((d) => d.active).length;
 
   const streak = useMemo(
     () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
@@ -351,7 +377,7 @@ export default function HomeScreen() {
                 : 'Keep it up.'}
             </Text>
           </View>
-          <WeekDots accent={accent} />
+          <WeekDots accent={accent} weeklyActivity={weeklyActivity} />
         </View>
 
         {/* Quick stats */}
@@ -776,8 +802,14 @@ export default function HomeScreen() {
   );
 }
 
-function WeekDots({ accent }: { accent: string }) {
-  // Mon-indexed today (WEEKLY_ACTIVITY is Mon..Sun)
+function WeekDots({
+  accent,
+  weeklyActivity,
+}: {
+  accent: string;
+  weeklyActivity: { day: string; minutes: number; active: boolean }[];
+}) {
+  // Mon-indexed today; weeklyActivity is also Mon..Sun.
   const todayIdx = (new Date().getDay() + 6) % 7;
   return (
     <View
@@ -788,7 +820,7 @@ function WeekDots({ accent }: { accent: string }) {
         gap: 3,
       }}
     >
-      {WEEKLY_ACTIVITY.map((d, i) => {
+      {weeklyActivity.map((d, i) => {
         const isToday = i === todayIdx;
         return (
           <View
@@ -818,7 +850,7 @@ function WeekDots({ accent }: { accent: string }) {
           marginTop: 4,
         }}
       >
-        {WEEKLY_ACTIVITY.map((d, i) => {
+        {weeklyActivity.map((d, i) => {
           const isToday = i === todayIdx;
           return (
             <Text
