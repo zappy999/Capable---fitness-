@@ -1611,9 +1611,10 @@ export default function StartWorkoutScreen() {
                   .map((s, i) => `S${i + 1} ${s.weight}kg x ${s.reps}`)
                   .join(' · ');
                 return (
-                  <View
+                  <Pressable
                     key={ex.id}
-                    className="rounded-2xl bg-[#101010] p-4 flex-row items-center gap-3"
+                    onPress={() => setActiveIdx(ex._idx)}
+                    className="rounded-2xl bg-[#101010] p-4 flex-row items-center gap-3 active:opacity-80"
                     style={{ borderWidth: 1, borderColor: 'rgba(34,197,94,0.35)' }}
                   >
                     <View
@@ -1637,9 +1638,14 @@ export default function StartWorkoutScreen() {
                       <Text className="text-gray-400 mt-0.5" style={{ fontSize: 12 }}>
                         {summary}
                       </Text>
+                      <Text
+                        style={{ color: '#71717A', fontSize: 11, marginTop: 4 }}
+                      >
+                        Tap to review or edit sets
+                      </Text>
                     </View>
-                    <Text style={{ color: NEON, fontSize: 20 }}>··</Text>
-                  </View>
+                    <Ionicons name="pencil" size={14} color="#71717A" />
+                  </Pressable>
                 );
               })}
             </View>
