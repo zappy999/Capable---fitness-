@@ -154,6 +154,16 @@ function SwipeableSetCard({
   const [repsText, setRepsText] = useState(
     set.reps > 0 ? String(set.reps) : '',
   );
+  // Allows the user to tap a completed set chip to re-open the editor and
+  // change weight / reps mid-workout. Resets when the set transitions
+  // back to incomplete (via swipe-to-complete on a different gesture, etc.).
+  const [editingExpanded, setEditingExpanded] = useState(false);
+  useEffect(() => {
+    if (!isDone) setEditingExpanded(false);
+  }, [isDone]);
+  // Inputs are enabled when the set isn't yet completed OR when the user
+  // has explicitly re-opened a completed set for editing.
+  const editable = !isDone || editingExpanded;
 
   useEffect(() => {
     const parsed = parseFloat(weightText.replace(',', '.')) || 0;
@@ -226,9 +236,11 @@ function SwipeableSetCard({
       : 'rgba(255,255,255,0.08)';
   const cardBg = isDone ? 'rgba(34,197,94,0.05)' : '#101010';
 
-  // Completed set: render a compact chip row instead of the full editor.
-  // Tapping anywhere (including the More button) still opens the More sheet.
-  if (isDone) {
+  // Completed and not currently editing → render the compact chip.
+  // Tap the body to expand back into the editor. The pencil icon also
+  // expands; the ellipsis on the right opens the More sheet (RIR / note)
+  // without expanding so users can hit RIR on a one-tap path.
+  if (isDone && !editingExpanded) {
     // A set with reps but no weight is a legitimate bodyweight set
     // (pull-ups, push-ups, etc.) — show "0 × 10" rather than "—".
     // Only fall back to "—" when neither value is set.
@@ -236,7 +248,7 @@ function SwipeableSetCard({
     const repText = hasReps ? `${set.weight} × ${set.reps}` : '—';
     return (
       <Pressable
-        onPress={onOpenMore}
+        onPress={() => setEditingExpanded(true)}
         style={{
           borderRadius: 14,
           borderWidth: 1,
@@ -294,7 +306,16 @@ function SwipeableSetCard({
           </View>
         ) : null}
         <View style={{ flex: 1 }} />
-        <Ionicons name="ellipsis-horizontal" size={16} color="#52525B" />
+        <Ionicons name="pencil" size={13} color="#71717A" />
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onOpenMore();
+          }}
+          hitSlop={8}
+        >
+          <Ionicons name="ellipsis-horizontal" size={16} color="#52525B" />
+        </Pressable>
       </Pressable>
     );
   }
@@ -379,7 +400,7 @@ function SwipeableSetCard({
               <View className="flex-row items-center gap-2">
                 <Pressable
                   onPress={onDecWeight}
-                  disabled={isDone}
+                  disabled={!editable}
                   className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
                 >
                   <Text className="text-white font-bold" style={{ fontSize: 16 }}>
@@ -397,7 +418,7 @@ function SwipeableSetCard({
                     const parsed = parseFloat(sanitized);
                     onChangeWeight(Number.isFinite(parsed) ? parsed : 0);
                   }}
-                  editable={!isDone}
+                  editable={editable}
                   keyboardType="decimal-pad"
                   placeholder="kg"
                   placeholderTextColor="#6B7280"
@@ -407,7 +428,7 @@ function SwipeableSetCard({
                 />
                 <Pressable
                   onPress={onIncWeight}
-                  disabled={isDone}
+                  disabled={!editable}
                   className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
                 >
                   <Text className="text-white font-bold" style={{ fontSize: 16 }}>
@@ -423,7 +444,7 @@ function SwipeableSetCard({
               <View className="flex-row items-center gap-2">
                 <Pressable
                   onPress={onDecReps}
-                  disabled={isDone}
+                  disabled={!editable}
                   className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
                 >
                   <Text className="text-white font-bold" style={{ fontSize: 16 }}>
@@ -438,7 +459,7 @@ function SwipeableSetCard({
                     const parsed = parseInt(sanitized, 10);
                     onChangeReps(Number.isFinite(parsed) ? parsed : 0);
                   }}
-                  editable={!isDone}
+                  editable={editable}
                   keyboardType="number-pad"
                   placeholder="reps"
                   placeholderTextColor="#6B7280"
@@ -448,7 +469,7 @@ function SwipeableSetCard({
                 />
                 <Pressable
                   onPress={onIncReps}
-                  disabled={isDone}
+                  disabled={!editable}
                   className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 items-center justify-center active:opacity-70"
                 >
                   <Text className="text-white font-bold" style={{ fontSize: 16 }}>
@@ -460,7 +481,11 @@ function SwipeableSetCard({
           </View>
 
           <View className="flex-row items-center justify-between mt-3">
-            {isDone ? (
+            {isDone && editingExpanded ? (
+              <Text style={{ color: '#9ca3af', fontSize: 13 }} className="italic">
+                Editing completed set
+              </Text>
+            ) : isDone ? (
               <Text style={{ color: NEON, fontSize: 13 }} className="italic">
                 ✓ Completed
               </Text>
@@ -471,14 +496,31 @@ function SwipeableSetCard({
                 Swipe right to complete →
               </Animated.Text>
             )}
-            <Pressable
-              onPress={onOpenMore}
-              className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
-            >
-              <Text className="text-white font-bold" style={{ fontSize: 13 }}>
-                More
-              </Text>
-            </Pressable>
+            <View className="flex-row items-center gap-2">
+              {isDone && editingExpanded ? (
+                <Pressable
+                  onPress={() => setEditingExpanded(false)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 12,
+                    backgroundColor: NEON,
+                  }}
+                >
+                  <Text style={{ color: '#0A0A0A', fontSize: 13, fontWeight: '800' }}>
+                    Done
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={onOpenMore}
+                className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 active:opacity-70"
+              >
+                <Text className="text-white font-bold" style={{ fontSize: 13 }}>
+                  More
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </Animated.View>
       </GestureDetector>
