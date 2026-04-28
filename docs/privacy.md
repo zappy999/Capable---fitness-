@@ -1,6 +1,8 @@
 ---
-layout: default
+layout: dark
 title: Privacy policy
+eyebrow: Privacy
+subtitle: What Capable does and doesn't collect.
 permalink: /privacy/
 ---
 

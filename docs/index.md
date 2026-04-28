@@ -1,9 +1,9 @@
 ---
-layout: default
+layout: dark
 title: Capable
+eyebrow: Capable
+subtitle: A local-first workout tracker for lifters.
 ---
-
-# Capable
 
 A tap-efficient workout tracker for lifters. Build workouts, group
 them into a program, and log sets fast — heavy weight, mono numbers,
