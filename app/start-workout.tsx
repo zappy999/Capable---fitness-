@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -762,8 +763,21 @@ export default function StartWorkoutScreen() {
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [hydrating, setHydrating] = useState(true);
   const [activeIdx, setActiveIdx] = useState(0);
-  const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  // Rest timer is driven by an absolute end timestamp (epoch ms) so that
+  // backgrounding the app, locking the screen, or any JS-throttling does
+  // not desync the visible countdown from real wall-clock time. The
+  // displayed `restRemaining` is derived from `restEndAt - Date.now()`
+  // and re-evaluated on every tick AND whenever the app returns to the
+  // foreground (see AppState listener below).
+  const [restEndAt, setRestEndAt] = useState<number | null>(null);
   const [restTotal, setRestTotal] = useState<number | null>(null);
+  // Monotonic re-render trigger — bumped 1Hz while a rest is active and
+  // on every foreground transition so `restRemaining` recomputes.
+  const [restTick, setRestTick] = useState(0);
+  const restRemaining =
+    restEndAt === null
+      ? null
+      : Math.max(0, Math.ceil((restEndAt - Date.now()) / 1000));
   const [restNotificationId, setRestNotificationId] = useState<string | null>(null);
   // Monotonically incremented for every rest start; the async notification
   // promise compares its captured version against the latest before
@@ -991,22 +1005,40 @@ export default function StartWorkoutScreen() {
     return () => clearInterval(t);
   }, [startedAt]);
 
+  // Tick once per second while a rest is active. Doesn't decrement —
+  // just bumps `restTick` so the derived `restRemaining` recomputes
+  // from the absolute end timestamp.
   useEffect(() => {
-    if (restRemaining === null) return;
-    if (restRemaining <= 0) {
+    if (restEndAt === null) return;
+    const id = setInterval(() => setRestTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [restEndAt]);
+
+  // When the app returns to the foreground, force a recompute. The
+  // OS-scheduled notification continues firing in the background, but
+  // the visible timer would otherwise be frozen at whatever value it
+  // had when the JS engine got suspended.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setRestTick((t) => t + 1);
+    });
+    return () => sub.remove();
+  }, []);
+
+  // When the derived remaining hits zero, treat the rest as complete.
+  useEffect(() => {
+    if (restEndAt === null) return;
+    if (restRemaining !== null && restRemaining <= 0) {
       haptic('success');
-      setRestRemaining(null);
+      setRestEndAt(null);
       setRestTotal(null);
-      // Bumping the version invalidates any in-flight schedule promise so
-      // its resolution cancels rather than re-installing an id.
+      // Bumping the version invalidates any in-flight schedule promise
+      // so its resolution cancels rather than re-installing an id.
       restVersionRef.current++;
       cancelNotification(restNotificationId);
       setRestNotificationId(null);
-      return;
     }
-    const t = setTimeout(() => setRestRemaining((r) => (r === null ? null : r - 1)), 1000);
-    return () => clearTimeout(t);
-  }, [restRemaining]);
+  }, [restRemaining, restEndAt, restNotificationId]);
 
   useEffect(() => {
     return () => {
@@ -1062,7 +1094,7 @@ export default function StartWorkoutScreen() {
 
   const startRest = (seconds: number) => {
     if (seconds <= 0) return;
-    setRestRemaining(seconds);
+    setRestEndAt(Date.now() + seconds * 1000);
     setRestTotal(seconds);
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
@@ -1081,11 +1113,39 @@ export default function StartWorkoutScreen() {
   };
 
   const stopRest = () => {
-    setRestRemaining(null);
+    setRestEndAt(null);
     setRestTotal(null);
     restVersionRef.current++;
     cancelNotification(restNotificationId);
     setRestNotificationId(null);
+  };
+
+  // Extend an in-progress rest by N seconds. Updates the absolute end
+  // timestamp so the visible countdown reflects the extension, then
+  // re-schedules the OS notification so it fires at the *new* end time
+  // rather than the original.
+  const addRest = (seconds: number) => {
+    if (seconds <= 0 || restEndAt === null) return;
+    const newEndAt = restEndAt + seconds * 1000;
+    setRestEndAt(newEndAt);
+    setRestTotal((t) => (t === null ? null : t + seconds));
+    cancelNotification(restNotificationId);
+    setRestNotificationId(null);
+    const myVersion = ++restVersionRef.current;
+    const remainingFromNow = Math.max(
+      0,
+      Math.ceil((newEndAt - Date.now()) / 1000),
+    );
+    scheduleRestNotification(remainingFromNow, 'Ready for your next set').then(
+      (id) => {
+        if (!id) return;
+        if (!mountedRef.current || myVersion !== restVersionRef.current) {
+          cancelNotification(id);
+          return;
+        }
+        setRestNotificationId(id);
+      },
+    );
   };
 
   const completeSet = (exIdx: number, setIdx: number) => {
@@ -1588,10 +1648,7 @@ export default function StartWorkoutScreen() {
             </View>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               <Pressable
-                onPress={() => {
-                  setRestRemaining((r) => (r === null ? null : r + 30));
-                  setRestTotal((t) => (t === null ? null : t + 30));
-                }}
+                onPress={() => addRest(30)}
                 style={{
                   paddingHorizontal: 10,
                   paddingVertical: 8,
