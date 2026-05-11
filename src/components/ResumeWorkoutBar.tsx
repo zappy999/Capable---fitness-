@@ -19,7 +19,7 @@ function formatElapsed(startedAt: number, now: number): string {
 
 /**
  * Persistent strip rendered just above the tab bar when there's a
- * paused (unfinished) workout. Tap to resume; long-press the X to
+ * paused (unfinished) workout. Tap the body to resume; tap the X to
  * discard. Self-hides when there's no active workout.
  */
 export function ResumeWorkoutBar() {
@@ -47,73 +47,85 @@ export function ResumeWorkoutBar() {
   };
 
   return (
-    <Pressable
-      onPress={onResume}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.85 : 1,
-        marginHorizontal: 12,
-        marginBottom: 6,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: accentAlpha(accent, 0.55),
-        backgroundColor: COLORS.surface,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-      })}
+    <View
+      style={{
+        width: '100%',
+        paddingHorizontal: 12,
+        paddingTop: 6,
+        paddingBottom: 6,
+      }}
     >
       <View
         style={{
-          width: 32,
-          height: 32,
-          borderRadius: 10,
-          backgroundColor: accent,
+          flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Ionicons name="play" size={14} color={COLORS.onAccent} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text
-          style={{
-            color: COLORS.text,
-            fontSize: 14,
-            fontWeight: '800',
-            letterSpacing: -0.1,
-          }}
-          numberOfLines={1}
-        >
-          Resume {active.name}
-        </Text>
-        <Text style={{ color: COLORS.subtle, fontSize: 11, marginTop: 1 }}>
-          <Text style={{ fontFamily: MONO, color: accent }}>
-            {formatElapsed(active.startedAt, now)}
-          </Text>
-          <Text>  · in progress</Text>
-        </Text>
-      </View>
-      <Pressable
-        onPress={(e) => {
-          e.stopPropagation();
-          discardActiveWorkout();
-        }}
-        hitSlop={10}
-        style={{
-          width: 32,
-          height: 32,
           borderRadius: 16,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(255,255,255,0.04)',
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: accentAlpha(accent, 0.55),
+          backgroundColor: COLORS.surface,
+          overflow: 'hidden',
         }}
       >
-        <Ionicons name="close" size={14} color={COLORS.muted} />
-      </Pressable>
-    </Pressable>
+        <Pressable
+          onPress={onResume}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingLeft: 12,
+            paddingRight: 8,
+            paddingVertical: 10,
+            gap: 12,
+            minWidth: 0,
+          }}
+        >
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              backgroundColor: accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="play" size={14} color={COLORS.onAccent} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              style={{
+                color: COLORS.text,
+                fontSize: 14,
+                fontWeight: '800',
+                letterSpacing: -0.1,
+              }}
+              numberOfLines={1}
+            >
+              Resume {active.name}
+            </Text>
+            <Text style={{ color: COLORS.subtle, fontSize: 11, marginTop: 1 }}>
+              <Text style={{ fontFamily: MONO, color: accent }}>
+                {formatElapsed(active.startedAt, now)}
+              </Text>
+              <Text>  · in progress</Text>
+            </Text>
+          </View>
+        </Pressable>
+        <Pressable
+          onPress={() => discardActiveWorkout()}
+          hitSlop={8}
+          style={{
+            width: 44,
+            paddingVertical: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderLeftWidth: 1,
+            borderLeftColor: 'rgba(255,255,255,0.05)',
+          }}
+        >
+          <Ionicons name="close" size={16} color={COLORS.muted} />
+        </Pressable>
+      </View>
+    </View>
   );
 }
