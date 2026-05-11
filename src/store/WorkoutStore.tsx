@@ -170,21 +170,31 @@ function reducer(state: State, action: Action): State {
         sessions: [...state.sessions, action.session],
         personalRecords: [...state.personalRecords, ...action.newPRs],
       };
-    case 'UPDATE_SESSION':
+    case 'UPDATE_SESSION': {
+      const nextSessions = state.sessions.map((s) =>
+        s.id === action.id ? { ...s, ...action.patch } : s,
+      );
+      // The patch may have rewritten weights / reps that previously
+      // produced PRs, or made a set heavier than any prior one. Fully
+      // recompute PRs across all sessions so the PR log + Stats stay
+      // in sync with the new data.
       return {
         ...state,
-        sessions: state.sessions.map((s) =>
-          s.id === action.id ? { ...s, ...action.patch } : s,
-        ),
+        sessions: nextSessions,
+        personalRecords: recomputePRsForSessions(nextSessions),
       };
-    case 'DELETE_SESSION':
+    }
+    case 'DELETE_SESSION': {
+      const nextSessions = state.sessions.filter((s) => s.id !== action.id);
+      // Removing a session may demote one of its PRs to a different
+      // session that previously came in second — recompute rather than
+      // a naive filter-by-sessionId so the PR log reflects reality.
       return {
         ...state,
-        sessions: state.sessions.filter((s) => s.id !== action.id),
-        personalRecords: state.personalRecords.filter(
-          (p) => p.sessionId !== action.id,
-        ),
+        sessions: nextSessions,
+        personalRecords: recomputePRsForSessions(nextSessions),
       };
+    }
     case 'UPDATE_SETTINGS':
       return {
         ...state,
@@ -222,23 +232,13 @@ function reducer(state: State, action: Action): State {
         ...(importedPrograms ?? []),
       ];
 
-      const chronological = [...mergedSessions].sort((a, b) =>
-        a.date.localeCompare(b.date),
-      );
-      const recomputedPRs: PersonalRecord[] = [];
-      const prior: WorkoutSession[] = [];
-      for (const s of chronological) {
-        recomputedPRs.push(...detectPRs(s, prior));
-        prior.push(s);
-      }
-
       return {
         ...state,
         exercises: mergedExercises,
         workouts: mergedWorkouts,
         sessions: mergedSessions,
         programs: mergedPrograms,
-        personalRecords: recomputedPRs,
+        personalRecords: recomputePRsForSessions(mergedSessions),
         settings: {
           ...state.settings,
           ...importedSettings,
@@ -322,6 +322,27 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
     d.getDate(),
   ).padStart(2, '0')}`;
+}
+
+/**
+ * Walk every session in chronological order, accumulating PRs as we go.
+ * Used after destructive mutations (UPDATE_SESSION / DELETE_SESSION /
+ * BULK_IMPORT) so the PR log always reflects the current session data.
+ * Cheap enough for personal-tracker scale (<10k sessions).
+ */
+function recomputePRsForSessions(
+  sessions: WorkoutSession[],
+): PersonalRecord[] {
+  const chronological = [...sessions].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+  const out: PersonalRecord[] = [];
+  const prior: WorkoutSession[] = [];
+  for (const s of chronological) {
+    out.push(...detectPRs(s, prior));
+    prior.push(s);
+  }
+  return out;
 }
 
 function detectPRs(
