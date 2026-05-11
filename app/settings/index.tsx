@@ -16,6 +16,8 @@ import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { UserSettings } from '../../src/store/types';
 import { triggerBackupShare } from '../../src/lib/backup';
 import { openExternalUrl } from '../../src/lib/platform';
+import { COLORS } from '../../src/design/tokens';
+import { ModernHeader, NavTop } from '../../src/design/components';
 
 // External links surfaced in the About section. Hosted via GitHub
 // Pages out of docs/ on the main branch. Source lives in
@@ -175,34 +177,24 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top', 'bottom']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
-      </View>
-
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: COLORS.bg }}
+      edges={['top', 'bottom']}
+    >
+      <NavTop onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <View className="mx-5 mt-2 rounded-3xl p-6" style={{ backgroundColor: LIME }}>
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            SETTINGS
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 34 }}>
-            Preferences
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            Tweak defaults and back up your data.
-          </Text>
-        </View>
+        <ModernHeader
+          eyebrow="Settings"
+          title="Preferences"
+          sub="Tweak defaults and back up your data."
+          accent={LIME}
+          back
+          action={false}
+          dropMark
+        />
 
         <Section title="Training">
           <NumRow
