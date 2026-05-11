@@ -21,7 +21,10 @@ export default function TabLayout() {
   return (
     <Tabs
       tabBar={(props) => (
-        <View style={{ backgroundColor: 'transparent' }}>
+        // Solid background here — `transparent` lets the navigator's
+        // default container color (white on iOS) show through around
+        // the resume bar's margins, which read as a "white tab".
+        <View style={{ backgroundColor: '#0D0D0D' }}>
           <ResumeWorkoutBar />
           <BottomTabBar {...props} />
         </View>
