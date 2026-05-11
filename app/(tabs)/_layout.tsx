@@ -1,12 +1,31 @@
-import { Platform } from 'react-native';
+import { useEffect } from 'react';
+import { Platform, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAccent } from '../../src/store/WorkoutStore';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { bootstrapActiveWorkout } from '../../src/lib/activeWorkout';
+import { ResumeWorkoutBar } from '../../src/components/ResumeWorkoutBar';
 
 export default function TabLayout() {
   const accent = useAccent();
+  const { workouts } = useStore();
+
+  // After app launch (or a relaunch), check AsyncStorage for any
+  // leftover in-progress workout so the resume bar reappears even if
+  // the JS runtime was killed.
+  useEffect(() => {
+    bootstrapActiveWorkout(workouts);
+  }, [workouts]);
+
   return (
     <Tabs
+      tabBar={(props) => (
+        <View style={{ backgroundColor: 'transparent' }}>
+          <ResumeWorkoutBar />
+          <BottomTabBar {...props} />
+        </View>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: accent,

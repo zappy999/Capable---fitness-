@@ -32,6 +32,7 @@ import {
   ModernHeader,
   NumMono,
 } from '../src/design/components';
+import { setActiveWorkout } from '../src/lib/activeWorkout';
 
 type DraftSnapshot = {
   startedAt: number;
@@ -886,6 +887,7 @@ export default function StartWorkoutScreen() {
     setHydrating(true);
     (async () => {
       let restored = false;
+      let restoredStartedAt: number | null = null;
       try {
         const raw = await AsyncStorage.getItem(
           draftKey(source.kind, source.workoutId),
@@ -908,14 +910,15 @@ export default function StartWorkoutScreen() {
               Math.max(0, Math.min(draft.activeIdx ?? 0, draft.exercises.length - 1)),
             );
             restored = true;
+            restoredStartedAt = draft.startedAt;
           }
         }
       } catch {
         // Corrupt draft: fall through to fresh init below.
       }
+      const freshStartedAt = restored ? restoredStartedAt ?? Date.now() : Date.now();
       if (!cancelled && !restored) {
-        const now = Date.now();
-        setStartedAt(now);
+        setStartedAt(freshStartedAt);
         setElapsed(0);
         setExercises(prefillFirstSets(source.exercises));
         setActiveIdx(0);
@@ -923,6 +926,17 @@ export default function StartWorkoutScreen() {
       if (!cancelled) {
         setLoadedFor(key);
         setHydrating(false);
+        // Surface this session to the tabs so the "Resume active
+        // workout" bar shows when the user leaves start-workout
+        // without finishing.
+        if (source.kind !== 'missing') {
+          setActiveWorkout({
+            kind: source.kind,
+            workoutId: source.workoutId,
+            name: source.name,
+            startedAt: freshStartedAt,
+          });
+        }
       }
     })();
     return () => {
@@ -979,6 +993,7 @@ export default function StartWorkoutScreen() {
     if (loggedExercises.length === 0) {
       cancelNotification(restNotificationId);
       clearDraft();
+      setActiveWorkout(null);
       router.back();
       return;
     }
@@ -1055,6 +1070,7 @@ export default function StartWorkoutScreen() {
 
     cancelNotification(restNotificationId);
     clearDraft();
+    setActiveWorkout(null);
     haptic('success');
 
     setSummary({
@@ -1841,6 +1857,7 @@ export default function StartWorkoutScreen() {
                       style: 'destructive',
                       onPress: () => {
                         clearDraft();
+                        setActiveWorkout(null);
                         router.back();
                       },
                     },
