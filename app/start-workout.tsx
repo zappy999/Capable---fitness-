@@ -1151,6 +1151,20 @@ export default function StartWorkoutScreen() {
     .map((e, i) => ({ ...e, _idx: i }))
     .filter((e) => e.sets.every((s) => s.completed));
 
+  // Library id for the active exercise, resolved by id then by case-
+  // insensitive name match. Drives the tappable name affordance — when
+  // this is null we hide the chevron so the user doesn't tap into
+  // nothing.
+  const activeHistoryId = useMemo(() => {
+    if (!active) return null;
+    if (active.exerciseId) return active.exerciseId;
+    const target = active.name.trim().toLowerCase();
+    const match = libraryExercises.find(
+      (e) => e.name.trim().toLowerCase() === target,
+    );
+    return match?.id ?? null;
+  }, [active?.exerciseId, active?.name, libraryExercises]);
+
   const updateSet = (exIdx: number, setIdx: number, patch: Partial<SetLog>) => {
     setExercises((prev) => {
       const next = prev.map((e, i) => {
@@ -1472,32 +1486,32 @@ export default function StartWorkoutScreen() {
             <View className="flex-1 pr-3">
               <Pressable
                 onPress={() => {
-                  // Tapping the exercise name opens the exercise history.
-                  // Resolve a library id by name if the in-workout exercise
-                  // isn't already linked; bail silently if no match (the
-                  // user can still finish the workout, which auto-creates
-                  // a custom exercise on log).
-                  let id = active.exerciseId;
-                  if (!id) {
-                    const match = libraryExercises.find(
-                      (e) => e.name.toLowerCase() === active.name.toLowerCase(),
-                    );
-                    id = match?.id;
-                  }
-                  if (id) router.push(`/exercises/${id}`);
+                  if (!activeHistoryId) return;
+                  haptic('light');
+                  router.push(`/exercises/${activeHistoryId}`);
                 }}
-                hitSlop={4}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                disabled={!activeHistoryId}
+                hitSlop={10}
+                style={{
+                  alignSelf: 'flex-start',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingVertical: 4,
+                  paddingRight: 8,
+                }}
               >
                 <Text className="text-white font-bold" style={{ fontSize: 22 }}>
                   {active.name}
                 </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color="rgba(255,255,255,0.35)"
-                  style={{ marginTop: 3 }}
-                />
+                {activeHistoryId ? (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color="rgba(255,255,255,0.35)"
+                    style={{ marginTop: 3 }}
+                  />
+                ) : null}
               </Pressable>
               <Text className="text-gray-500 mt-1" style={{ fontSize: 13 }}>
                 Target: {active.target} · {stats.completedSets === 0 ? '0' : active.sets.filter(s => s.completed).length}/{active.sets.length} sets
