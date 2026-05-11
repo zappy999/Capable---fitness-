@@ -73,7 +73,12 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="start-workout"
-              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+              // Card presentation (rather than 'modal') so child pushes
+              // like /exercises/[id] layer above start-workout in the
+              // stack and back returns to the active session instead of
+              // to the pre-workout detail page. Slide-from-bottom is
+              // kept so the visual "lifts up" feel matches the old modal.
+              options={{ presentation: 'card', animation: 'slide_from_bottom' }}
             />
           </Stack>
         </WorkoutStoreProvider>
