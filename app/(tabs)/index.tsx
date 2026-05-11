@@ -814,7 +814,7 @@ function WeekDots({
   return (
     <View
       style={{
-        width: 84,
+        width: 90,
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 3,
@@ -844,7 +844,7 @@ function WeekDots({
       })}
       <View
         style={{
-          width: 84,
+          width: 90,
           flexDirection: 'row',
           justifyContent: 'space-between',
           marginTop: 4,
