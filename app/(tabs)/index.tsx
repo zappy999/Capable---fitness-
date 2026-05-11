@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
-import { longestStreak } from '../../src/lib/achievements';
+import { currentStreak } from '../../src/lib/achievements';
 import { triggerBackupShare } from '../../src/lib/backup';
 import { PressableScale } from '../../src/components/PressableScale';
 import {
@@ -141,7 +141,7 @@ export default function HomeScreen() {
   const activeDays = weeklyActivity.filter((d) => d.active).length;
 
   const streak = useMemo(
-    () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
+    () => currentStreak(Array.from(new Set(sessions.map((s) => s.date)))),
     [sessions],
   );
 

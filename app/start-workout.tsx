@@ -789,6 +789,7 @@ export default function StartWorkoutScreen() {
     sessions,
     addCustomExercise,
     logSession,
+    saveWorkout,
     settings,
   } = useStore();
   const NEON = useAccent();
@@ -1010,6 +1011,34 @@ export default function StartWorkoutScreen() {
       durationSeconds: elapsed,
       exercises: loggedExercises.map(({ name, ...rest }) => rest),
     });
+
+    // Persist any per-exercise note edits back to the source workout so
+    // they're prefilled the next time the user starts the same workout.
+    // Only applies to user-created workouts; demo workouts aren't writable.
+    if (source.kind === 'user' && source.workoutId) {
+      const sourceWorkout = workouts.find((w) => w.id === source.workoutId);
+      if (sourceWorkout) {
+        const draftNotesById = new Map<string, string | undefined>(
+          exercises.map((ex) => [ex.id, ex.note?.trim() || undefined]),
+        );
+        const noteChanged = sourceWorkout.exercises.some((we) => {
+          const next = draftNotesById.get(we.id);
+          return (we.note ?? undefined) !== next;
+        });
+        if (noteChanged) {
+          saveWorkout({
+            id: sourceWorkout.id,
+            name: sourceWorkout.name,
+            exercises: sourceWorkout.exercises.map((we) => ({
+              ...we,
+              note: draftNotesById.has(we.id)
+                ? draftNotesById.get(we.id)
+                : we.note,
+            })),
+          });
+        }
+      }
+    }
 
     const rows: SummaryRow[] = loggedExercises.map((le) => {
       const prior = priorByExId.get(le.exerciseId);
@@ -1441,9 +1470,35 @@ export default function StartWorkoutScreen() {
         <View className="mx-4 mb-4 rounded-3xl border border-white/10 bg-[#101010] p-5">
           <View className="flex-row items-start justify-between mb-3">
             <View className="flex-1 pr-3">
-              <Text className="text-white font-bold" style={{ fontSize: 22 }}>
-                {active.name}
-              </Text>
+              <Pressable
+                onPress={() => {
+                  // Tapping the exercise name opens the exercise history.
+                  // Resolve a library id by name if the in-workout exercise
+                  // isn't already linked; bail silently if no match (the
+                  // user can still finish the workout, which auto-creates
+                  // a custom exercise on log).
+                  let id = active.exerciseId;
+                  if (!id) {
+                    const match = libraryExercises.find(
+                      (e) => e.name.toLowerCase() === active.name.toLowerCase(),
+                    );
+                    id = match?.id;
+                  }
+                  if (id) router.push(`/exercises/${id}`);
+                }}
+                hitSlop={4}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+              >
+                <Text className="text-white font-bold" style={{ fontSize: 22 }}>
+                  {active.name}
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color="rgba(255,255,255,0.35)"
+                  style={{ marginTop: 3 }}
+                />
+              </Pressable>
               <Text className="text-gray-500 mt-1" style={{ fontSize: 13 }}>
                 Target: {active.target} · {stats.completedSets === 0 ? '0' : active.sets.filter(s => s.completed).length}/{active.sets.length} sets
               </Text>

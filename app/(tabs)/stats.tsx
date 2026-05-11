@@ -7,7 +7,7 @@ import { useAccent, useStore } from '../../src/store/WorkoutStore';
 import type { WorkoutSession } from '../../src/store/types';
 import {
   computeAchievementStatus,
-  longestStreak,
+  currentStreak,
   type AchievementStatus,
 } from '../../src/lib/achievements';
 import {
@@ -89,7 +89,7 @@ export default function StatsScreen() {
       : 0;
 
   const streak = useMemo(
-    () => longestStreak(Array.from(new Set(sessions.map((s) => s.date)))),
+    () => currentStreak(Array.from(new Set(sessions.map((s) => s.date)))),
     [sessions],
   );
 

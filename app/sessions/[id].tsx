@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +59,94 @@ export default function SessionDetailScreen() {
 
   const session = sessions.find((s) => s.id === id);
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
+  // Tap a set chip to open the editor. `target` picks which exercise +
+  // set within the session is being edited; drafts hold the in-flight
+  // values so we don't dispatch until the user taps Save.
+  const [editTarget, setEditTarget] = useState<
+    { exId: string; setIdx: number } | null
+  >(null);
+  const [draftWeight, setDraftWeight] = useState('');
+  const [draftReps, setDraftReps] = useState('');
+  const [draftRir, setDraftRir] = useState<number | null>(null);
+
+  const editingSet = useMemo(() => {
+    if (!editTarget || !session) return null;
+    const ex = session.exercises.find((e) => e.id === editTarget.exId);
+    if (!ex) return null;
+    const set = ex.sets[editTarget.setIdx];
+    if (!set) return null;
+    const exDef = exercises.find((e) => e.id === ex.exerciseId);
+    return { ex, exDef, set };
+  }, [editTarget, session, exercises]);
+
+  useEffect(() => {
+    if (!editingSet) return;
+    setDraftWeight(String(editingSet.set.weight));
+    setDraftReps(String(editingSet.set.reps));
+    setDraftRir(
+      typeof editingSet.set.rir === 'number' ? editingSet.set.rir : null,
+    );
+  }, [editingSet?.ex.id, editingSet?.set]);
+
+  const closeEdit = () => setEditTarget(null);
+
+  const applyEdit = (
+    mutate: (sets: NonNullable<typeof session>['exercises'][number]['sets']) =>
+      | NonNullable<typeof session>['exercises'][number]['sets']
+      | null,
+  ) => {
+    if (!session || !editTarget) return;
+    const nextExercises = session.exercises
+      .map((ex) => {
+        if (ex.id !== editTarget.exId) return ex;
+        const nextSets = mutate(ex.sets);
+        if (!nextSets) return ex;
+        return { ...ex, sets: nextSets };
+      })
+      // Drop an exercise if all its sets were deleted.
+      .filter((ex) => ex.sets.length > 0);
+    updateSession(session.id, { exercises: nextExercises });
+  };
+
+  const handleSaveSet = () => {
+    const w = parseFloat(draftWeight.replace(',', '.'));
+    const r = parseInt(draftReps, 10);
+    const safeWeight = Number.isFinite(w) && w >= 0 ? w : 0;
+    const safeReps = Number.isFinite(r) && r >= 0 ? r : 0;
+    if (safeReps === 0) {
+      Alert.alert('Reps required', 'A logged set needs at least one rep.');
+      return;
+    }
+    applyEdit((sets) =>
+      sets.map((s, i) =>
+        i === (editTarget?.setIdx ?? -1)
+          ? {
+              ...s,
+              weight: safeWeight,
+              reps: safeReps,
+              rir: draftRir ?? undefined,
+            }
+          : s,
+      ),
+    );
+    closeEdit();
+  };
+
+  const handleDeleteSet = () => {
+    Alert.alert('Delete this set?', 'The set is removed from this session.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          applyEdit((sets) =>
+            sets.filter((_, i) => i !== (editTarget?.setIdx ?? -1)),
+          );
+          closeEdit();
+        },
+      },
+    ]);
+  };
 
   const stats = useMemo(() => {
     if (!session) return null;
@@ -295,9 +384,13 @@ export default function SessionDetailScreen() {
                             (p) => p.weight === s.weight && p.reps === s.reps,
                           );
                           return (
-                            <View
+                            <Pressable
                               key={i}
-                              style={{
+                              onPress={() =>
+                                setEditTarget({ exId: se.id, setIdx: i })
+                              }
+                              style={({ pressed }) => ({
+                                opacity: pressed ? 0.7 : 1,
                                 backgroundColor: isPR
                                   ? accentAlpha(accent, 0.133)
                                   : COLORS.bg,
@@ -311,7 +404,7 @@ export default function SessionDetailScreen() {
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 gap: 4,
-                              }}
+                              })}
                             >
                               <NumMono
                                 style={{ fontSize: 13, fontWeight: '700', color: COLORS.text }}
@@ -334,7 +427,7 @@ export default function SessionDetailScreen() {
                               {isPR ? (
                                 <Ionicons name="trophy" size={10} color={accent} />
                               ) : null}
-                            </View>
+                            </Pressable>
                           );
                         })}
                       </View>
@@ -361,6 +454,286 @@ export default function SessionDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Edit-set sheet */}
+      <Modal
+        visible={editTarget !== null && editingSet !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEdit}
+      >
+        <Pressable
+          onPress={closeEdit}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: COLORS.surface,
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                padding: 20,
+                paddingBottom: 32,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    color: COLORS.text,
+                    fontSize: 18,
+                    fontWeight: '800',
+                    letterSpacing: -0.2,
+                  }}
+                >
+                  Edit set {(editTarget?.setIdx ?? 0) + 1}
+                  {editingSet?.exDef ? ` · ${editingSet.exDef.name}` : ''}
+                </Text>
+                <Pressable
+                  onPress={closeEdit}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="close" size={16} color={COLORS.text} />
+                </Pressable>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '800',
+                      color: COLORS.subtle,
+                      letterSpacing: 1,
+                      marginBottom: 6,
+                    }}
+                  >
+                    WEIGHT
+                  </Text>
+                  <TextInput
+                    value={draftWeight}
+                    onChangeText={(v) =>
+                      setDraftWeight(
+                        v
+                          .replace(',', '.')
+                          .replace(/[^0-9.]/g, '')
+                          .replace(/(\..*)\./g, '$1'),
+                      )
+                    }
+                    keyboardType="decimal-pad"
+                    placeholder="kg"
+                    placeholderTextColor={COLORS.faint}
+                    selectTextOnFocus
+                    style={{
+                      backgroundColor: COLORS.bg,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      borderRadius: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      fontSize: 16,
+                      fontFamily: MONO,
+                      color: COLORS.text,
+                      textAlign: 'center',
+                      fontWeight: '700',
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '800',
+                      color: COLORS.subtle,
+                      letterSpacing: 1,
+                      marginBottom: 6,
+                    }}
+                  >
+                    REPS
+                  </Text>
+                  <TextInput
+                    value={draftReps}
+                    onChangeText={(v) =>
+                      setDraftReps(v.replace(/[^0-9]/g, ''))
+                    }
+                    keyboardType="number-pad"
+                    placeholder="reps"
+                    placeholderTextColor={COLORS.faint}
+                    selectTextOnFocus
+                    style={{
+                      backgroundColor: COLORS.bg,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      borderRadius: 12,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      fontSize: 16,
+                      fontFamily: MONO,
+                      color: COLORS.text,
+                      textAlign: 'center',
+                      fontWeight: '700',
+                    }}
+                  />
+                </View>
+              </View>
+
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '800',
+                  color: COLORS.subtle,
+                  letterSpacing: 1,
+                  marginTop: 16,
+                  marginBottom: 6,
+                }}
+              >
+                RIR · REPS IN RESERVE
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {[0, 1, 2, 3, 4, 5].map((n) => {
+                  const on = draftRir === n;
+                  return (
+                    <Pressable
+                      key={n}
+                      onPress={() => setDraftRir(on ? null : n)}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 9,
+                        borderRadius: 12,
+                        backgroundColor: on
+                          ? accent
+                          : 'rgba(255,255,255,0.05)',
+                        borderWidth: 1,
+                        borderColor: on
+                          ? accent
+                          : 'rgba(255,255,255,0.08)',
+                        minWidth: 44,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: on ? COLORS.onAccent : COLORS.text,
+                          fontWeight: '800',
+                          fontSize: 13,
+                        }}
+                      >
+                        {n === 5 ? '5+' : n}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+                <Pressable
+                  onPress={() => setDraftRir(null)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 9,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.muted, fontWeight: '700', fontSize: 13 }}
+                  >
+                    Clear
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 10,
+                  marginTop: 22,
+                }}
+              >
+                <Pressable
+                  onPress={handleDeleteSet}
+                  style={{
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(248,113,113,0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(248,113,113,0.3)',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#F87171" />
+                  <Text
+                    style={{ color: '#F87171', fontWeight: '700', fontSize: 14 }}
+                  >
+                    Delete
+                  </Text>
+                </Pressable>
+                <View style={{ flex: 1 }} />
+                <Pressable
+                  onPress={closeEdit}
+                  style={{
+                    paddingHorizontal: 18,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.text, fontWeight: '700', fontSize: 14 }}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveSet}
+                  style={{
+                    paddingHorizontal: 22,
+                    paddingVertical: 14,
+                    borderRadius: 14,
+                    backgroundColor: COLORS.text,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: COLORS.onAccent,
+                      fontWeight: '800',
+                      fontSize: 14,
+                    }}
+                  >
+                    Save
+                  </Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
