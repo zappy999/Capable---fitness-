@@ -326,12 +326,11 @@ export default function SessionDetailScreen() {
               );
               const workingSets = se.sets;
               return (
-                <CardSm
-                  key={se.id}
-                  onPress={() =>
-                    ex ? router.push(`/exercises/${ex.id}`) : undefined
-                  }
-                >
+                // No onPress on the card itself — the chips below own
+                // their own tap area so editing a logged set works. The
+                // chevron at the right is the discrete "view exercise"
+                // affordance.
+                <CardSm key={se.id}>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                     <View
                       style={{
@@ -445,7 +444,21 @@ export default function SessionDetailScreen() {
                       ) : null}
                     </View>
                     {ex ? (
-                      <Ionicons name="chevron-forward" size={14} color={COLORS.ghost} />
+                      <Pressable
+                        onPress={() => router.push(`/exercises/${ex.id}`)}
+                        hitSlop={10}
+                        style={{
+                          padding: 6,
+                          marginLeft: 4,
+                          marginTop: -2,
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={14}
+                          color={COLORS.ghost}
+                        />
+                      </Pressable>
                     ) : null}
                   </View>
                 </CardSm>
