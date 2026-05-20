@@ -16,29 +16,28 @@ Work on a feature branch, never directly on `main`. Merge to `main` only when wo
 
 Keep this section up to date at the end of each session so the next one starts with context. Remove items once they land or are dropped.
 
-**App Store submission — paused at step 11.**
+**Capable 1.0 — submitted to App Review.** Waiting on Apple.
 
-Where we are in [docs/APP_STORE_CHECKLIST.md](docs/APP_STORE_CHECKLIST.md):
+- ✅ All 12 steps of [docs/APP_STORE_CHECKLIST.md](docs/APP_STORE_CHECKLIST.md) complete.
+- ✅ Production build `1.0.0 (3)` uploaded via `eas submit`, attached to the 1.0 version in App Store Connect.
+- ✅ Listing form filled in from [docs/APP_STORE_LISTING.md](docs/APP_STORE_LISTING.md). Copyright is `2026 Thomas Pedersen`. Contact phone is `+61408853953`. Privacy declared as "Data Not Collected".
+- ✅ Screenshots resized via [scripts/resize-screenshots.ps1](scripts/resize-screenshots.ps1) — 4 PNGs at iPhone 6.9" (1320×2868), iPhone 6.5" (1242×2688), and iPad 13" (2064×2752, upscaled iPhone shots since owner is on Windows).
+- ⏸ **Waiting on Apple** — status `Waiting for Review` → `In Review` (~12–48h) → `Pending Developer Release` or rejection.
+- ⏸ Once approved: "Manually release this version" was chosen, so the user clicks **Release this version** in ASC to go live.
 
-- ✅ 0 Apple Developer Program enrollment (approved)
-- ✅ 1 Privacy + Support pages hosted on GitHub Pages
-- ✅ 2 App Store Connect record created. App Store ID is `6763996819`.
-- ✅ 3 EAS submit wired (`eas.json` `ascAppId` + `appleTeamId` filled in)
-- ✅ 4–9 EAS CLI installed, project initialized, bundle ID registered, preview build succeeded, **production build submitted to App Store Connect via `eas submit`** (after fixing a wrong ascAppId — see PR `claude/fix-asc-app-id` if not yet merged).
-- 🟡 10 Production build is in TestFlight processing / available for the internal tester group. Beta App Description + "What to Test" copy was drafted in chat — paste it into ASC → TestFlight → Beta App Information when next online.
-- ⏸ **11 Fill in App Store Connect listing form** (next session). All paste-ready copy for every field is in [docs/APP_STORE_LISTING.md](docs/APP_STORE_LISTING.md). Open ASC → Capable → "1.0 Prepare for Submission" side by side with that doc.
-- ⏸ Screenshots — required for step 11. Sizes + `xcrun simctl` capture commands in `APP_STORE_LISTING.md`. Owner is on Windows so this needs a Mac (or an iPhone) — ask user how they want to handle.
-- ⏸ 12 Submit for review.
+**Likely follow-ups depending on Apple's response:**
 
-**Open PRs to check before next session:**
-
-- `claude/fix-asc-app-id` — corrects `ascAppId` in `eas.json` from `20036241213` → `6763996819` (the wrong number unblocked nothing on its own; the working tree was patched first so submit could proceed). Merge to get main in sync.
+- **Approved + Pending Developer Release** → no code work; just click Release in ASC, then bump CLAUDE.md again.
+- **Metadata rejected** → tweak listing copy/screenshots in ASC, no rebuild needed.
+- **Binary rejected** → fix the issue, `eas build` + `eas submit`, resubmit.
+- **iPad layout flagged** → drop `ios.supportsTablet` to `false` in `app.json`, rebuild, resubmit (iPad screenshots are technically upscaled iPhone shots so this is the most likely visual rejection).
 
 **Known gaps / unrelated next steps (post App Store):**
 
 - Per-set notes (notes are per-exercise today). If needed, extend `SetLog` with `note?: string` and add a note input to the More sheet.
 - "Delete set" not in the More sheet; easy to add alongside the RIR picker.
 - Audit Mediums still untouched (segmented onLayout race, longestStreak malformed-date guard, length caps on imported strings, etc.).
+- Real iPad screenshots for a future 1.0.1 — needs a Mac or borrowed iPad.
 
 ## Commands
 
