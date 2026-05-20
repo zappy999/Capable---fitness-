@@ -10,6 +10,8 @@ import {
   type Exercise,
   type ExerciseCategory,
 } from '../../src/store/types';
+import { COLORS } from '../../src/design/tokens';
+import { ModernHeader, NavTop } from '../../src/design/components';
 
 export default function ExercisesIndexScreen() {
   const router = useRouter();
@@ -72,39 +74,24 @@ export default function ExercisesIndexScreen() {
   const subtitle = customOnly
     ? 'Exercises you added.'
     : 'Every movement in the catalogue.';
-  const eyebrow = customOnly ? 'CUSTOM' : 'EXERCISES';
+  const eyebrow = customOnly ? 'Custom' : 'Exercises';
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center">
-        <Pressable
-          onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="chevron-back" size={18} color="#ffffff" />
-        </Pressable>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
+      <NavTop onBack={() => router.back()} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        <View
-          className="mx-5 mt-2 rounded-3xl p-6"
-          style={{ backgroundColor: LIME }}
-        >
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            {eyebrow}
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 32 }}>
-            {title}
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            {subtitle}
-          </Text>
-        </View>
+        <ModernHeader
+          eyebrow={eyebrow}
+          title={title}
+          sub={subtitle}
+          accent={LIME}
+          back
+          action={false}
+          dropMark
+        />
 
         <View className="mx-5 mt-5">
           <View className="flex-row items-center bg-[#1A1A1A] border border-[#1F1F1F] rounded-2xl px-4">

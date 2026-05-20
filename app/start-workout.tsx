@@ -32,6 +32,7 @@ import {
   ModernHeader,
   NumMono,
 } from '../src/design/components';
+import { setActiveWorkout } from '../src/lib/activeWorkout';
 
 type DraftSnapshot = {
   startedAt: number;
@@ -789,6 +790,7 @@ export default function StartWorkoutScreen() {
     sessions,
     addCustomExercise,
     logSession,
+    saveWorkout,
     settings,
   } = useStore();
   const NEON = useAccent();
@@ -885,6 +887,7 @@ export default function StartWorkoutScreen() {
     setHydrating(true);
     (async () => {
       let restored = false;
+      let restoredStartedAt: number | null = null;
       try {
         const raw = await AsyncStorage.getItem(
           draftKey(source.kind, source.workoutId),
@@ -907,14 +910,15 @@ export default function StartWorkoutScreen() {
               Math.max(0, Math.min(draft.activeIdx ?? 0, draft.exercises.length - 1)),
             );
             restored = true;
+            restoredStartedAt = draft.startedAt;
           }
         }
       } catch {
         // Corrupt draft: fall through to fresh init below.
       }
+      const freshStartedAt = restored ? restoredStartedAt ?? Date.now() : Date.now();
       if (!cancelled && !restored) {
-        const now = Date.now();
-        setStartedAt(now);
+        setStartedAt(freshStartedAt);
         setElapsed(0);
         setExercises(prefillFirstSets(source.exercises));
         setActiveIdx(0);
@@ -922,6 +926,17 @@ export default function StartWorkoutScreen() {
       if (!cancelled) {
         setLoadedFor(key);
         setHydrating(false);
+        // Surface this session to the tabs so the "Resume active
+        // workout" bar shows when the user leaves start-workout
+        // without finishing.
+        if (source.kind !== 'missing') {
+          setActiveWorkout({
+            kind: source.kind,
+            workoutId: source.workoutId,
+            name: source.name,
+            startedAt: freshStartedAt,
+          });
+        }
       }
     })();
     return () => {
@@ -978,6 +993,7 @@ export default function StartWorkoutScreen() {
     if (loggedExercises.length === 0) {
       cancelNotification(restNotificationId);
       clearDraft();
+      setActiveWorkout(null);
       router.back();
       return;
     }
@@ -1011,6 +1027,34 @@ export default function StartWorkoutScreen() {
       exercises: loggedExercises.map(({ name, ...rest }) => rest),
     });
 
+    // Persist any per-exercise note edits back to the source workout so
+    // they're prefilled the next time the user starts the same workout.
+    // Only applies to user-created workouts; demo workouts aren't writable.
+    if (source.kind === 'user' && source.workoutId) {
+      const sourceWorkout = workouts.find((w) => w.id === source.workoutId);
+      if (sourceWorkout) {
+        const draftNotesById = new Map<string, string | undefined>(
+          exercises.map((ex) => [ex.id, ex.note?.trim() || undefined]),
+        );
+        const noteChanged = sourceWorkout.exercises.some((we) => {
+          const next = draftNotesById.get(we.id);
+          return (we.note ?? undefined) !== next;
+        });
+        if (noteChanged) {
+          saveWorkout({
+            id: sourceWorkout.id,
+            name: sourceWorkout.name,
+            exercises: sourceWorkout.exercises.map((we) => ({
+              ...we,
+              note: draftNotesById.has(we.id)
+                ? draftNotesById.get(we.id)
+                : we.note,
+            })),
+          });
+        }
+      }
+    }
+
     const rows: SummaryRow[] = loggedExercises.map((le) => {
       const prior = priorByExId.get(le.exerciseId);
       return {
@@ -1026,6 +1070,7 @@ export default function StartWorkoutScreen() {
 
     cancelNotification(restNotificationId);
     clearDraft();
+    setActiveWorkout(null);
     haptic('success');
 
     setSummary({
@@ -1121,6 +1166,20 @@ export default function StartWorkoutScreen() {
   const completed = exercises
     .map((e, i) => ({ ...e, _idx: i }))
     .filter((e) => e.sets.every((s) => s.completed));
+
+  // Library id for the active exercise, resolved by id then by case-
+  // insensitive name match. Drives the tappable name affordance — when
+  // this is null we hide the chevron so the user doesn't tap into
+  // nothing.
+  const activeHistoryId = useMemo(() => {
+    if (!active) return null;
+    if (active.exerciseId) return active.exerciseId;
+    const target = active.name.trim().toLowerCase();
+    const match = libraryExercises.find(
+      (e) => e.name.trim().toLowerCase() === target,
+    );
+    return match?.id ?? null;
+  }, [active?.exerciseId, active?.name, libraryExercises]);
 
   const updateSet = (exIdx: number, setIdx: number, patch: Partial<SetLog>) => {
     setExercises((prev) => {
@@ -1441,9 +1500,35 @@ export default function StartWorkoutScreen() {
         <View className="mx-4 mb-4 rounded-3xl border border-white/10 bg-[#101010] p-5">
           <View className="flex-row items-start justify-between mb-3">
             <View className="flex-1 pr-3">
-              <Text className="text-white font-bold" style={{ fontSize: 22 }}>
-                {active.name}
-              </Text>
+              <Pressable
+                onPress={() => {
+                  if (!activeHistoryId) return;
+                  haptic('light');
+                  router.push(`/exercises/${activeHistoryId}`);
+                }}
+                disabled={!activeHistoryId}
+                hitSlop={10}
+                style={{
+                  alignSelf: 'flex-start',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingVertical: 4,
+                  paddingRight: 8,
+                }}
+              >
+                <Text className="text-white font-bold" style={{ fontSize: 22 }}>
+                  {active.name}
+                </Text>
+                {activeHistoryId ? (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color="rgba(255,255,255,0.35)"
+                    style={{ marginTop: 3 }}
+                  />
+                ) : null}
+              </Pressable>
               <Text className="text-gray-500 mt-1" style={{ fontSize: 13 }}>
                 Target: {active.target} · {stats.completedSets === 0 ? '0' : active.sets.filter(s => s.completed).length}/{active.sets.length} sets
               </Text>
@@ -1772,6 +1857,7 @@ export default function StartWorkoutScreen() {
                       style: 'destructive',
                       onPress: () => {
                         clearDraft();
+                        setActiveWorkout(null);
                         router.back();
                       },
                     },

@@ -126,6 +126,39 @@ export function longestStreak(dates: string[]): number {
   return best;
 }
 
+function todayLocalISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+/**
+ * Count of consecutive days ending on (at latest) today, walking back
+ * until a gap. If there's no session today, falls back to yesterday so
+ * morning dashboard checks before that day's workout don't reset the
+ * streak prematurely. Once two days pass without a session, the streak
+ * resets to 0.
+ */
+export function currentStreak(
+  dates: string[],
+  reference: string = todayLocalISO(),
+): number {
+  if (dates.length === 0) return 0;
+  const set = new Set(dates);
+  let cur = reference;
+  if (!set.has(cur)) {
+    cur = addDaysISO(cur, -1);
+    if (!set.has(cur)) return 0;
+  }
+  let len = 0;
+  while (set.has(cur)) {
+    len += 1;
+    cur = addDaysISO(cur, -1);
+  }
+  return len;
+}
+
 function progressFor(
   id: AchievementId,
   state: AchievementInputState,

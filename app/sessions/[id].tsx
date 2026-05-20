@@ -8,12 +8,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
-import { MUSCLE_COLORS } from '../../src/store/types';
+import { MUSCLE_COLORS, type SessionSet } from '../../src/store/types';
 import {
   COLORS,
   MONO,
@@ -58,6 +59,87 @@ export default function SessionDetailScreen() {
 
   const session = sessions.find((s) => s.id === id);
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
+  // Tapping an exercise row opens a multi-set editor for that
+  // exercise. draftSets holds the in-flight values so changes aren't
+  // committed until the user taps Save.
+  const [editExId, setEditExId] = useState<string | null>(null);
+  const [draftSets, setDraftSets] = useState<SessionSet[]>([]);
+
+  const editingExercise = useMemo(() => {
+    if (!editExId || !session) return null;
+    const ex = session.exercises.find((e) => e.id === editExId);
+    if (!ex) return null;
+    const exDef = exercises.find((e) => e.id === ex.exerciseId);
+    return { ex, exDef };
+  }, [editExId, session, exercises]);
+
+  const openEdit = (exId: string) => {
+    if (!session) return;
+    const ex = session.exercises.find((e) => e.id === exId);
+    if (!ex) return;
+    setEditExId(exId);
+    setDraftSets(ex.sets.map((s) => ({ ...s })));
+  };
+
+  const closeEdit = () => setEditExId(null);
+
+  const patchDraftSet = (idx: number, patch: Partial<SessionSet>) => {
+    setDraftSets((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
+    );
+  };
+
+  const deleteDraftSet = (idx: number) => {
+    setDraftSets((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const addDraftSet = () => {
+    setDraftSets((prev) => {
+      const last = prev[prev.length - 1];
+      return [
+        ...prev,
+        {
+          weight: last?.weight ?? 0,
+          reps: last?.reps ?? 0,
+          rir: last?.rir,
+          rpe: last?.rpe,
+        },
+      ];
+    });
+  };
+
+  const handleSaveExercise = () => {
+    if (!session || !editExId) return;
+    // Drop zero-rep sets so the user can't save an empty placeholder.
+    const cleaned = draftSets.filter((s) => s.reps > 0);
+    const nextExercises = session.exercises
+      .map((ex) => (ex.id === editExId ? { ...ex, sets: cleaned } : ex))
+      .filter((ex) => ex.sets.length > 0);
+    updateSession(session.id, { exercises: nextExercises });
+    closeEdit();
+  };
+
+  const handleDeleteExercise = () => {
+    if (!session || !editExId) return;
+    Alert.alert(
+      'Delete this exercise from the session?',
+      'All of its logged sets are removed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const nextExercises = session.exercises.filter(
+              (ex) => ex.id !== editExId,
+            );
+            updateSession(session.id, { exercises: nextExercises });
+            closeEdit();
+          },
+        },
+      ],
+    );
+  };
 
   const stats = useMemo(() => {
     if (!session) return null;
@@ -237,12 +319,11 @@ export default function SessionDetailScreen() {
               );
               const workingSets = se.sets;
               return (
-                <CardSm
-                  key={se.id}
-                  onPress={() =>
-                    ex ? router.push(`/exercises/${ex.id}`) : undefined
-                  }
-                >
+                // Tap the card to open the multi-set editor. The
+                // chevron-forward Pressable below has its own onPress
+                // for navigating to exercise history, and RN's hit
+                // testing routes the touch to the inner Pressable.
+                <CardSm key={se.id} onPress={() => openEdit(se.id)}>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                     <View
                       style={{
@@ -352,7 +433,21 @@ export default function SessionDetailScreen() {
                       ) : null}
                     </View>
                     {ex ? (
-                      <Ionicons name="chevron-forward" size={14} color={COLORS.ghost} />
+                      <Pressable
+                        onPress={() => router.push(`/exercises/${ex.id}`)}
+                        hitSlop={10}
+                        style={{
+                          padding: 6,
+                          marginLeft: 4,
+                          marginTop: -2,
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={14}
+                          color={COLORS.ghost}
+                        />
+                      </Pressable>
                     ) : null}
                   </View>
                 </CardSm>
@@ -361,6 +456,367 @@ export default function SessionDetailScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Multi-set editor sheet for the tapped exercise */}
+      <Modal
+        visible={editExId !== null && editingExercise !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeEdit}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <Pressable
+            onPress={closeEdit}
+            style={{ flex: 1 }}
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View
+              style={{
+                backgroundColor: COLORS.surface,
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                paddingTop: 20,
+                paddingHorizontal: 20,
+                paddingBottom: 32,
+                maxHeight: '85%',
+              }}
+            >
+              {/* Header */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  marginBottom: 16,
+                }}
+              >
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: COLORS.subtle,
+                      fontWeight: '800',
+                      letterSpacing: 1,
+                    }}
+                  >
+                    EDIT EXERCISE
+                  </Text>
+                  <Text
+                    style={{
+                      color: COLORS.text,
+                      fontSize: 20,
+                      fontWeight: '800',
+                      letterSpacing: -0.2,
+                      marginTop: 2,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {editingExercise?.exDef?.name ?? 'Exercise'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={closeEdit}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="close" size={16} color={COLORS.text} />
+                </Pressable>
+              </View>
+
+              {/* Scrollable list of editable sets */}
+              <ScrollView
+                style={{ marginHorizontal: -4 }}
+                contentContainerStyle={{ paddingHorizontal: 4 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {draftSets.map((s, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      backgroundColor: COLORS.bg,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: COLORS.border,
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '800',
+                          color: COLORS.subtle,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        SET {i + 1}
+                      </Text>
+                      <Pressable
+                        onPress={() => deleteDraftSet(i)}
+                        hitSlop={8}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={14}
+                          color="#F87171"
+                        />
+                      </Pressable>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.subtle,
+                            marginBottom: 4,
+                          }}
+                        >
+                          Weight
+                        </Text>
+                        <TextInput
+                          value={s.weight === 0 ? '' : String(s.weight)}
+                          onChangeText={(v) => {
+                            const sanitized = v
+                              .replace(',', '.')
+                              .replace(/[^0-9.]/g, '')
+                              .replace(/(\..*)\./g, '$1');
+                            const n = parseFloat(sanitized);
+                            patchDraftSet(i, {
+                              weight: Number.isFinite(n) ? n : 0,
+                            });
+                          }}
+                          keyboardType="decimal-pad"
+                          placeholder="kg"
+                          placeholderTextColor={COLORS.faint}
+                          selectTextOnFocus
+                          style={{
+                            backgroundColor: COLORS.surface,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            borderRadius: 10,
+                            paddingVertical: 10,
+                            paddingHorizontal: 10,
+                            fontSize: 15,
+                            fontFamily: MONO,
+                            color: COLORS.text,
+                            textAlign: 'center',
+                            fontWeight: '700',
+                          }}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.subtle,
+                            marginBottom: 4,
+                          }}
+                        >
+                          Reps
+                        </Text>
+                        <TextInput
+                          value={s.reps === 0 ? '' : String(s.reps)}
+                          onChangeText={(v) => {
+                            const sanitized = v.replace(/[^0-9]/g, '');
+                            const n = parseInt(sanitized, 10);
+                            patchDraftSet(i, {
+                              reps: Number.isFinite(n) ? n : 0,
+                            });
+                          }}
+                          keyboardType="number-pad"
+                          placeholder="reps"
+                          placeholderTextColor={COLORS.faint}
+                          selectTextOnFocus
+                          style={{
+                            backgroundColor: COLORS.surface,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            borderRadius: 10,
+                            paddingVertical: 10,
+                            paddingHorizontal: 10,
+                            fontSize: 15,
+                            fontFamily: MONO,
+                            color: COLORS.text,
+                            textAlign: 'center',
+                            fontWeight: '700',
+                          }}
+                        />
+                      </View>
+                      <View style={{ width: 96 }}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            color: COLORS.subtle,
+                            marginBottom: 4,
+                          }}
+                        >
+                          RIR
+                        </Text>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            backgroundColor: COLORS.surface,
+                            borderWidth: 1,
+                            borderColor: COLORS.border,
+                            borderRadius: 10,
+                            padding: 3,
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((n) => {
+                            const on = s.rir === n;
+                            return (
+                              <Pressable
+                                key={n}
+                                onPress={() =>
+                                  patchDraftSet(i, {
+                                    rir: on ? undefined : n,
+                                  })
+                                }
+                                style={{
+                                  flex: 1,
+                                  alignItems: 'center',
+                                  paddingVertical: 6,
+                                  borderRadius: 7,
+                                  backgroundColor: on
+                                    ? '#60A5FA'
+                                    : 'transparent',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: '700',
+                                    color: on
+                                      ? COLORS.onAccent
+                                      : COLORS.muted,
+                                  }}
+                                >
+                                  {n}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Add-set pill */}
+                <Pressable
+                  onPress={addDraftSet}
+                  style={{
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                    marginTop: 4,
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}
+                  >
+                    + Add set
+                  </Text>
+                </Pressable>
+              </ScrollView>
+
+              {/* Footer */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 10,
+                  marginTop: 10,
+                  alignItems: 'center',
+                }}
+              >
+                <Pressable
+                  onPress={handleDeleteExercise}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(248,113,113,0.1)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(248,113,113,0.3)',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={14} color="#F87171" />
+                  <Text
+                    style={{ color: '#F87171', fontWeight: '700', fontSize: 13 }}
+                  >
+                    Remove
+                  </Text>
+                </Pressable>
+                <View style={{ flex: 1 }} />
+                <Pressable
+                  onPress={closeEdit}
+                  style={{
+                    paddingHorizontal: 18,
+                    paddingVertical: 13,
+                    borderRadius: 14,
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.text, fontWeight: '700', fontSize: 13 }}
+                  >
+                    Cancel
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveExercise}
+                  style={{
+                    paddingHorizontal: 22,
+                    paddingVertical: 13,
+                    borderRadius: 14,
+                    backgroundColor: COLORS.text,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: COLORS.onAccent,
+                      fontWeight: '800',
+                      fontSize: 13,
+                    }}
+                  >
+                    Save
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
