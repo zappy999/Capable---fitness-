@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAccent, useStore } from '../../src/store/WorkoutStore';
+import { COLORS } from '../../src/design/tokens';
+import { ModernHeader, NavTop } from '../../src/design/components';
 import {
   EXERCISE_CATEGORIES,
   type Exercise,
@@ -242,40 +244,21 @@ export default function ReviewImportScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0D0D0D]" edges={['top']}>
-      <View className="px-5 pt-2 pb-2 flex-row items-center justify-between">
-        <Pressable
-          onPress={handleCancel}
-          className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#1F1F1F] items-center justify-center active:opacity-70"
-        >
-          <Ionicons name="close" size={18} color="#ffffff" />
-        </Pressable>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top']}>
+      <NavTop onBack={handleCancel} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 140 }}
       >
-        <View
-          className="mx-5 mt-2 rounded-3xl p-6"
-          style={{ backgroundColor: LIME }}
-        >
-          <Text
-            className="font-bold text-black/70"
-            style={{ fontSize: 11, letterSpacing: 2 }}
-          >
-            REVIEW IMPORT
-          </Text>
-          <Text className="text-black font-bold mt-2" style={{ fontSize: 30 }}>
-            {name || 'Imported program'}
-          </Text>
-          <Text className="text-black/70 mt-1" style={{ fontSize: 14 }}>
-            {totals.workouts} workout{totals.workouts === 1 ? '' : 's'} ·{' '}
-            {totals.exs} exercise{totals.exs === 1 ? '' : 's'}
-            {totals.unmatched > 0
-              ? ` · ${totals.unmatched} new`
-              : ' · all matched'}
-          </Text>
-        </View>
+        <ModernHeader
+          eyebrow="Review import"
+          title={name || 'Imported program'}
+          sub={`${totals.workouts} workout${totals.workouts === 1 ? '' : 's'} · ${totals.exs} exercise${totals.exs === 1 ? '' : 's'}${totals.unmatched > 0 ? ` · ${totals.unmatched} new` : ' · all matched'}`}
+          accent={LIME}
+          back
+          action={false}
+          dropMark
+        />
 
         <Section title="Program">
           <FieldLabel>Name</FieldLabel>
